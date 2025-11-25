@@ -71,3 +71,8 @@ output "configure_kubectl_command" {
   value       = "az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.aks.name}"
 }
 
+output "node_resource_group_name" {
+  description = "The name of the automatically created node resource group"
+  value       = azurerm_kubernetes_cluster.aks.node_resource_group
+}
+
