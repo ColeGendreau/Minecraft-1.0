@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/**"
       - "environments/**"
+      - "INFRASTRUCTURE_STATE"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +23,19 @@ jobs:
         with:
           fetch-depth: 2
       
+      - name: Check infrastructure state
+        id: check_state
+        run: |
+          STATE=$(cat INFRASTRUCTURE_STATE | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+          echo "state=$STATE" >> $GITHUB_OUTPUT
+          if [ "$STATE" = "OFF" ]; then
+            echo "Infrastructure is OFF - skipping deployment"
+            exit 0
+          fi
+          echo "Infrastructure is ON - proceeding with deployment"
+      
       - name: Azure login (OIDC)
+        if: steps.check_state.outputs.state == 'ON'
         uses: azure/login@v2
         with:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -30,6 +43,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
       
       - name: Get AKS credentials
+        if: steps.check_state.outputs.state == 'ON'
         run: |
           az aks get-credentials \
             --resource-group mc-demo-dev-rg \
@@ -38,11 +52,13 @@ jobs:
             --overwrite-existing
       
       - name: Install Helm
+        if: steps.check_state.outputs.state == 'ON'
         uses: azure/setup-helm@v4
         with:
           version: 'v3.18.6'
       
       - name: Add Helm repositories
+        if: steps.check_state.outputs.state == 'ON'
         run: |
           helm repo add itzg https://itzg.github.io/minecraft-server-charts/
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -51,6 +67,7 @@ jobs:
           helm repo update
       
       - name: Get infrastructure info from Azure
+        if: steps.check_state.outputs.state == 'ON'
         id: infra
         run: |
           # Get the public IP address
@@ -70,60 +87,43 @@ jobs:
           echo "✅ Node Resource Group: $NODE_RG"
       
       - name: Check for changes
+        if: steps.check_state.outputs.state == 'ON'
         id: changes
         run: |
           git diff --name-only HEAD~1 HEAD > changed_files.txt
           cat changed_files.txt
           
-          if grep -q "apps/minecraft/" changed_files.txt; then
+          # Check if INFRASTRUCTURE_STATE changed to ON (deploy everything)
+          if grep -q "INFRASTRUCTURE_STATE" changed_files.txt && [ "${{ steps.check_state.outputs.state }}" = "ON" ]; then
+            echo "Infrastructure provisioned - deploying all applications"
             echo "minecraft=true" >> $GITHUB_OUTPUT
-          fi
-          if grep -q "apps/monitoring/" changed_files.txt; then
             echo "monitoring=true" >> $GITHUB_OUTPUT
-          fi
-          if grep -q "environments/ingress-values.yaml" changed_files.txt; then
             echo "ingress=true" >> $GITHUB_OUTPUT
-          fi
-          if grep -q "environments/cert-manager-values.yaml" changed_files.txt; then
             echo "certmanager=true" >> $GITHUB_OUTPUT
-          fi
-          if grep -q "apps/cert-manager/" changed_files.txt; then
             echo "certmanager_resources=true" >> $GITHUB_OUTPUT
+          else
+            # Check for specific application changes
+            if grep -q "apps/minecraft/" changed_files.txt; then
+              echo "minecraft=true" >> $GITHUB_OUTPUT
+            fi
+            if grep -q "apps/monitoring/" changed_files.txt; then
+              echo "monitoring=true" >> $GITHUB_OUTPUT
+            fi
+            if grep -q "environments/ingress-values.yaml" changed_files.txt; then
+              echo "ingress=true" >> $GITHUB_OUTPUT
+            fi
+            if grep -q "environments/cert-manager-values.yaml" changed_files.txt; then
+              echo "certmanager=true" >> $GITHUB_OUTPUT
+            fi
+            if grep -q "apps/cert-manager/" changed_files.txt; then
+              echo "certmanager_resources=true" >> $GITHUB_OUTPUT
+            fi
           fi
       
-      - name: Deploy Minecraft
-        if: steps.changes.outputs.minecraft == 'true'
-        run: |
-          echo "🚀 Deploying Minecraft..."
-          helm upgrade minecraft itzg/minecraft \
-            --install \
-            --namespace minecraft \
-            --create-namespace \
-            --values apps/minecraft/values.yaml \
-            --set minecraftServer.loadBalancerIP=${{ steps.infra.outputs.public_ip }} \
-            --wait \
-            --timeout 5m
-          echo "✅ Minecraft deployed successfully"
-      
-      - name: Deploy Monitoring
-        if: steps.changes.outputs.monitoring == 'true'
-        run: |
-          echo "🚀 Deploying Monitoring stack..."
-          helm upgrade prometheus-community prometheus-community/kube-prometheus-stack \
-            --install \
-            --namespace monitoring \
-            --create-namespace \
-            --values apps/monitoring/values.yaml \
-            --set grafana.ingress.hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
-            --set grafana.ingress.tls[0].hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
-            --wait \
-            --timeout 10m
-          echo "✅ Monitoring stack deployed successfully"
-      
-      - name: Update Ingress
+      - name: Deploy Ingress Controller
         if: steps.changes.outputs.ingress == 'true'
         run: |
-          echo "🚀 Updating Ingress..."
+          echo "🚀 Deploying NGINX Ingress Controller..."
           helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
             --install \
             --namespace ingress-nginx \
@@ -133,9 +133,9 @@ jobs:
             --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-resource-group"=${{ steps.infra.outputs.node_rg }} \
             --wait \
             --timeout 5m
-          echo "✅ Ingress updated successfully"
+          echo "✅ Ingress Controller deployed successfully"
       
-      - name: Update cert-manager
+      - name: Deploy cert-manager
         if: steps.changes.outputs.certmanager == 'true'
         run: |
           echo "🚀 Updating cert-manager..."
@@ -155,7 +155,37 @@ jobs:
           kubectl apply -f apps/cert-manager/cluster-issuer.yaml
           echo "✅ cert-manager resources applied successfully"
       
+      - name: Deploy Minecraft Server
+        if: steps.changes.outputs.minecraft == 'true'
+        run: |
+          echo "🚀 Deploying Minecraft Server..."
+          helm upgrade minecraft itzg/minecraft \
+            --install \
+            --namespace minecraft \
+            --create-namespace \
+            --values apps/minecraft/values.yaml \
+            --set minecraftServer.loadBalancerIP=${{ steps.infra.outputs.public_ip }} \
+            --wait \
+            --timeout 5m
+          echo "✅ Minecraft deployed successfully"
+      
+      - name: Deploy Monitoring Stack
+        if: steps.changes.outputs.monitoring == 'true'
+        run: |
+          echo "🚀 Deploying Monitoring Stack (Prometheus/Grafana)..."
+          helm upgrade prometheus-community prometheus-community/kube-prometheus-stack \
+            --install \
+            --namespace monitoring \
+            --create-namespace \
+            --values apps/monitoring/values.yaml \
+            --set grafana.ingress.hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
+            --set grafana.ingress.tls[0].hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
+            --wait \
+            --timeout 10m
+          echo "✅ Monitoring stack deployed successfully"
+      
       - name: Get deployment status
+        if: steps.check_state.outputs.state == 'ON'
         run: |
           echo "=== Deployment Status ==="
           kubectl get pods -A | grep -E "NAMESPACE|minecraft|monitoring|ingress-nginx|cert-manager"
