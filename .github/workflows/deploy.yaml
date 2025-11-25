@@ -1,0 +1,108 @@
+name: deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "apps/**"
+      - "environments/**"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group mc-demo-dev-rg \
+            --name mc-demo-dev-aks \
+            --admin \
+            --overwrite-existing
+      
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.18.6'
+      
+      - name: Add Helm repositories
+        run: |
+          helm repo add itzg https://itzg.github.io/minecraft-server-charts/
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+      
+      - name: Deploy Minecraft
+        if: contains(github.event.head_commit.modified, 'apps/minecraft/')
+        run: |
+          helm upgrade minecraft itzg/minecraft \
+            --namespace minecraft \
+            --create-namespace \
+            --values apps/minecraft/values.yaml \
+            --wait \
+            --timeout 5m
+          echo "✅ Minecraft deployed successfully"
+      
+      - name: Deploy Monitoring
+        if: contains(github.event.head_commit.modified, 'apps/monitoring/')
+        run: |
+          helm upgrade prometheus-community prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --values apps/monitoring/values.yaml \
+            --wait \
+            --timeout 10m
+          echo "✅ Monitoring stack deployed successfully"
+      
+      - name: Update Ingress
+        if: contains(github.event.head_commit.modified, 'environments/ingress-values.yaml')
+        run: |
+          helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --values environments/ingress-values.yaml \
+            --wait \
+            --timeout 5m
+          echo "✅ Ingress updated successfully"
+      
+      - name: Update cert-manager
+        if: contains(github.event.head_commit.modified, 'environments/cert-manager-values.yaml')
+        run: |
+          helm upgrade cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --values environments/cert-manager-values.yaml \
+            --wait \
+            --timeout 5m
+          echo "✅ cert-manager updated successfully"
+      
+      - name: Apply cert-manager resources
+        if: contains(github.event.head_commit.modified, 'apps/cert-manager/')
+        run: |
+          kubectl apply -f apps/cert-manager/cluster-issuer.yaml
+          echo "✅ cert-manager resources applied successfully"
+      
+      - name: Get deployment status
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get pods -A | grep -E "NAMESPACE|minecraft|monitoring|ingress-nginx|cert-manager"
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -A | grep LoadBalancer
+
