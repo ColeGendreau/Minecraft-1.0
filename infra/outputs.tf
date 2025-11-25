@@ -76,3 +76,13 @@ output "node_resource_group_name" {
   value       = azurerm_kubernetes_cluster.aks.node_resource_group
 }
 
+output "grafana_url" {
+  description = "Public URL for Grafana dashboard (HTTPS with automated TLS)"
+  value       = "https://grafana.${azurerm_public_ip.ingress.ip_address}.nip.io"
+}
+
+output "minecraft_server_address" {
+  description = "Minecraft server connection address (IP:Port)"
+  value       = "${azurerm_public_ip.ingress.ip_address}:25565"
+}
+
