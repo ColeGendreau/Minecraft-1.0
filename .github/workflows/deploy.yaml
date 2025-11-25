@@ -6,7 +6,11 @@ on:
     paths:
       - "apps/**"
       - "environments/**"
-      - "INFRASTRUCTURE_STATE"
+  workflow_run:
+    workflows: ["terraform"]
+    types:
+      - completed
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -28,11 +32,25 @@ jobs:
         run: |
           STATE=$(cat INFRASTRUCTURE_STATE | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
           echo "state=$STATE" >> $GITHUB_OUTPUT
-          if [ "$STATE" = "OFF" ]; then
-            echo "Infrastructure is OFF - skipping deployment"
-            exit 0
+          
+          # If triggered by workflow_run, check if terraform workflow succeeded
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+              echo "Terraform workflow did not succeed - skipping deployment"
+              exit 0
+            fi
+            if [ "$STATE" = "OFF" ]; then
+              echo "Infrastructure is OFF - skipping deployment"
+              exit 0
+            fi
+            echo "Terraform workflow succeeded and infrastructure is ON - deploying all applications"
+          else
+            if [ "$STATE" = "OFF" ]; then
+              echo "Infrastructure is OFF - skipping deployment"
+              exit 0
+            fi
+            echo "Infrastructure is ON - checking for application changes"
           fi
-          echo "Infrastructure is ON - proceeding with deployment"
       
       - name: Azure login (OIDC)
         if: steps.check_state.outputs.state == 'ON'
@@ -90,19 +108,19 @@ jobs:
         if: steps.check_state.outputs.state == 'ON'
         id: changes
         run: |
-          git diff --name-only HEAD~1 HEAD > changed_files.txt
-          cat changed_files.txt
-          
-          # Check if INFRASTRUCTURE_STATE changed to ON (deploy everything)
-          if grep -q "INFRASTRUCTURE_STATE" changed_files.txt && [ "${{ steps.check_state.outputs.state }}" = "ON" ]; then
-            echo "Infrastructure provisioned - deploying all applications"
+          # If triggered by workflow_run (after terraform succeeds), deploy everything
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "Terraform workflow completed - deploying all applications"
             echo "minecraft=true" >> $GITHUB_OUTPUT
             echo "monitoring=true" >> $GITHUB_OUTPUT
             echo "ingress=true" >> $GITHUB_OUTPUT
             echo "certmanager=true" >> $GITHUB_OUTPUT
             echo "certmanager_resources=true" >> $GITHUB_OUTPUT
           else
-            # Check for specific application changes
+            # For push events, check which files changed
+            git diff --name-only HEAD~1 HEAD > changed_files.txt
+            cat changed_files.txt
+            
             if grep -q "apps/minecraft/" changed_files.txt; then
               echo "minecraft=true" >> $GITHUB_OUTPUT
             fi
