@@ -3,8 +3,7 @@ controller:
     type: LoadBalancer
     externalTrafficPolicy: Local
     annotations:
-      service.beta.kubernetes.io/azure-load-balancer-resource-group: "<REPLACE_WITH_NODE_RESOURCE_GROUP>"
+      service.beta.kubernetes.io/azure-load-balancer-resource-group: "MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3"
       service.beta.kubernetes.io/azure-pip-name: mc-demo-dev-ingress-ip
-    # Replace with actual IP from terraform output ingress_public_ip
-    loadBalancerIP: "<REPLACE_WITH_terraform_output_ingress_public_ip>"
+    loadBalancerIP: "57.154.70.117"
 

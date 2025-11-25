@@ -1,0 +1,43 @@
+minecraftServer:
+  eula: "TRUE"
+  version: "LATEST"
+  type: "VANILLA"
+  difficulty: normal
+  whitelist: ""
+  ops: ""
+  pvp: true
+  maxPlayers: 20
+  maxWorldSize: 10000
+  allowNether: true
+  announcePlayerAchievements: true
+  enableCommandBlock: false
+  forcegameMode: false
+  generateStructures: true
+  hardcore: false
+  maxBuildHeight: 256
+  maxTickTime: 60000
+  spawnAnimals: true
+  spawnMonsters: true
+  spawnNPCs: true
+  spawnProtection: 16
+  viewDistance: 10
+  levelSeed: ""
+  gameMode: survival
+  motd: "Welcome to Cole's Minecraft Server - DevOps Demo"
+  serviceType: LoadBalancer
+  loadBalancerIP: 57.154.70.117
+  servicePort: 25565
+
+persistence:
+  dataDir:
+    enabled: true
+    Size: 1Gi
+
+resources:
+  requests:
+    memory: 1Gi
+    cpu: 500m
+  limits:
+    memory: 2Gi
+    cpu: 1000m
+
