@@ -25,9 +25,31 @@ All configuration is declarative, version-controlled, and automatically deployed
 
 ---
 
-## 💡 Infrastructure On/Off Switch
+## 💡 One-Click Infrastructure & Application Deployment
 
-Control your entire infrastructure with a single file:
+Control your entire stack with a single file:
+
+**To provision everything (infrastructure + all applications):**
+```bash
+echo "ON" > INFRASTRUCTURE_STATE
+git add INFRASTRUCTURE_STATE
+git commit -m "provision infrastructure and deploy applications"
+git push
+```
+
+**What happens automatically:**
+1. Terraform provisions Azure infrastructure (~7-10 minutes)
+   - AKS cluster, ACR, Log Analytics, Public IP
+2. Deploy workflow automatically triggers and deploys all applications (~3-5 minutes)
+   - NGINX Ingress Controller
+   - cert-manager with Let's Encrypt
+   - Minecraft Server (with auto-detected Public IP)
+   - Prometheus & Grafana monitoring (with HTTPS)
+3. **Result:** Fully functional Minecraft server with monitoring at a new IP address
+
+**Total time:** ~12-15 minutes from zero to fully deployed
+
+---
 
 **To destroy everything (save costs):**
 ```bash
@@ -37,21 +59,10 @@ git commit -m "destroy infrastructure"
 git push
 ```
 
-**To rebuild everything:**
-```bash
-echo "ON" > INFRASTRUCTURE_STATE
-git add INFRASTRUCTURE_STATE
-git commit -m "provision infrastructure"
-git push
-```
-
-GitHub Actions automatically provisions or destroys all Azure resources in ~10 minutes.
-
-**How destroy works:**
-1. Workflow detects `INFRASTRUCTURE_STATE` is `OFF`
-2. Automatically cleans up Kubernetes resources (namespaces, LoadBalancers)
-3. Runs `terraform destroy` to remove all Azure infrastructure
-4. Total cleanup time: ~10-12 minutes
+**What happens automatically:**
+1. Workflow cleans up Kubernetes resources (LoadBalancers, namespaces)
+2. Terraform destroys all Azure infrastructure
+3. **Total time:** ~10-12 minutes
 
 ---
 
