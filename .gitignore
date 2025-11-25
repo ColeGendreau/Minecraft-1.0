@@ -42,3 +42,4 @@ secrets/
 *.pem
 *.key
 *.crt
+docs_site/
