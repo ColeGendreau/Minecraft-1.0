@@ -25,7 +25,7 @@ variable "aks_node_count" {
 variable "aks_node_size" {
   description = "VM size for AKS nodes"
   type        = string
-  default     = "Standard_D2as_v5"
+  default     = "Standard_D2ds_v6"
 }
 
 variable "kubernetes_version" {
