@@ -12,6 +12,22 @@ This project uses:
 - **Prometheus + Grafana + Loki** for monitoring and logging
 - **NGINX Ingress Controller** for routing and TLS termination
 
+## Automated Workflows
+
+### Infrastructure Pipeline (`.github/workflows/terraform.yaml`)
+**Triggers**: Changes to `infra/**` files
+**Actions**: Runs `terraform plan` and `terraform apply` to provision/update Azure resources
+**Authentication**: OIDC (no stored credentials)
+
+### Application Deployment Pipeline (`.github/workflows/deploy.yaml`)
+**Triggers**: Changes to `apps/**` or `environments/**` files
+**Actions**: 
+- Automatically runs `helm upgrade` for modified applications
+- Detects which service changed and deploys only that service
+- Waits for deployments to be healthy before completing
+
+**Example**: Change `apps/minecraft/values.yaml` → Push to GitHub → Minecraft automatically redeploys in ~60 seconds
+
 ## Prerequisites
 
 - Azure subscription with appropriate permissions
