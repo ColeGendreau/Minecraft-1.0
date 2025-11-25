@@ -48,10 +48,34 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
       
-      - name: Deploy Minecraft
-        if: contains(github.event.head_commit.modified, 'apps/minecraft/')
+      - name: Check for changes
+        id: changes
         run: |
+          git diff --name-only HEAD~1 HEAD > changed_files.txt
+          cat changed_files.txt
+          
+          if grep -q "apps/minecraft/" changed_files.txt; then
+            echo "minecraft=true" >> $GITHUB_OUTPUT
+          fi
+          if grep -q "apps/monitoring/" changed_files.txt; then
+            echo "monitoring=true" >> $GITHUB_OUTPUT
+          fi
+          if grep -q "environments/ingress-values.yaml" changed_files.txt; then
+            echo "ingress=true" >> $GITHUB_OUTPUT
+          fi
+          if grep -q "environments/cert-manager-values.yaml" changed_files.txt; then
+            echo "certmanager=true" >> $GITHUB_OUTPUT
+          fi
+          if grep -q "apps/cert-manager/" changed_files.txt; then
+            echo "certmanager_resources=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Deploy Minecraft
+        if: steps.changes.outputs.minecraft == 'true'
+        run: |
+          echo "🚀 Deploying Minecraft..."
           helm upgrade minecraft itzg/minecraft \
+            --install \
             --namespace minecraft \
             --create-namespace \
             --values apps/minecraft/values.yaml \
@@ -60,9 +84,11 @@ jobs:
           echo "✅ Minecraft deployed successfully"
       
       - name: Deploy Monitoring
-        if: contains(github.event.head_commit.modified, 'apps/monitoring/')
+        if: steps.changes.outputs.monitoring == 'true'
         run: |
+          echo "🚀 Deploying Monitoring stack..."
           helm upgrade prometheus-community prometheus-community/kube-prometheus-stack \
+            --install \
             --namespace monitoring \
             --create-namespace \
             --values apps/monitoring/values.yaml \
@@ -71,9 +97,11 @@ jobs:
           echo "✅ Monitoring stack deployed successfully"
       
       - name: Update Ingress
-        if: contains(github.event.head_commit.modified, 'environments/ingress-values.yaml')
+        if: steps.changes.outputs.ingress == 'true'
         run: |
+          echo "🚀 Updating Ingress..."
           helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
+            --install \
             --namespace ingress-nginx \
             --create-namespace \
             --values environments/ingress-values.yaml \
@@ -82,9 +110,11 @@ jobs:
           echo "✅ Ingress updated successfully"
       
       - name: Update cert-manager
-        if: contains(github.event.head_commit.modified, 'environments/cert-manager-values.yaml')
+        if: steps.changes.outputs.certmanager == 'true'
         run: |
+          echo "🚀 Updating cert-manager..."
           helm upgrade cert-manager jetstack/cert-manager \
+            --install \
             --namespace cert-manager \
             --create-namespace \
             --values environments/cert-manager-values.yaml \
@@ -93,8 +123,9 @@ jobs:
           echo "✅ cert-manager updated successfully"
       
       - name: Apply cert-manager resources
-        if: contains(github.event.head_commit.modified, 'apps/cert-manager/')
+        if: steps.changes.outputs.certmanager_resources == 'true'
         run: |
+          echo "🚀 Applying cert-manager resources..."
           kubectl apply -f apps/cert-manager/cluster-issuer.yaml
           echo "✅ cert-manager resources applied successfully"
       
