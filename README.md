@@ -25,6 +25,30 @@ All configuration is declarative, version-controlled, and automatically deployed
 
 ---
 
+## 💡 Infrastructure On/Off Switch
+
+Control your entire infrastructure with a single file:
+
+**To destroy everything (save costs):**
+```bash
+echo "OFF" > INFRASTRUCTURE_STATE
+git add INFRASTRUCTURE_STATE
+git commit -m "destroy infrastructure"
+git push
+```
+
+**To rebuild everything:**
+```bash
+echo "ON" > INFRASTRUCTURE_STATE
+git add INFRASTRUCTURE_STATE
+git commit -m "provision infrastructure"
+git push
+```
+
+GitHub Actions automatically provisions or destroys all Azure resources in ~10 minutes.
+
+---
+
 ## Tech Stack
 
 **Cloud & Infrastructure**

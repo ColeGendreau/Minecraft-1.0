@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - "infra/**"
+      - "INFRASTRUCTURE_STATE"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Check infrastructure state
+        id: check_state
+        run: |
+          STATE=$(cat ../INFRASTRUCTURE_STATE | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+          echo "state=$STATE" >> $GITHUB_OUTPUT
+          if [ "$STATE" = "ON" ]; then
+            echo "🟢 Infrastructure state: ON - Will provision/update resources"
+          elif [ "$STATE" = "OFF" ]; then
+            echo "🔴 Infrastructure state: OFF - Will destroy all resources"
+          else
+            echo "⚠️  Invalid state: $STATE (must be ON or OFF)"
+            exit 1
+          fi
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -50,10 +65,20 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Terraform plan
+      - name: Terraform plan (provision)
+        if: steps.check_state.outputs.state == 'ON'
         run: terraform plan -out=tfplan
 
-      - name: Terraform apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform apply -auto-approve tfplan
+      - name: Terraform apply (provision)
+        if: steps.check_state.outputs.state == 'ON' && github.ref == 'refs/heads/main'
+        run: |
+          terraform apply -auto-approve tfplan
+          echo "✅ Infrastructure provisioned successfully"
+      
+      - name: Terraform destroy (teardown)
+        if: steps.check_state.outputs.state == 'OFF' && github.ref == 'refs/heads/main'
+        run: |
+          echo "🔴 DESTROYING ALL INFRASTRUCTURE..."
+          terraform destroy -auto-approve
+          echo "✅ Infrastructure destroyed successfully"
 
