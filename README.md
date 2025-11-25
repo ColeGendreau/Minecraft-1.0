@@ -1,259 +1,193 @@
-# Minecraft 1.0 - DevOps Project
+# Minecraft DevOps Pipeline
 
-Fully automated pipeline that provisions and deploys a Minecraft server on Azure Kubernetes Service with HTTPS and public monitoring dashboards.
+Production-grade automated DevOps pipeline deploying a Minecraft server on Azure Kubernetes Service with complete CI/CD, HTTPS, and monitoring.
+
+---
+
+## 🚀 Live Demo
+
+**Grafana Dashboard:** [https://grafana.57.154.70.117.nip.io](https://grafana.57.154.70.117.nip.io)  
+**Minecraft Server:** `57.154.70.117:25565`
+
+---
+
+## What This Does
+
+Complete end-to-end automation from infrastructure to deployment:
+
+1. **Push code** to GitHub
+2. **GitHub Actions** detects changes and authenticates via OIDC
+3. **Terraform** provisions Azure infrastructure OR **Helm** deploys applications
+4. **Kubernetes** performs rolling updates with zero downtime
+5. **Live in ~2 minutes** with full monitoring
+
+All configuration is declarative, version-controlled, and automatically deployed.
+
+---
+
+## Tech Stack
+
+**Cloud & Infrastructure**
+- Azure Kubernetes Service (AKS)
+- Azure Container Registry (ACR)
+- Terraform with remote state backend
+- Azure Load Balancer + Static Public IP
+
+**Kubernetes & Deployment**
+- Helm for package management
+- NGINX Ingress Controller
+- cert-manager + Let's Encrypt (automated TLS)
+- Rolling update deployments
+
+**CI/CD & Security**
+- GitHub Actions workflows
+- OpenID Connect (OIDC) authentication
+- Zero stored credentials
+- Kubernetes RBAC
+
+**Monitoring & Observability**
+- Prometheus metrics collection
+- Grafana dashboards (public HTTPS access)
+- Azure Log Analytics + Container Insights
+
+---
+
+## Key Features
+
+- ✅ **Full Infrastructure as Code** - Complete Azure setup in Terraform
+- ✅ **Automated CI/CD** - Push to deploy, no manual steps
+- ✅ **Zero Stored Credentials** - OIDC authentication everywhere
+- ✅ **HTTPS Everywhere** - Automated Let's Encrypt certificates
+- ✅ **Complete Monitoring** - Real-time metrics and dashboards
+- ✅ **GitOps Workflow** - Git as single source of truth
+- ✅ **Production Patterns** - Remote state, RBAC, rolling updates
+
+---
+
+## Repository Structure
+
+```
+├── .github/workflows/    # CI/CD automation
+│   ├── terraform.yaml    # Infrastructure deployment
+│   └── deploy.yaml       # Application deployment
+├── infra/                # Terraform configuration
+│   ├── main.tf          # Resource group
+│   ├── aks.tf           # Kubernetes cluster
+│   ├── acr.tf           # Container registry
+│   └── ...
+├── apps/                 # Application configurations
+│   ├── minecraft/       # Minecraft server config
+│   └── monitoring/      # Prometheus + Grafana
+└── environments/         # Helm values
+    ├── ingress-values.yaml
+    └── cert-manager-values.yaml
+```
+
+---
 
 ## Architecture
 
-This project uses:
-- **Terraform** for infrastructure provisioning on Azure
-- **Helm** for Kubernetes application deployments
-- **GitHub Actions** for CI/CD automation
-- **cert-manager** for automatic HTTPS certificates via Let's Encrypt
-- **Prometheus + Grafana + Loki** for monitoring and logging
-- **NGINX Ingress Controller** for routing and TLS termination
-
-## Automated Workflows
-
-### Infrastructure Pipeline (`.github/workflows/terraform.yaml`)
-**Triggers**: Changes to `infra/**` files
-**Actions**: Runs `terraform plan` and `terraform apply` to provision/update Azure resources
-**Authentication**: OIDC (no stored credentials)
-
-### Application Deployment Pipeline (`.github/workflows/deploy.yaml`)
-**Triggers**: Changes to `apps/**` or `environments/**` files
-**Actions**: 
-- Automatically runs `helm upgrade` for modified applications
-- Detects which service changed and deploys only that service
-- Waits for deployments to be healthy before completing
-
-**Example**: Change `apps/minecraft/values.yaml` → Push to GitHub → Minecraft automatically redeploys in ~60 seconds
-
-## Prerequisites
-
-- Azure subscription with appropriate permissions
-- Azure CLI installed (`az`)
-- Terraform >= 1.5.0
-- kubectl
-- Helm >= 3.0
-- GitHub repository with OIDC configured for Azure
-
-## Step 1: Infrastructure Provisioning with Terraform
-
-### What Gets Created
-
-The Terraform configuration in `infra/` provisions:
-
-| Resource | Description |
-|----------|-------------|
-| **Resource Group** | Container for all Azure resources |
-| **Azure Container Registry (ACR)** | Private container registry (Basic SKU) |
-| **Azure Kubernetes Service (AKS)** | Managed Kubernetes cluster with 2 nodes |
-| **Log Analytics Workspace** | Centralized logging and monitoring |
-| **Static Public IP** | Dedicated IP for NGINX ingress controller |
-
-### Configuration Files
-
 ```
-infra/
-├── versions.tf         # Terraform and provider version constraints
-├── providers.tf        # Azure provider configuration
-├── variables.tf        # Input variables with defaults
-├── main.tf            # Resource group
-├── acr.tf             # Azure Container Registry + AKS integration
-├── log_analytics.tf   # Log Analytics workspace and Container Insights
-├── aks.tf             # AKS cluster with monitoring enabled
-├── publicip.tf        # Static public IP for ingress
-└── outputs.tf         # Output values for use in CI/CD
+Developer → Git Push → GitHub Actions (OIDC) → Azure
+                                ↓
+                        Terraform or Helm
+                                ↓
+                        Azure Kubernetes Service
+                                ↓
+                    Live Services + Monitoring
 ```
 
-### Key Configuration Details
+**Infrastructure Pipeline:**
+- Triggers on changes to `infra/**`
+- Runs Terraform plan and apply
+- Provisions AKS, ACR, networking, monitoring
 
-- **Project Name**: `mc-demo` (customizable via variable)
-- **Default Region**: `westus3`
-- **Node Size**: `Standard_D2as_v5` (cost-effective ARM-based VMs)
-- **Node Count**: 2 (for high availability)
-- **Kubernetes Version**: 1.28
-- **ACR SKU**: Basic (low-cost option)
-- **Network Plugin**: kubenet (simpler networking model)
-
-### Local Deployment
-
-1. **Navigate to the infrastructure directory:**
-   ```bash
-   cd infra/
-   ```
-
-2. **Initialize Terraform:**
-   ```bash
-   terraform init
-   ```
-
-3. **Review the execution plan:**
-   ```bash
-   terraform plan
-   ```
-
-4. **Apply the configuration:**
-   ```bash
-   terraform apply
-   ```
-
-5. **Save important outputs:**
-   ```bash
-   # Get the ingress public IP
-   terraform output ingress_public_ip
-   
-   # Configure kubectl to access your cluster
-   az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks
-   
-   # Verify cluster access
-   kubectl get nodes
-   ```
-
-### Customization
-
-Create a `terraform.tfvars` file to override defaults:
-
-```hcl
-project_name    = "my-mc-server"
-environment     = "prod"
-location        = "eastus"
-aks_node_count  = 3
-aks_node_size   = "Standard_D4as_v5"
-```
-
-### Outputs
-
-After successful deployment, Terraform provides:
-
-- `ingress_public_ip` - Use this for DNS configuration
-- `aks_cluster_name` - Cluster name for kubectl configuration
-- `acr_login_server` - Container registry URL
-- `configure_kubectl_command` - Ready-to-run kubectl config command
-
-### Cost Estimation
-
-Expected monthly costs (approximate):
-- AKS: ~$140 (2x Standard_D2as_v5 nodes)
-- ACR Basic: ~$5
-- Public IP: ~$3
-- Log Analytics: ~$2-10 (usage-based)
-
-**Total: ~$150-160/month**
-
-### Cleanup
-
-To destroy all resources:
-
-```bash
-cd infra/
-terraform destroy
-```
-
-**Warning**: This permanently deletes all resources and data.
+**Application Pipeline:**
+- Triggers on changes to `apps/**` or `environments/**`
+- Detects which service changed
+- Runs Helm upgrade for affected services only
+- Waits for pods to be healthy
 
 ---
 
-## Step 2: GitHub Actions Automation
+## Quick Start
 
-The Terraform workflow at `.github/workflows/terraform.yaml` automatically runs on pushes to `main` that modify `infra/**`.
+**Prerequisites:** Azure subscription, Azure CLI, Terraform, kubectl, Helm
 
-### Workflow Steps
+### 1. Bootstrap Terraform State Backend
+```bash
+cd bootstrap/
+terraform init
+terraform apply
+```
 
-1. **Format Check** - Validates Terraform code formatting
-2. **Initialize** - Downloads providers and modules
-3. **Validate** - Checks configuration syntax
-4. **Plan** - Creates execution plan
-5. **Apply** - Applies infrastructure changes (main branch only)
+### 2. Deploy Infrastructure
+```bash
+cd infra/
+terraform init
+terraform apply
+```
 
-### Authentication
+### 3. Deploy Applications
+```bash
+# Connect to cluster
+az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks
 
-Uses Azure OIDC (no stored credentials). Requires three repository secrets:
+# Add Helm repos
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add jetstack https://charts.jetstack.io
+helm repo add itzg https://itzg.github.io/minecraft-server-charts/
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Deploy services (see docs/ for detailed commands)
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --values environments/ingress-values.yaml
+helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --values environments/cert-manager-values.yaml
+kubectl apply -f apps/cert-manager/cluster-issuer.yaml
+helm upgrade --install minecraft itzg/minecraft -n minecraft --create-namespace --values apps/minecraft/values.yaml
+helm upgrade --install prometheus-community prometheus-community/kube-prometheus-stack -n monitoring --create-namespace --values apps/monitoring/values.yaml
+```
+
+### 4. Set up GitHub Actions
+
+Configure repository secrets:
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+- `TF_STATE_ACCESS_KEY`
 
-See [docs/SETUP.md](docs/SETUP.md) for complete Azure and GitHub configuration instructions.
-
-### Manual Trigger
-
-You can also trigger the workflow manually from the Actions tab using `workflow_dispatch`.
+See [docs/SETUP.md](docs/SETUP.md) for detailed Azure OIDC configuration.
 
 ---
 
-## Step 3: Kubernetes Cluster Setup
+## Configuration
 
-### Step 3A: Local Bootstrap (Helm)
+**Change Minecraft settings:** Edit `apps/minecraft/values.yaml` and push to Git. Automated deployment updates the server in ~60 seconds.
 
-After Terraform has provisioned the infrastructure, bootstrap the cluster with required components using Helm.
+**Modify infrastructure:** Edit files in `infra/` and push to Git. Terraform automatically applies changes.
 
-**Prerequisites:**
-- Infrastructure deployed via Terraform
-- kubectl configured to access the AKS cluster
-- Helm 3.x installed
-
-**Configuration Files:**
-- `environments/ingress-values.yaml` - NGINX Ingress Controller settings
-- `environments/cert-manager-values.yaml` - cert-manager installation options
-- `apps/cert-manager/cluster-issuer.yaml` - Let's Encrypt ClusterIssuer
-
-**Bootstrap Commands:**
-
-```bash
-# Get cluster credentials
-az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks
-
-# Add Helm repositories
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-
-# Install NGINX Ingress Controller
-# Update environments/ingress-values.yaml with the actual ingress IP first
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx \
-  --create-namespace \
-  --values environments/ingress-values.yaml
-
-# Install cert-manager
-helm upgrade --install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --values environments/cert-manager-values.yaml
-
-# Apply Let's Encrypt ClusterIssuer
-# Update apps/cert-manager/cluster-issuer.yaml with your email first
-kubectl apply -f apps/cert-manager/cluster-issuer.yaml
-
-# Verify installations
-kubectl get pods -n ingress-nginx
-kubectl get pods -n cert-manager
-kubectl get clusterissuer
-```
-
-**Next:** Configure monitoring stack (Prometheus, Grafana, Loki) and Minecraft server deployment.
+**Scale cluster:** Update `aks_node_count` in `infra/variables.tf` or `terraform.tfvars`.
 
 ---
 
-## Project Status
+## Cost Estimate
 
-- [x] **Infrastructure as Code** - Complete Terraform configuration with remote state backend
-- [x] **CI/CD Automation** - GitHub Actions with OIDC authentication for infrastructure and applications
-- [x] **Kubernetes Deployment** - Helm charts for ingress-nginx, cert-manager, monitoring, and Minecraft
-- [x] **Automated Deployments** - Automated Helm upgrades triggered by Git commits
-- [x] **Live Demo** - Working Minecraft server and public Grafana dashboard with HTTPS
-- [x] **Monitoring & Observability** - Prometheus metrics collection with Grafana visualization
-- [x] **Security** - Let's Encrypt TLS certificates, OIDC authentication, Kubernetes RBAC
+Running infrastructure costs approximately **$3-5/day** (~$100-150/month):
+- AKS cluster (2 nodes): ~$3.50/day
+- Azure Container Registry (Basic): ~$0.16/day  
+- Log Analytics: ~$0.10-0.50/day
+- Static Public IP: ~$0.10/day
 
-**Live Services:**
-- Minecraft Server: `57.154.70.117:25565`
-- Grafana Dashboard: [https://grafana.57.154.70.117.nip.io](https://grafana.57.154.70.117.nip.io)
+Can be destroyed and rebuilt in ~10 minutes via automation.
 
-## Additional Resources
+---
 
-- [Azure Kubernetes Service Documentation](https://docs.microsoft.com/en-us/azure/aks/)
-- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
-- [Helm Documentation](https://helm.sh/docs/)
+## Documentation
+
+- [Setup Guide](docs/SETUP.md) - Complete Azure and GitHub configuration
+- [Quick Start](docs/QUICKSTART.md) - Fast-track deployment instructions
+
+---
 
 ## License
 
