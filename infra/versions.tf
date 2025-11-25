@@ -12,13 +12,14 @@ terraform {
     }
   }
 
-  # Backend configuration for remote state (optional)
-  # Uncomment and configure if using Azure Storage for state
-  # backend "azurerm" {
-  #   resource_group_name  = "terraform-state-rg"
-  #   storage_account_name = "tfstatexxxxx"
-  #   container_name       = "tfstate"
-  #   key                  = "minecraft.tfstate"
-  # }
+  # Backend configuration for remote state
+  # State is stored in Azure Storage to persist between workflow runs
+  backend "azurerm" {
+    resource_group_name  = "mc-demo-tfstate-rg"
+    storage_account_name = "mcdemodevtfstate"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+    # Access key is provided via ARM_ACCESS_KEY environment variable
+  }
 }
 

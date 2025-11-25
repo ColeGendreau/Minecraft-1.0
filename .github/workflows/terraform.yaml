@@ -21,6 +21,9 @@ jobs:
     defaults:
       run:
         working-directory: infra
+    
+    env:
+      ARM_ACCESS_KEY: ${{ secrets.TF_STATE_ACCESS_KEY }}
 
     steps:
       - name: Checkout
