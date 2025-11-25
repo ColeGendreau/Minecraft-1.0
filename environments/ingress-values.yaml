@@ -1,0 +1,10 @@
+controller:
+  service:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-resource-group: mc-demo-dev-rg
+      service.beta.kubernetes.io/azure-pip-name: mc-demo-dev-ingress-ip
+    # Replace with actual IP from terraform output ingress_public_ip
+    loadBalancerIP: "<REPLACE_WITH_terraform_output_ingress_public_ip>"
+

@@ -165,6 +165,60 @@ You can also trigger the workflow manually from the Actions tab using `workflow_
 
 ---
 
+## Step 3: Kubernetes Cluster Setup
+
+### Step 3A: Local Bootstrap (Helm)
+
+After Terraform has provisioned the infrastructure, bootstrap the cluster with required components using Helm.
+
+**Prerequisites:**
+- Infrastructure deployed via Terraform
+- kubectl configured to access the AKS cluster
+- Helm 3.x installed
+
+**Configuration Files:**
+- `environments/ingress-values.yaml` - NGINX Ingress Controller settings
+- `environments/cert-manager-values.yaml` - cert-manager installation options
+- `apps/cert-manager/cluster-issuer.yaml` - Let's Encrypt ClusterIssuer
+
+**Bootstrap Commands:**
+
+```bash
+# Get cluster credentials
+az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks
+
+# Add Helm repositories
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+
+# Install NGINX Ingress Controller
+# Update environments/ingress-values.yaml with the actual ingress IP first
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --values environments/ingress-values.yaml
+
+# Install cert-manager
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --values environments/cert-manager-values.yaml
+
+# Apply Let's Encrypt ClusterIssuer
+# Update apps/cert-manager/cluster-issuer.yaml with your email first
+kubectl apply -f apps/cert-manager/cluster-issuer.yaml
+
+# Verify installations
+kubectl get pods -n ingress-nginx
+kubectl get pods -n cert-manager
+kubectl get clusterissuer
+```
+
+**Next:** Configure monitoring stack (Prometheus, Grafana, Loki) and Minecraft server deployment.
+
+---
+
 ## Next Steps
 
 - [x] Step 1: Infrastructure as Code with Terraform
