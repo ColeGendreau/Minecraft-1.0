@@ -23,7 +23,7 @@ minecraftServer:
   viewDistance: 10
   levelSeed: ""
   gameMode: survival
-  motd: "§6§lCole's K8s Server §r§7- §a§lAUTO-DEPLOY WORKS! §b✓"
+  motd: "§6§lCole's K8s Server §r§7- §c§lCI/CD PIPELINE! §a✓"
   serviceType: LoadBalancer
   loadBalancerIP: 57.154.70.117
   servicePort: 25565
