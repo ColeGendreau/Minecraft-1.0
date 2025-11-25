@@ -50,6 +50,25 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
       
+      - name: Get infrastructure info from Azure
+        id: infra
+        run: |
+          # Get the public IP address
+          PUBLIC_IP=$(az network public-ip show \
+            --resource-group MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3 \
+            --name mc-demo-dev-ingress-ip \
+            --query ipAddress -o tsv)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "✅ Public IP: $PUBLIC_IP"
+          
+          # Get the node resource group name
+          NODE_RG=$(az aks show \
+            --resource-group mc-demo-dev-rg \
+            --name mc-demo-dev-aks \
+            --query nodeResourceGroup -o tsv)
+          echo "node_rg=$NODE_RG" >> $GITHUB_OUTPUT
+          echo "✅ Node Resource Group: $NODE_RG"
+      
       - name: Check for changes
         id: changes
         run: |
@@ -81,6 +100,7 @@ jobs:
             --namespace minecraft \
             --create-namespace \
             --values apps/minecraft/values.yaml \
+            --set minecraftServer.loadBalancerIP=${{ steps.infra.outputs.public_ip }} \
             --wait \
             --timeout 5m
           echo "✅ Minecraft deployed successfully"
@@ -94,6 +114,8 @@ jobs:
             --namespace monitoring \
             --create-namespace \
             --values apps/monitoring/values.yaml \
+            --set grafana.ingress.hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
+            --set grafana.ingress.tls[0].hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
             --wait \
             --timeout 10m
           echo "✅ Monitoring stack deployed successfully"
@@ -107,6 +129,8 @@ jobs:
             --namespace ingress-nginx \
             --create-namespace \
             --values environments/ingress-values.yaml \
+            --set controller.service.loadBalancerIP=${{ steps.infra.outputs.public_ip }} \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-resource-group"=${{ steps.infra.outputs.node_rg }} \
             --wait \
             --timeout 5m
           echo "✅ Ingress updated successfully"
