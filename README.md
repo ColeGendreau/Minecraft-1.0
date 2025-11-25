@@ -47,6 +47,12 @@ git push
 
 GitHub Actions automatically provisions or destroys all Azure resources in ~10 minutes.
 
+**How destroy works:**
+1. Workflow detects `INFRASTRUCTURE_STATE` is `OFF`
+2. Automatically cleans up Kubernetes resources (namespaces, LoadBalancers)
+3. Runs `terraform destroy` to remove all Azure infrastructure
+4. Total cleanup time: ~10-12 minutes
+
 ---
 
 ## Tech Stack

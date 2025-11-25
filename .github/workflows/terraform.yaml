@@ -75,6 +75,31 @@ jobs:
           terraform apply -auto-approve tfplan
           echo "✅ Infrastructure provisioned successfully"
       
+      - name: Cleanup Kubernetes resources before destroy
+        if: steps.check_state.outputs.state == 'OFF' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        run: |
+          echo "Cleaning up Kubernetes resources that may be using the Public IP..."
+          
+          # Check if AKS cluster exists
+          if az aks show --resource-group mc-demo-dev-rg --name mc-demo-dev-aks &>/dev/null; then
+            echo "AKS cluster found. Getting credentials..."
+            az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --admin --overwrite-existing
+            
+            # Delete namespaces with LoadBalancer services
+            echo "Deleting Kubernetes namespaces..."
+            kubectl delete namespace minecraft --ignore-not-found=true --timeout=120s || true
+            kubectl delete namespace ingress-nginx --ignore-not-found=true --timeout=120s || true
+            
+            # Wait a moment for Azure to release the Public IP
+            echo "Waiting for Azure to release Public IP..."
+            sleep 30
+            
+            echo "Kubernetes cleanup complete"
+          else
+            echo "AKS cluster not found, skipping Kubernetes cleanup"
+          fi
+      
       - name: Terraform destroy (teardown)
         if: steps.check_state.outputs.state == 'OFF' && github.ref == 'refs/heads/main'
         run: |
