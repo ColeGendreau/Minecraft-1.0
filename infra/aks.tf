@@ -37,7 +37,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   # Security and compliance
   azure_policy_enabled = false
-  
+
   # RBAC
   azure_active_directory_role_based_access_control {
     managed            = true
