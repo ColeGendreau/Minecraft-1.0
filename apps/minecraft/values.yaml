@@ -23,7 +23,7 @@ minecraftServer:
   viewDistance: 10
   levelSeed: ""
   gameMode: survival
-  motd: "§6§lCole's K8s Server §r§7- §bLive Interview Demo! §a✓"
+  motd: "§6§lCole's K8s Server §r§7- §d§lFULLY AUTOMATED! §a✓"
   serviceType: LoadBalancer
   loadBalancerIP: 57.154.70.117
   servicePort: 25565
