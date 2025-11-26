@@ -29,46 +29,6 @@ All configuration is declarative, version-controlled, and automatically deployed
 
 ---
 
-## One-Click Infrastructure & Application Deployment
-
-Control your entire stack with a single file:
-
-**To provision everything (infrastructure + all applications):**
-```bash
-echo "ON" > INFRASTRUCTURE_STATE
-git add INFRASTRUCTURE_STATE
-git commit -m "provision infrastructure and deploy applications"
-git push
-```
-
-**What happens automatically:**
-1. Terraform provisions Azure infrastructure (~7-10 minutes)
-   - AKS cluster, ACR, Log Analytics, Public IP
-2. Deploy workflow automatically triggers and deploys all applications (~3-5 minutes)
-   - NGINX Ingress Controller
-   - cert-manager with Let's Encrypt
-   - Minecraft Server (with auto-detected Public IP)
-   - Prometheus & Grafana monitoring (with HTTPS)
-3. **Result:** Fully functional Minecraft server with monitoring at a new IP address
-
-**Total time:** ~12-15 minutes from zero to fully deployed
-
----
-
-**To destroy everything (save costs):**
-```bash
-echo "OFF" > INFRASTRUCTURE_STATE
-git add INFRASTRUCTURE_STATE
-git commit -m "destroy infrastructure"
-git push
-```
-
-**What happens automatically:**
-1. Workflow cleans up Kubernetes resources (LoadBalancers, namespaces)
-2. Terraform destroys all Azure infrastructure
-3. **Total time:** ~10-12 minutes
-
----
 
 ## Tech Stack
 
@@ -159,33 +119,44 @@ Developer → Git Push → GitHub Actions (OIDC) → Azure
 
 **Prerequisites:** Azure subscription with Contributor access, GitHub repository
 
-### 1. One-Time Setup: Bootstrap Terraform State Backend
+### One-Time Setup
+
+**1. Bootstrap Terraform State Backend**
 ```bash
 cd bootstrap/
 terraform init
 terraform apply
 ```
 
-This creates the Azure Storage account where Terraform will store its state.
+**2. Configure GitHub Secrets**
 
-### 2. Configure GitHub Secrets
-
-Set up these repository secrets for OIDC authentication:
+Add these repository secrets for OIDC authentication:
 - `AZURE_CLIENT_ID` - App registration client ID
 - `AZURE_TENANT_ID` - Azure tenant ID  
 - `AZURE_SUBSCRIPTION_ID` - Azure subscription ID
 - `TF_STATE_ACCESS_KEY` - Storage account access key from step 1
 
-### 3. Deploy Everything
+### Deploy Infrastructure
 
 ```bash
 echo "ON" > INFRASTRUCTURE_STATE
 git add INFRASTRUCTURE_STATE
-git commit -m "deploy infrastructure and applications"
+git commit -m "deploy infrastructure"
 git push
 ```
 
-That's it. GitHub Actions automatically provisions infrastructure and deploys all applications in ~12-15 minutes.
+**What happens:** GitHub Actions provisions Azure infrastructure (AKS, ACR, networking) and automatically deploys all applications (NGINX Ingress, cert-manager, Minecraft, Grafana). Total time: ~12-15 minutes.
+
+### Destroy Infrastructure
+
+```bash
+echo "OFF" > INFRASTRUCTURE_STATE
+git add INFRASTRUCTURE_STATE
+git commit -m "destroy infrastructure"
+git push
+```
+
+**What happens:** Kubernetes resources are cleaned up, then Terraform destroys all Azure infrastructure. Total time: ~10-12 minutes.
 
 ---
 
