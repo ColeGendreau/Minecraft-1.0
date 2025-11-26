@@ -4,7 +4,7 @@ Production-grade automated DevOps pipeline deploying a Minecraft server on Azure
 
 ---
 
-## 🚀 Live Demo
+## Live Demo
 
 When infrastructure is running, access via:
 
@@ -29,7 +29,7 @@ All configuration is declarative, version-controlled, and automatically deployed
 
 ---
 
-## 💡 One-Click Infrastructure & Application Deployment
+## One-Click Infrastructure & Application Deployment
 
 Control your entire stack with a single file:
 
@@ -99,13 +99,13 @@ git push
 
 ## Key Features
 
-- ✅ **Full Infrastructure as Code** - Complete Azure setup in Terraform
-- ✅ **Automated CI/CD** - Push to deploy, no manual steps
-- ✅ **Zero Stored Credentials** - OIDC authentication everywhere
-- ✅ **HTTPS Everywhere** - Automated Let's Encrypt certificates
-- ✅ **Complete Monitoring** - Real-time metrics and dashboards
-- ✅ **GitOps Workflow** - Git as single source of truth
-- ✅ **Production Patterns** - Remote state, RBAC, rolling updates
+- **Full Infrastructure as Code** - Complete Azure setup in Terraform
+- **Automated CI/CD** - Push to deploy, no manual steps
+- **Zero Stored Credentials** - OIDC authentication everywhere
+- **HTTPS Everywhere** - Automated Let's Encrypt certificates
+- **Complete Monitoring** - Real-time metrics and dashboards
+- **GitOps Workflow** - Git as single source of truth
+- **Production Patterns** - Remote state, RBAC, rolling updates
 
 ---
 
@@ -224,13 +224,6 @@ Running infrastructure costs approximately **$3-5/day** (~$100-150/month):
 - Static Public IP: ~$0.10/day
 
 Can be destroyed and rebuilt in ~10 minutes via automation.
-
----
-
-## Documentation
-
-- [Setup Guide](docs/SETUP.md) - Complete Azure and GitHub configuration
-- [Quick Start](docs/QUICKSTART.md) - Fast-track deployment instructions
 
 ---
 
