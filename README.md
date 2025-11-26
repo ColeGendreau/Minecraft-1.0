@@ -157,51 +157,35 @@ Developer → Git Push → GitHub Actions (OIDC) → Azure
 
 ## Quick Start
 
-**Prerequisites:** Azure subscription, Azure CLI, Terraform, kubectl, Helm
+**Prerequisites:** Azure subscription with Contributor access, GitHub repository
 
-### 1. Bootstrap Terraform State Backend
+### 1. One-Time Setup: Bootstrap Terraform State Backend
 ```bash
 cd bootstrap/
 terraform init
 terraform apply
 ```
 
-### 2. Deploy Infrastructure
+This creates the Azure Storage account where Terraform will store its state.
+
+### 2. Configure GitHub Secrets
+
+Set up these repository secrets for OIDC authentication:
+- `AZURE_CLIENT_ID` - App registration client ID
+- `AZURE_TENANT_ID` - Azure tenant ID  
+- `AZURE_SUBSCRIPTION_ID` - Azure subscription ID
+- `TF_STATE_ACCESS_KEY` - Storage account access key from step 1
+
+### 3. Deploy Everything
+
 ```bash
-cd infra/
-terraform init
-terraform apply
+echo "ON" > INFRASTRUCTURE_STATE
+git add INFRASTRUCTURE_STATE
+git commit -m "deploy infrastructure and applications"
+git push
 ```
 
-### 3. Deploy Applications
-```bash
-# Connect to cluster
-az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks
-
-# Add Helm repos
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo add jetstack https://charts.jetstack.io
-helm repo add itzg https://itzg.github.io/minecraft-server-charts/
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-# Deploy services (see docs/ for detailed commands)
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --values environments/ingress-values.yaml
-helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --values environments/cert-manager-values.yaml
-kubectl apply -f apps/cert-manager/cluster-issuer.yaml
-helm upgrade --install minecraft itzg/minecraft -n minecraft --create-namespace --values apps/minecraft/values.yaml
-helm upgrade --install prometheus-community prometheus-community/kube-prometheus-stack -n monitoring --create-namespace --values apps/monitoring/values.yaml
-```
-
-### 4. Set up GitHub Actions
-
-Configure repository secrets:
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-- `TF_STATE_ACCESS_KEY`
-
-See [docs/SETUP.md](docs/SETUP.md) for detailed Azure OIDC configuration.
+That's it. GitHub Actions automatically provisions infrastructure and deploys all applications in ~12-15 minutes.
 
 ---
 
