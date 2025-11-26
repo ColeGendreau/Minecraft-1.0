@@ -6,8 +6,12 @@ Production-grade automated DevOps pipeline deploying a Minecraft server on Azure
 
 ## 🚀 Live Demo
 
-**Grafana Dashboard:** [https://grafana.57.154.70.117.nip.io](https://grafana.57.154.70.117.nip.io)  
-**Minecraft Server:** `57.154.70.117:25565`
+When infrastructure is running, access via:
+
+**Grafana Dashboard:** `https://grafana.<PUBLIC_IP>.nip.io` (see Terraform outputs)  
+**Minecraft Server:** `<PUBLIC_IP>:25565` (see Terraform outputs)
+
+To get your current IP and URLs, check the Terraform workflow logs after deployment completes.
 
 ---
 
