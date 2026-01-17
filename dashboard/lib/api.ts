@@ -177,3 +177,48 @@ export async function toggleInfrastructure(targetState: 'ON' | 'OFF'): Promise<{
 export async function getInfrastructureCost(): Promise<InfrastructureCostResponse> {
   return fetchApi<InfrastructureCostResponse>('/api/infrastructure/cost');
 }
+
+// ========== WORKFLOW STATUS ==========
+
+export interface WorkflowStep {
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'skipped' | null;
+}
+
+export interface WorkflowJob {
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'skipped' | null;
+  steps: WorkflowStep[];
+}
+
+export interface WorkflowRun {
+  id: number;
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed' | 'waiting';
+  conclusion: 'success' | 'failure' | 'cancelled' | null;
+  url: string;
+  startedAt: string;
+  updatedAt: string;
+  jobs?: WorkflowJob[];
+}
+
+export interface LatestWorkflowResponse {
+  hasActiveRun: boolean;
+  latestRun: WorkflowRun | null;
+  error?: string;
+}
+
+// Get latest terraform workflow status
+export async function getLatestWorkflow(): Promise<LatestWorkflowResponse> {
+  return fetchApi<LatestWorkflowResponse>('/api/workflows/latest', {}, 10000);
+}
+
+// Get workflow run details with jobs/steps
+export async function getWorkflowRunDetails(runId: number): Promise<{
+  runId: number;
+  jobs: WorkflowJob[];
+}> {
+  return fetchApi(`/api/workflows/runs/${runId}`, {}, 10000);
+}

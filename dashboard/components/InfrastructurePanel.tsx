@@ -4,64 +4,64 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   getInfrastructureStatus,
   toggleInfrastructure,
+  getLatestWorkflow,
   type InfrastructureStatusResponse,
+  type LatestWorkflowResponse,
+  type WorkflowJob,
 } from '@/lib/api';
-import { BlockBuildAnimation, MiniBlockProgress } from './BlockBuildAnimation';
+import { BlockBuildAnimation } from './BlockBuildAnimation';
 
 // Minecraft-themed service definitions
 const MINECRAFT_SERVICES = [
-  { id: 'aks', name: 'Kubernetes Cluster', icon: '⛏️', block: 'command_block', description: 'Azure AKS orchestration' },
-  { id: 'acr', name: 'Container Registry', icon: '📦', block: 'chest', description: 'Docker image storage' },
-  { id: 'ingress', name: 'Ingress Controller', icon: '🚪', block: 'iron_door', description: 'NGINX traffic routing' },
-  { id: 'certmanager', name: 'SSL Certificates', icon: '🔒', block: 'enchanting_table', description: "Let's Encrypt TLS" },
-  { id: 'minecraft', name: 'Minecraft Server', icon: '🎮', block: 'grass_block', description: 'Java Edition server' },
-  { id: 'prometheus', name: 'Prometheus', icon: '📊', block: 'observer', description: 'Metrics collection' },
-  { id: 'grafana', name: 'Grafana', icon: '📈', block: 'map', description: 'Monitoring dashboard' },
-  { id: 'loki', name: 'Loki Logs', icon: '📋', block: 'book', description: 'Log aggregation' },
+  { id: 'aks', name: 'Kubernetes', icon: '⛏️', description: 'AKS Cluster' },
+  { id: 'acr', name: 'Registry', icon: '📦', description: 'Container images' },
+  { id: 'ingress', name: 'Ingress', icon: '🚪', description: 'Traffic routing' },
+  { id: 'certmanager', name: 'SSL', icon: '🔒', description: 'Certificates' },
+  { id: 'minecraft', name: 'Minecraft', icon: '🎮', description: 'Game server' },
+  { id: 'prometheus', name: 'Metrics', icon: '📊', description: 'Prometheus' },
+  { id: 'grafana', name: 'Grafana', icon: '📈', description: 'Dashboards' },
+  { id: 'loki', name: 'Logs', icon: '📋', description: 'Log collection' },
 ];
 
-// Fun Minecraft quotes for loading states
+// Minecraft quotes for loading
 const MINECRAFT_QUOTES = [
-  "Mining resources...",
-  "Punching trees...",
-  "Crafting infrastructure...",
-  "Smelting containers...",
-  "Enchanting services...",
-  "Building the Nether portal...",
-  "Taming the cloud wolves...",
-  "Brewing deployment potions...",
-  "Trading with Azure villagers...",
-  "Defeating the Ender Dragon of downtime...",
+  "Mining resources...", "Punching trees...", "Crafting infrastructure...",
+  "Smelting containers...", "Enchanting services...", "Building the Nether portal...",
+  "Taming cloud wolves...", "Brewing deployment potions...", "Trading with Azure villagers...",
 ];
 
 export function InfrastructurePanel() {
   const [status, setStatus] = useState<InfrastructureStatusResponse | null>(null);
+  const [workflow, setWorkflow] = useState<LatestWorkflowResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deployProgress, setDeployProgress] = useState(0);
   const [currentQuote, setCurrentQuote] = useState(MINECRAFT_QUOTES[0]);
   const [showSecretCreeper, setShowSecretCreeper] = useState(false);
-  const [isDestroying, setIsDestroying] = useState(false);
+  const [titleClicks, setTitleClicks] = useState(0);
 
   // Rotate quotes during loading
   useEffect(() => {
-    if (toggling) {
+    if (workflow?.hasActiveRun || toggling) {
       const interval = setInterval(() => {
         setCurrentQuote(MINECRAFT_QUOTES[Math.floor(Math.random() * MINECRAFT_QUOTES.length)]);
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [toggling]);
+  }, [workflow?.hasActiveRun, toggling]);
 
-  const fetchStatus = useCallback(async () => {
+  // Fetch status and workflow info
+  const fetchData = useCallback(async () => {
     try {
-      const statusData = await getInfrastructureStatus();
-      setStatus(statusData);
+      const [statusData, workflowData] = await Promise.all([
+        getInfrastructureStatus().catch(() => null),
+        getLatestWorkflow().catch(() => null),
+      ]);
+      
+      if (statusData) setStatus(statusData);
+      if (workflowData) setWorkflow(workflowData);
       setError(null);
     } catch (err) {
-      // Set default OFF state when API fails
-      setStatus(null);
       if (err instanceof Error) {
         setError(err.message);
       }
@@ -71,13 +71,14 @@ export function InfrastructurePanel() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 15000);
+    fetchData();
+    // Poll more frequently when workflow is active
+    const interval = setInterval(fetchData, workflow?.hasActiveRun ? 5000 : 15000);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchData, workflow?.hasActiveRun]);
 
   const handleToggle = async () => {
-    if (toggling) return;
+    if (toggling || workflow?.hasActiveRun) return;
 
     const isCurrentlyRunning = status?.isRunning ?? false;
     const targetState = isCurrentlyRunning ? 'OFF' : 'ON';
@@ -89,50 +90,26 @@ export function InfrastructurePanel() {
     if (!confirm(confirmMessage)) return;
 
     setToggling(true);
-    setIsDestroying(isCurrentlyRunning);
-    setDeployProgress(0);
-
-    // Animate progress over ~30 seconds (simulated)
-    const progressInterval = setInterval(() => {
-      setDeployProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(progressInterval);
-          return prev;
-        }
-        // Random increments between 3-8%
-        return Math.min(prev + Math.random() * 5 + 3, 95);
-      });
-    }, 1500);
-
     try {
       const result = await toggleInfrastructure(targetState);
-      clearInterval(progressInterval);
-      setDeployProgress(100);
       
-      setTimeout(() => {
-        alert(`${result.message}\n\n⏱️ Estimated time: ${result.estimatedTime}\n\n🔗 Monitor progress:\n${result.workflowUrl}`);
-        window.open(result.workflowUrl, '_blank');
-      }, 1000);
+      if (result.success) {
+        // Start polling for workflow status
+        setTimeout(fetchData, 2000);
+      }
       
-      await fetchStatus();
-    } catch {
-      clearInterval(progressInterval);
-      // Fallback to GitHub Actions
-      setDeployProgress(100);
-      setTimeout(() => {
-        window.open('https://github.com/ColeGendreau/Minecraft-1.0/actions/workflows/terraform.yaml', '_blank');
-      }, 1000);
+      // Show result
+      alert(`${result.message}\n\n⏱️ Estimated time: ${result.estimatedTime}\n\n🔗 Monitor progress:\n${result.workflowUrl}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        alert(`Failed: ${err.message}\n\nYou can manually trigger from GitHub Actions.`);
+      }
     } finally {
-      setTimeout(() => {
-        setToggling(false);
-        setDeployProgress(0);
-        setIsDestroying(false);
-      }, 3000);
+      setToggling(false);
     }
   };
 
-  // Easter egg: Click title 5 times for creeper
-  const [titleClicks, setTitleClicks] = useState(0);
+  // Easter egg
   const handleTitleClick = () => {
     setTitleClicks(prev => prev + 1);
     if (titleClicks >= 4) {
@@ -142,7 +119,12 @@ export function InfrastructurePanel() {
     }
   };
 
-  const isRunning = status?.isRunning ?? false;
+  const isRunning = status?.state === 'ON';
+  const hasActiveWorkflow = workflow?.hasActiveRun ?? false;
+  const latestRun = workflow?.latestRun;
+
+  // Calculate progress from workflow steps
+  const workflowProgress = calculateWorkflowProgress(latestRun?.jobs);
 
   return (
     <div className="space-y-6">
@@ -151,18 +133,10 @@ export function InfrastructurePanel() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
           <div className="text-center animate-pulse">
             <div className="text-[150px] mb-4 animate-bounce">💥</div>
-            <div 
-              className="text-4xl font-bold text-green-500"
-              style={{ fontFamily: "'Press Start 2P', cursive" }}
-            >
+            <div className="text-4xl font-bold text-green-500" style={{ fontFamily: "'Press Start 2P', cursive" }}>
               Ssssssss... BOOM!
             </div>
-            <div className="text-green-400 mt-4 text-2xl">
-              🟩⬛🟩<br/>
-              ⬛🟩⬛<br/>
-              🟩🟩🟩
-            </div>
-            <div className="text-gray-500 mt-4">Creeper says hi!</div>
+            <div className="text-green-400 mt-4 text-2xl">🟩⬛🟩<br/>⬛🟩⬛<br/>🟩🟩🟩</div>
           </div>
         </div>
       )}
@@ -170,23 +144,18 @@ export function InfrastructurePanel() {
       {/* Main Control Panel */}
       <div className={`
         relative overflow-hidden mc-card-dark rounded-xl border-4 transition-all duration-700
-        ${isRunning 
-          ? 'border-emerald-500/60 shadow-[0_0_60px_-15px_rgba(16,185,129,0.5)]' 
-          : 'border-zinc-700/50'
-        }
+        ${isRunning ? 'border-emerald-500/60 shadow-[0_0_60px_-15px_rgba(16,185,129,0.5)]' : 'border-zinc-700/50'}
+        ${hasActiveWorkflow ? 'border-yellow-500/60 shadow-[0_0_60px_-15px_rgba(234,179,8,0.5)]' : ''}
       `}>
-        {/* Animated Minecraft-style background pattern */}
+        {/* Background pattern */}
         <div className="absolute inset-0 opacity-5">
-          <div 
-            className="w-full h-full"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23ffffff' d='M0 0h16v16H0zM16 16h16v16H16z'/%3E%3C/svg%3E")`,
-              backgroundSize: '32px 32px',
-            }}
-          />
+          <div className="w-full h-full" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23ffffff' d='M0 0h16v16H0zM16 16h16v16H16z'/%3E%3C/svg%3E")`,
+            backgroundSize: '32px 32px',
+          }} />
         </div>
 
-        {/* Torch decorations when running */}
+        {/* Torches when running */}
         {isRunning && (
           <>
             <div className="absolute top-4 left-4 text-3xl animate-torch">🔥</div>
@@ -195,151 +164,185 @@ export function InfrastructurePanel() {
         )}
 
         <div className="relative p-8">
-          {/* Header with Status */}
+          {/* Header */}
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-6">
-              {/* Big Status Indicator - Redstone Lamp Style */}
-              <div 
-                className={`
-                  relative w-24 h-24 rounded-xl flex items-center justify-center cursor-pointer
-                  transition-all duration-500 transform hover:scale-105
-                  ${isRunning 
+              {/* Status Indicator */}
+              <div className={`
+                relative w-24 h-24 rounded-xl flex items-center justify-center transition-all duration-500
+                ${hasActiveWorkflow 
+                  ? 'bg-gradient-to-br from-yellow-400 to-orange-500 animate-pulse' 
+                  : isRunning 
                     ? 'bg-gradient-to-br from-yellow-400 to-orange-500' 
                     : 'bg-gradient-to-br from-zinc-700 to-zinc-800'
-                  }
-                `}
-                style={{
-                  boxShadow: isRunning 
-                    ? '0 0 50px rgba(251,191,36,0.7), inset 0 2px 10px rgba(255,255,255,0.4), inset 0 -4px 10px rgba(0,0,0,0.3)' 
-                    : 'inset 0 4px 10px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(255,255,255,0.1)',
-                  border: '4px solid',
-                  borderColor: isRunning ? '#f59e0b #92400e #92400e #f59e0b' : '#52525b #27272a #27272a #52525b',
-                }}
-              >
-                <span className="text-5xl">{isRunning ? '⚡' : '💤'}</span>
-                {/* Redstone glow effect */}
-                {isRunning && (
+                }
+              `} style={{
+                boxShadow: hasActiveWorkflow 
+                  ? '0 0 50px rgba(234,179,8,0.7)' 
+                  : isRunning 
+                    ? '0 0 50px rgba(251,191,36,0.7)' 
+                    : 'inset 0 4px 10px rgba(0,0,0,0.5)',
+                border: '4px solid',
+                borderColor: isRunning ? '#f59e0b #92400e #92400e #f59e0b' : '#52525b #27272a #27272a #52525b',
+              }}>
+                <span className="text-5xl">
+                  {hasActiveWorkflow ? '⚙️' : isRunning ? '⚡' : '💤'}
+                </span>
+                {(isRunning || hasActiveWorkflow) && (
                   <div className="absolute inset-0 rounded-xl bg-yellow-400/40 animate-ping" style={{ animationDuration: '2s' }} />
                 )}
               </div>
 
               <div>
                 <h2 
-                  className="text-2xl lg:text-3xl font-bold cursor-pointer select-none text-shadow-mc"
+                  className="text-2xl font-bold cursor-pointer select-none text-shadow-mc"
                   onClick={handleTitleClick}
-                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px', color: isRunning ? '#4ade80' : '#ef4444' }}
+                  style={{ 
+                    fontFamily: "'Press Start 2P', cursive", 
+                    fontSize: '16px', 
+                    color: hasActiveWorkflow ? '#facc15' : isRunning ? '#4ade80' : '#ef4444' 
+                  }}
                 >
-                  {isRunning ? 'SERVER ONLINE' : 'SERVER OFFLINE'}
+                  {hasActiveWorkflow 
+                    ? 'DEPLOYING...' 
+                    : isRunning 
+                      ? 'SERVER ONLINE' 
+                      : 'SERVER OFFLINE'
+                  }
                 </h2>
                 <p className="text-gray-400 mt-2" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
-                  {isRunning 
-                    ? '⛏️ All systems operational' 
-                    : '💰 No infrastructure costs'
+                  {hasActiveWorkflow 
+                    ? currentQuote
+                    : isRunning 
+                      ? '⛏️ All systems operational' 
+                      : '💰 No infrastructure costs'
                   }
                 </p>
-                {status?.lastUpdated && (
-                  <p className="text-xs text-gray-600 mt-1" style={{ fontFamily: "'VT323', monospace" }}>
-                    Last check: {new Date(status.lastUpdated).toLocaleTimeString()}
-                  </p>
-                )}
+                {/* GitHub Status */}
+                <p className="text-xs text-gray-600 mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+                  State: {status?.state || 'UNKNOWN'} | 
+                  Last check: {status?.lastUpdated ? new Date(status.lastUpdated).toLocaleTimeString() : 'N/A'}
+                </p>
               </div>
             </div>
 
-            {/* Big Toggle Button - Stone Button Style */}
+            {/* Toggle Button */}
             <button
               onClick={handleToggle}
-              disabled={toggling || loading}
+              disabled={toggling || loading || hasActiveWorkflow}
               className={`
                 relative px-8 py-4 font-bold text-lg transition-all duration-300
                 transform hover:scale-105 active:scale-95
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                ${toggling ? '' : ''}
-                ${isRunning ? 'mc-button-redstone' : 'mc-button-grass'}
+                ${hasActiveWorkflow 
+                  ? 'mc-button' 
+                  : isRunning 
+                    ? 'mc-button-redstone' 
+                    : 'mc-button-grass'
+                }
               `}
               style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}
             >
-              {toggling ? (
+              {toggling || hasActiveWorkflow ? (
                 <span className="flex items-center gap-3">
                   <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span className="hidden sm:inline">{currentQuote}</span>
-                  <span className="sm:hidden">Working...</span>
+                  {hasActiveWorkflow ? 'IN PROGRESS...' : 'STARTING...'}
                 </span>
               ) : isRunning ? (
                 <span className="flex items-center gap-2">
-                  <span className="text-xl">🛑</span>
-                  DESTROY
+                  <span className="text-xl">🛑</span> DESTROY
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <span className="text-xl">🚀</span>
-                  DEPLOY
+                  <span className="text-xl">🚀</span> DEPLOY
                 </span>
               )}
             </button>
           </div>
 
-          {/* Block Building Animation when deploying */}
-          {toggling && (
+          {/* Active Workflow Progress */}
+          {hasActiveWorkflow && latestRun && (
             <div className="mb-8">
               <BlockBuildAnimation 
-                isBuilding={!isDestroying} 
-                isDestroying={isDestroying}
-                progress={deployProgress}
+                isBuilding={true}
+                isDestroying={latestRun.name?.includes('Destroy') || false}
+                progress={workflowProgress}
               />
+              
+              {/* Workflow Steps */}
+              <WorkflowProgress jobs={latestRun.jobs} runUrl={latestRun.url} />
             </div>
           )}
 
-          {/* Mini Block Progress (always visible when not toggling) */}
-          {!toggling && (
-            <div className="mb-6 p-4 bg-black/30 rounded-lg">
-              <p className="text-xs text-gray-500 mb-2" style={{ fontFamily: "'VT323', monospace" }}>
-                AZURE SERVICES
-              </p>
-              <MiniBlockProgress progress={isRunning ? 100 : 0} isDestroying={false} />
+          {/* Last Workflow Result (when not active) */}
+          {!hasActiveWorkflow && latestRun && (
+            <div className={`mb-6 p-4 rounded-lg border-2 ${
+              latestRun.conclusion === 'success' 
+                ? 'bg-emerald-900/20 border-emerald-500/30' 
+                : latestRun.conclusion === 'failure'
+                  ? 'bg-red-900/20 border-red-500/30'
+                  : 'bg-gray-900/20 border-gray-500/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">
+                    {latestRun.conclusion === 'success' ? '✅' : latestRun.conclusion === 'failure' ? '❌' : '⏸️'}
+                  </span>
+                  <div>
+                    <p className="text-white font-medium" style={{ fontFamily: "'VT323', monospace" }}>
+                      Last run: {latestRun.conclusion?.toUpperCase() || 'UNKNOWN'}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      {new Date(latestRun.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <a 
+                  href={latestRun.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mc-button text-xs"
+                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '8px' }}
+                >
+                  VIEW LOGS
+                </a>
+              </div>
             </div>
           )}
 
-          {/* Quick Stats when Running */}
-          {isRunning && status?.metrics && !toggling && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <StatBlock icon="🖥️" label="Nodes" value={status.metrics.nodes} color="cyan" />
-              <StatBlock icon="📦" label="Pods" value={status.metrics.pods} color="purple" />
-              <StatBlock icon="⚡" label="CPU" value={`${status.metrics.cpuUsage}%`} color="yellow" />
-              <StatBlock icon="💾" label="Memory" value={`${status.metrics.memoryUsage}%`} color="pink" />
-            </div>
-          )}
-
-          {/* Service Grid */}
-          {!toggling && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Services Grid */}
+          {!hasActiveWorkflow && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {MINECRAFT_SERVICES.map((service, index) => (
-                <ServiceBlock 
-                  key={service.id} 
-                  service={service} 
-                  isRunning={isRunning}
-                  delay={index * 100}
-                />
+                <ServiceBlock key={service.id} service={service} isRunning={isRunning} delay={index * 50} />
               ))}
             </div>
           )}
 
           {/* Quick Links when Running */}
-          {isRunning && status?.metrics && !toggling && (
+          {isRunning && status?.metrics && !hasActiveWorkflow && (
             <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-white/10">
               <QuickLink href={status.metrics.grafanaUrl} icon="📈" label="Grafana" />
-              <QuickLink href={`https://github.com/ColeGendreau/Minecraft-1.0/actions`} icon="🔧" label="GitHub Actions" />
+              <QuickLink href={status.gitHub.workflowUrl} icon="🔧" label="GitHub Actions" />
               <CopyButton value={status.metrics.minecraftAddress} icon="🎮" label="Copy Server IP" />
             </div>
           )}
 
-          {/* Cost Estimate Footer */}
+          {/* Footer */}
           <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm" style={{ fontFamily: "'VT323', monospace" }}>
             <span className="text-gray-500">
               💰 {isRunning ? '~$3-5/day while running' : '$0/day when stopped'}
             </span>
-            <span className="text-emerald-500 flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : error ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-              {loading ? 'Checking...' : error ? 'API Unavailable' : 'Live Status'}
+            <span className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${
+                hasActiveWorkflow ? 'bg-yellow-500 animate-pulse' :
+                loading ? 'bg-yellow-500' : 
+                error ? 'bg-red-500' : 
+                'bg-emerald-500'
+              } animate-pulse`} />
+              <span className="text-gray-500">
+                {hasActiveWorkflow ? 'Workflow Running' : loading ? 'Checking...' : error ? 'API Error' : 'Live'}
+              </span>
             </span>
           </div>
         </div>
@@ -348,54 +351,113 @@ export function InfrastructurePanel() {
   );
 }
 
-function StatBlock({ icon, label, value, color }: { icon: string; label: string; value: string | number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    cyan: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30',
-    purple: 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
-    yellow: 'from-yellow-500/20 to-yellow-600/10 border-yellow-500/30',
-    pink: 'from-pink-500/20 to-pink-600/10 border-pink-500/30',
-  };
+// Calculate progress percentage from workflow jobs/steps
+function calculateWorkflowProgress(jobs?: WorkflowJob[]): number {
+  if (!jobs || jobs.length === 0) return 0;
+  
+  let completedSteps = 0;
+  let totalSteps = 0;
+  
+  for (const job of jobs) {
+    for (const step of job.steps) {
+      totalSteps++;
+      if (step.status === 'completed') completedSteps++;
+    }
+  }
+  
+  return totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+}
+
+// Workflow progress component
+function WorkflowProgress({ jobs, runUrl }: { jobs?: WorkflowJob[]; runUrl: string }) {
+  if (!jobs || jobs.length === 0) {
+    return (
+      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+        <p className="text-gray-400 text-center" style={{ fontFamily: "'VT323', monospace" }}>
+          Waiting for workflow to start...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className={`
-      bg-gradient-to-br ${colorClasses[color]} 
-      border-2 rounded-lg p-4 text-center backdrop-blur-sm mc-slot
-    `}>
-      <span className="text-2xl block mb-1">{icon}</span>
-      <span className="text-2xl font-bold text-white block" style={{ fontFamily: "'VT323', monospace" }}>{value}</span>
-      <span className="text-xs text-gray-400 uppercase tracking-wider" style={{ fontFamily: "'VT323', monospace" }}>{label}</span>
+    <div className="mt-4 p-4 bg-black/30 rounded-lg">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-yellow-400 font-bold" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px' }}>
+          TERRAFORM PROGRESS
+        </h3>
+        <a 
+          href={runUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 text-xs underline"
+        >
+          View in GitHub →
+        </a>
+      </div>
+      
+      {jobs.map((job) => (
+        <div key={job.name} className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">
+              {job.status === 'completed' 
+                ? (job.conclusion === 'success' ? '✅' : '❌')
+                : job.status === 'in_progress' 
+                  ? '⏳' 
+                  : '⏸️'
+              }
+            </span>
+            <span className="text-white font-medium" style={{ fontFamily: "'VT323', monospace" }}>
+              {job.name}
+            </span>
+          </div>
+          
+          <div className="ml-6 space-y-1">
+            {job.steps.map((step, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className={`w-2 h-2 rounded-full ${
+                  step.status === 'completed'
+                    ? (step.conclusion === 'success' ? 'bg-emerald-500' : 'bg-red-500')
+                    : step.status === 'in_progress'
+                      ? 'bg-yellow-500 animate-pulse'
+                      : 'bg-gray-600'
+                }`} />
+                <span className={`${
+                  step.status === 'in_progress' ? 'text-yellow-400' : 
+                  step.status === 'completed' ? 'text-gray-400' : 
+                  'text-gray-600'
+                }`} style={{ fontFamily: "'VT323', monospace" }}>
+                  {step.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function ServiceBlock({ service, isRunning, delay }: { service: typeof MINECRAFT_SERVICES[0]; isRunning: boolean; delay: number }) {
+function ServiceBlock({ service, isRunning, delay }: { 
+  service: typeof MINECRAFT_SERVICES[0]; 
+  isRunning: boolean; 
+  delay: number;
+}) {
   return (
     <div 
       className={`
         relative overflow-hidden rounded-lg p-3 transition-all duration-500
-        transform hover:scale-105 hover:-translate-y-1 cursor-pointer
-        ${isRunning 
-          ? 'mc-slot bg-emerald-900/30' 
-          : 'mc-slot opacity-50'
-        }
+        transform hover:scale-105 cursor-pointer
+        ${isRunning ? 'mc-slot bg-emerald-900/30' : 'mc-slot opacity-50'}
       `}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      {/* Glow effect when running */}
-      {isRunning && (
-        <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent" />
-      )}
-      
+      {isRunning && <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent" />}
       <div className="relative flex items-center gap-3">
-        {/* Status indicator */}
-        <div className={`
-          w-3 h-3 rounded-full
-          ${isRunning ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] animate-pulse' : 'bg-zinc-600'}
-        `} />
-        
-        {/* Icon */}
+        <div className={`w-3 h-3 rounded-full ${
+          isRunning ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] animate-pulse' : 'bg-zinc-600'
+        }`} />
         <span className="text-2xl">{service.icon}</span>
-        
         <div className="min-w-0">
           <h4 className="font-medium text-white text-sm truncate" style={{ fontFamily: "'VT323', monospace" }}>
             {service.name}
