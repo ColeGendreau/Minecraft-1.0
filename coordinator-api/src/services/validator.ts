@@ -2,6 +2,10 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import type { WorldSpec } from '../types/index.js';
 
+// Handle CommonJS/ESM interop
+const AjvClass = (Ajv as unknown as { default: typeof Ajv }).default || Ajv;
+const addFormatsFunc = (addFormats as unknown as { default: typeof addFormats }).default || addFormats;
+
 // WorldSpec JSON Schema (inline to avoid file reading issues)
 const worldSpecSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -167,8 +171,8 @@ const worldSpecSchema = {
 };
 
 // Initialize AJV
-const ajv = new Ajv({ allErrors: true });
-addFormats(ajv);
+const ajv = new AjvClass({ allErrors: true });
+addFormatsFunc(ajv);
 
 const validateWorldSpec = ajv.compile(worldSpecSchema);
 

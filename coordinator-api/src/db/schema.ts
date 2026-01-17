@@ -59,7 +59,7 @@ function saveDatabase(db: Database): void {
 }
 
 // Global database instance
-let db: Database = loadDatabase();
+let dbInstance: Database = loadDatabase();
 
 // Simple query builder mimicking SQLite interface
 export const database = {
@@ -84,8 +84,8 @@ export const database = {
             created_at: params[7] as string,
             updated_at: params[8] as string,
           };
-          db.world_requests.push(row);
-          saveDatabase(db);
+          dbInstance.world_requests.push(row);
+          saveDatabase(dbInstance);
         } else if (sql.includes('INSERT INTO deployments')) {
           const row: DeploymentRow = {
             id: params[0] as string,
@@ -95,15 +95,15 @@ export const database = {
             worldspec_json: params[4] as string | null,
             is_current: 1,
           };
-          db.deployments.push(row);
-          saveDatabase(db);
+          dbInstance.deployments.push(row);
+          saveDatabase(dbInstance);
         } else if (sql.includes('UPDATE deployments SET is_current = 0')) {
-          db.deployments.forEach(d => d.is_current = 0);
-          saveDatabase(db);
+          dbInstance.deployments.forEach(d => d.is_current = 0);
+          saveDatabase(dbInstance);
         } else if (sql.includes('UPDATE world_requests SET')) {
           // Parse dynamic update - params are in order of the SET clause, then WHERE
           const id = params[params.length - 1] as string;
-          const request = db.world_requests.find(r => r.id === id);
+          const request = dbInstance.world_requests.find(r => r.id === id);
           if (request) {
             // Extract field updates from params based on SQL structure
             let paramIndex = 0;
@@ -113,41 +113,41 @@ export const database = {
             if (sql.includes('pr_url = ?')) request.pr_url = params[paramIndex++] as string | null;
             if (sql.includes('commit_sha = ?')) request.commit_sha = params[paramIndex++] as string | null;
             if (sql.includes('error = ?')) request.error = params[paramIndex++] as string | null;
-            saveDatabase(db);
+            saveDatabase(dbInstance);
           }
         }
       },
       get: (...params: unknown[]) => {
         if (sql.includes('FROM world_requests WHERE id')) {
-          return db.world_requests.find(r => r.id === params[0]);
+          return dbInstance.world_requests.find(r => r.id === params[0]);
         }
         if (sql.includes('FROM deployments WHERE is_current = 1')) {
-          return db.deployments.find(d => d.is_current === 1);
+          return dbInstance.deployments.find(d => d.is_current === 1);
         }
         if (sql.includes('FROM deployments WHERE id')) {
-          return db.deployments.find(d => d.id === params[0]);
+          return dbInstance.deployments.find(d => d.id === params[0]);
         }
         if (sql.includes('COUNT(*)')) {
           if (sql.includes('world_requests') && sql.includes('user_github_id')) {
             const userId = params[0] as string;
             const since = params[1] as string;
-            const count = db.world_requests.filter(
+            const count = dbInstance.world_requests.filter(
               r => r.user_github_id === userId && r.created_at >= since
             ).length;
             return { count };
           }
           if (sql.includes('world_requests')) {
             if (params.length > 0) {
-              return { count: db.world_requests.filter(r => r.status === params[0]).length };
+              return { count: dbInstance.world_requests.filter(r => r.status === params[0]).length };
             }
-            return { count: db.world_requests.length };
+            return { count: dbInstance.world_requests.length };
           }
         }
         return undefined;
       },
       all: (...params: unknown[]) => {
         if (sql.includes('FROM world_requests')) {
-          let results = [...db.world_requests];
+          let results = [...dbInstance.world_requests];
           
           // Filter by status if WHERE clause exists
           if (sql.includes('WHERE status = ?') && params.length > 0) {
@@ -193,10 +193,10 @@ export const database = {
 };
 
 export const initializeDatabase = (): void => {
-  db = loadDatabase();
+  dbInstance = loadDatabase();
   console.log('Database initialized successfully');
-  console.log(`  - ${db.world_requests.length} world requests`);
-  console.log(`  - ${db.deployments.length} deployments`);
+  console.log(`  - ${dbInstance.world_requests.length} world requests`);
+  console.log(`  - ${dbInstance.deployments.length} deployments`);
 };
 
 // Alias for compatibility
