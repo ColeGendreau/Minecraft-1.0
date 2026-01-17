@@ -1,10 +1,9 @@
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
+/* eslint-disable @typescript-eslint/no-var-requires */
 import type { WorldSpec } from '../types/index.js';
 
-// Handle CommonJS/ESM interop
-const AjvClass = (Ajv as unknown as { default: typeof Ajv }).default || Ajv;
-const addFormatsFunc = (addFormats as unknown as { default: typeof addFormats }).default || addFormats;
+// Use require for CommonJS modules
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats');
 
 // WorldSpec JSON Schema (inline to avoid file reading issues)
 const worldSpecSchema = {
@@ -171,8 +170,8 @@ const worldSpecSchema = {
 };
 
 // Initialize AJV
-const ajv = new AjvClass({ allErrors: true });
-addFormatsFunc(ajv);
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);
 
 const validateWorldSpec = ajv.compile(worldSpecSchema);
 
@@ -185,7 +184,7 @@ export function validateWorldSpecJson(data: unknown): ValidationResult {
   const valid = validateWorldSpec(data);
   
   if (!valid) {
-    const errors = validateWorldSpec.errors?.map((err) => {
+    const errors = validateWorldSpec.errors?.map((err: { instancePath?: string; message?: string }) => {
       const path = err.instancePath || 'root';
       return `${path}: ${err.message}`;
     }) || ['Unknown validation error'];
