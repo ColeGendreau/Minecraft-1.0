@@ -10,6 +10,9 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+// API key for authenticating with coordinator (set in environment)
+const API_KEY = process.env.API_KEY || process.env.NEXT_PUBLIC_API_KEY || '';
+
 class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -28,21 +31,29 @@ async function fetchApi<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
+  // Build headers with optional API key
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  
+  // Add API key if configured
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+  
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new ApiError(response.status, error.error || 'Request failed');
+      throw new ApiError(response.status, error.error || error.message || 'Request failed');
     }
 
     return response.json();
@@ -55,7 +66,7 @@ async function fetchApi<T>(
   }
 }
 
-// Health check
+// Health check (no auth required)
 export async function checkHealth(): Promise<HealthResponse> {
   return fetchApi<HealthResponse>('/health');
 }
@@ -166,4 +177,3 @@ export async function toggleInfrastructure(targetState: 'ON' | 'OFF'): Promise<{
 export async function getInfrastructureCost(): Promise<InfrastructureCostResponse> {
   return fetchApi<InfrastructureCostResponse>('/api/infrastructure/cost');
 }
-
