@@ -1,0 +1,145 @@
+# Deploy Dashboard and Coordinator API to Azure Container Apps
+# This workflow deploys the "permanent" infrastructure that controls the main environment
+
+name: Deploy Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+      - 'coordinator-api/**'
+      - '.github/workflows/dashboard-deploy.yaml'
+  workflow_dispatch:
+    inputs:
+      deploy_coordinator:
+        description: 'Deploy Coordinator API'
+        required: false
+        default: 'true'
+        type: boolean
+      deploy_dashboard:
+        description: 'Deploy Dashboard'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  AZURE_RESOURCE_GROUP: mc-demo-dev-dashboard-rg
+  ACR_NAME: mcdemodevdashboardacr
+  COORDINATOR_APP: mc-demo-dev-coordinator
+  DASHBOARD_APP: mc-demo-dev-dashboard
+
+jobs:
+  # Check what changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      coordinator: ${{ steps.filter.outputs.coordinator }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            coordinator:
+              - 'coordinator-api/**'
+            dashboard:
+              - 'dashboard/**'
+
+  # Build and deploy Coordinator API
+  deploy-coordinator:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.coordinator == 'true' || github.event.inputs.deploy_coordinator == 'true'
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push to ACR
+        run: |
+          # Login to ACR
+          az acr login --name ${{ env.ACR_NAME }}
+          
+          # Build and push
+          cd coordinator-api
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }} .
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:latest .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:latest
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.COORDINATOR_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }}
+
+  # Build and deploy Dashboard
+  deploy-dashboard:
+    runs-on: ubuntu-latest
+    needs: [changes, deploy-coordinator]
+    # Run if dashboard changed OR manually triggered, but wait for coordinator if it's deploying
+    if: |
+      always() && 
+      (needs.changes.outputs.dashboard == 'true' || github.event.inputs.deploy_dashboard == 'true') &&
+      (needs.deploy-coordinator.result == 'success' || needs.deploy-coordinator.result == 'skipped')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Coordinator URL
+        id: get_url
+        run: |
+          COORDINATOR_URL=$(az containerapp show \
+            --name ${{ env.COORDINATOR_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "url=https://${COORDINATOR_URL}" >> $GITHUB_OUTPUT
+
+      - name: Build and push to ACR
+        run: |
+          # Login to ACR
+          az acr login --name ${{ env.ACR_NAME }}
+          
+          # Build with API URL
+          cd dashboard
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${{ steps.get_url.outputs.url }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/dashboard:${{ github.sha }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/dashboard:latest \
+            .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/dashboard:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/dashboard:latest
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.DASHBOARD_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/dashboard:${{ github.sha }}
+
+      - name: Output Dashboard URL
+        run: |
+          DASHBOARD_URL=$(az containerapp show \
+            --name ${{ env.DASHBOARD_APP }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "🚀 Dashboard deployed to: https://${DASHBOARD_URL}"

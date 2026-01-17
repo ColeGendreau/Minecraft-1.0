@@ -1,0 +1,46 @@
+{
+  "world_requests": [
+    {
+      "id": "req_897fe3a7",
+      "status": "pr_created",
+      "user_github_id": "dev-user",
+      "user_github_username": "developer",
+      "description": "A challenging mountain survival world with extreme terrain and hard difficulty. I want lots of caves and deep underground exploration.",
+      "difficulty": "hard",
+      "game_mode": "survival",
+      "size": "large",
+      "worldspec_json": "{\"worldName\":\"challenging-mountain-survival\",\"displayName\":\"A challenging mountain survival world with extreme terrain and h\",\"theme\":\"A challenging mountain survival world with extreme terrain and hard difficulty. I want lots of caves and deep underground exploration.\",\"generation\":{\"strategy\":\"new_seed\",\"levelType\":\"amplified\",\"biomes\":[\"mountains\"],\"structures\":{\"villages\":true,\"strongholds\":true,\"mineshafts\":true,\"temples\":true,\"oceanMonuments\":true,\"woodlandMansions\":true}},\"rules\":{\"difficulty\":\"hard\",\"gameMode\":\"survival\",\"hardcore\":false,\"pvp\":false,\"keepInventory\":false,\"naturalRegeneration\":true,\"doDaylightCycle\":true,\"doWeatherCycle\":true,\"doMobSpawning\":true,\"announceAdvancements\":true,\"spawnRadius\":10},\"spawn\":{\"protection\":true,\"radius\":16,\"forceGamemode\":false},\"datapacks\":[\"coordinates_hud\"],\"server\":{\"maxPlayers\":50,\"viewDistance\":16,\"simulationDistance\":10,\"motd\":\"A challenging mountain survival world with extreme - Created with AI\"},\"metadata\":{\"requestedBy\":\"developer\",\"requestedAt\":\"2026-01-17T03:53:38.914Z\",\"userDescription\":\"A challenging mountain survival world with extreme terrain and hard difficulty. I want lots of caves and deep underground exploration.\",\"aiModel\":\"mock\",\"version\":\"1.0.0\"}}",
+      "pr_url": "https://github.com/ColeGendreau/Minecraft-1.0/pull/999",
+      "commit_sha": "mockmkhrvwi4",
+      "error": null,
+      "created_at": "2026-01-17T03:53:38.913Z",
+      "updated_at": "2026-01-17T03:53:39.916Z"
+    },
+    {
+      "id": "req_1ac19159",
+      "status": "pr_created",
+      "user_github_id": "dev-user",
+      "user_github_username": "developer",
+      "description": "A pink banana themed world where everything is made of giant bananas and the sky is cotton candy pink",
+      "difficulty": null,
+      "game_mode": null,
+      "size": null,
+      "worldspec_json": "{\"worldName\":\"pink-banana-themed\",\"displayName\":\"A Pink Banana Themed World Where\",\"theme\":\"AI interpreted this as a pink + candy + barbie + megastructure themed world. A pink banana themed world where everything is made of giant bananas and the sky is cotton candy pink\",\"generation\":{\"strategy\":\"new_seed\",\"levelType\":\"flat\",\"biomes\":[\"mushroom_fields\",\"plains\",\"forest\"],\"structures\":{\"villages\":false,\"strongholds\":true,\"mineshafts\":true,\"temples\":true,\"oceanMonuments\":true,\"woodlandMansions\":true}},\"rules\":{\"difficulty\":\"normal\",\"gameMode\":\"survival\",\"hardcore\":false,\"pvp\":false,\"keepInventory\":false,\"naturalRegeneration\":true,\"doDaylightCycle\":true,\"doWeatherCycle\":true,\"doMobSpawning\":true,\"announceAdvancements\":true,\"spawnRadius\":10},\"spawn\":{\"protection\":true,\"radius\":16,\"forceGamemode\":false},\"datapacks\":[\"coordinates_hud\"],\"server\":{\"maxPlayers\":20,\"viewDistance\":12,\"simulationDistance\":10,\"motd\":\"A Pink Banana Themed World Where - AI Generated\"},\"metadata\":{\"requestedBy\":\"developer\",\"requestedAt\":\"2026-01-17T04:12:09.261Z\",\"userDescription\":\"A pink banana themed world where everything is made of giant bananas and the sky is cotton candy pink\",\"aiModel\":\"mock-creative-interpreter\",\"version\":\"1.0.0\"}}",
+      "pr_url": "https://github.com/ColeGendreau/Minecraft-1.0/pull/999",
+      "commit_sha": "mockmkhsjp94",
+      "error": null,
+      "created_at": "2026-01-17T04:12:09.260Z",
+      "updated_at": "2026-01-17T04:12:10.264Z"
+    }
+  ],
+  "deployments": [
+    {
+      "id": "dep_21fe4177",
+      "world_name": "floating-isles",
+      "commit_sha": "a1b2c3d",
+      "deployed_at": "2026-01-17T03:53:14.492Z",
+      "worldspec_json": "{\"worldName\":\"floating-isles\",\"displayName\":\"Floating Isles Adventure\",\"theme\":\"A survival world featuring dramatic floating islands at various heights, connected by natural stone bridges and waterfalls.\",\"generation\":{\"strategy\":\"fixed_seed\",\"seed\":\"FLOATING\",\"levelType\":\"amplified\",\"biomes\":[\"mountains\",\"plains\",\"forest\"],\"structures\":{\"villages\":true,\"strongholds\":true,\"mineshafts\":true,\"temples\":false,\"oceanMonuments\":false,\"woodlandMansions\":false}},\"rules\":{\"difficulty\":\"normal\",\"gameMode\":\"survival\",\"hardcore\":false,\"pvp\":false,\"keepInventory\":false,\"naturalRegeneration\":true,\"doDaylightCycle\":true,\"doWeatherCycle\":true,\"doMobSpawning\":true,\"announceAdvancements\":true,\"spawnRadius\":10},\"spawn\":{\"protection\":true,\"radius\":16,\"forceGamemode\":false},\"datapacks\":[\"coordinates_hud\",\"player_head_drops\"],\"server\":{\"maxPlayers\":20,\"viewDistance\":12,\"simulationDistance\":10,\"motd\":\"Floating Isles - Survival Adventure!\"},\"metadata\":{\"requestedBy\":\"ColeGendreau\",\"requestedAt\":\"2026-01-16T20:30:00Z\",\"userDescription\":\"I want a world with floating islands that feel magical and challenging to navigate.\",\"aiModel\":\"mock\",\"version\":\"1.0.0\"}}",
+      "is_current": 1
+    }
+  ]
+}

@@ -1,0 +1,289 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/ColeGendreau/Minecraft-1.0/schemas/worldspec.schema.json",
+  "title": "Minecraft WorldSpec",
+  "description": "Structured specification for AI-generated Minecraft worlds",
+  "type": "object",
+  "required": ["worldName", "theme", "generation", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "worldName": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 3,
+      "maxLength": 32,
+      "description": "URL-safe world identifier (lowercase, numbers, hyphens only)",
+      "examples": ["floating-isles", "desert-survival", "skyblock-hard"]
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "description": "Human-readable world name displayed in-game",
+      "examples": ["Floating Isles", "Desert Survival Challenge"]
+    },
+    "theme": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 500,
+      "description": "Brief description of the world's theme and intended experience",
+      "examples": [
+        "A survival world focused on floating islands connected by bridges",
+        "Hardcore desert survival with scarce resources and extreme heat"
+      ]
+    },
+    "generation": {
+      "type": "object",
+      "required": ["strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["new_seed", "fixed_seed", "flat", "void"],
+          "description": "World generation approach: new_seed (random), fixed_seed (specific), flat (superflat), void (empty)"
+        },
+        "seed": {
+          "type": "string",
+          "description": "Minecraft seed value (required if strategy=fixed_seed)",
+          "examples": ["-1234567890", "MOUNTAINS", "8675309"]
+        },
+        "levelType": {
+          "type": "string",
+          "enum": ["default", "flat", "large_biomes", "amplified"],
+          "default": "default",
+          "description": "Minecraft level type for terrain generation"
+        },
+        "biomes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "plains",
+              "forest",
+              "mountains",
+              "desert",
+              "taiga",
+              "ocean",
+              "jungle",
+              "savanna",
+              "swamp",
+              "ice_spikes",
+              "mushroom_fields",
+              "badlands",
+              "dark_forest",
+              "birch_forest"
+            ]
+          },
+          "uniqueItems": true,
+          "maxItems": 5,
+          "description": "Preferred biomes (hints for seed selection, not guaranteed)"
+        },
+        "structures": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "villages": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable village generation"
+            },
+            "strongholds": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable stronghold generation"
+            },
+            "mineshafts": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable abandoned mineshaft generation"
+            },
+            "temples": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable temple/pyramid generation"
+            },
+            "oceanMonuments": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable ocean monument generation"
+            },
+            "woodlandMansions": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable woodland mansion generation"
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "required": ["difficulty", "gameMode"],
+      "additionalProperties": false,
+      "properties": {
+        "difficulty": {
+          "type": "string",
+          "enum": ["peaceful", "easy", "normal", "hard"],
+          "description": "Game difficulty level"
+        },
+        "gameMode": {
+          "type": "string",
+          "enum": ["survival", "creative", "adventure", "spectator"],
+          "description": "Default game mode for players"
+        },
+        "hardcore": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable hardcore mode (permanent death)"
+        },
+        "pvp": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow player vs player combat"
+        },
+        "keepInventory": {
+          "type": "boolean",
+          "default": false,
+          "description": "Players keep inventory on death"
+        },
+        "naturalRegeneration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Players regenerate health naturally when fed"
+        },
+        "doDaylightCycle": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable day/night cycle"
+        },
+        "doWeatherCycle": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable weather changes"
+        },
+        "doMobSpawning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable mob spawning"
+        },
+        "announceAdvancements": {
+          "type": "boolean",
+          "default": true,
+          "description": "Announce player advancements in chat"
+        },
+        "spawnRadius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 10,
+          "description": "Radius around spawn point where players initially spawn"
+        }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "protection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable spawn protection (ops only can break blocks)"
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 16,
+          "description": "Spawn protection radius in blocks"
+        },
+        "forceGamemode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force players to default gamemode on respawn"
+        }
+      }
+    },
+    "datapacks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "anti_enderman_grief",
+          "more_mob_heads",
+          "player_head_drops",
+          "silence_mobs",
+          "wandering_trades",
+          "custom_crafting",
+          "coordinates_hud"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 10,
+      "description": "Pre-approved datapacks to enable (curated list only)"
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxPlayers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Maximum number of concurrent players"
+        },
+        "viewDistance": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 32,
+          "default": 10,
+          "description": "Server view distance in chunks"
+        },
+        "simulationDistance": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 32,
+          "default": 10,
+          "description": "Distance in chunks where entities/blocks are active"
+        },
+        "motd": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Server message of the day (displayed in server list)"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestedBy": {
+          "type": "string",
+          "description": "GitHub username of requester"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of request"
+        },
+        "userDescription": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Original natural language description from user"
+        },
+        "aiModel": {
+          "type": "string",
+          "description": "AI model used to generate this spec",
+          "examples": ["gpt-4", "gpt-4-turbo", "azure-openai-gpt4"]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "WorldSpec schema version",
+          "examples": ["1.0.0"]
+        }
+      }
+    }
+  }
+}
+

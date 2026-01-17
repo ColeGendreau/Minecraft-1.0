@@ -1,0 +1,59 @@
+{
+  "worldName": "floating-isles",
+  "displayName": "Floating Isles Adventure",
+  "theme": "A survival world featuring dramatic floating islands at various heights, connected by natural stone bridges and waterfalls. Players must bridge between islands to gather resources and explore. Emphasizes vertical exploration and careful navigation.",
+  "generation": {
+    "strategy": "fixed_seed",
+    "seed": "FLOATING",
+    "levelType": "amplified",
+    "biomes": [
+      "mountains",
+      "plains",
+      "forest"
+    ],
+    "structures": {
+      "villages": true,
+      "strongholds": true,
+      "mineshafts": true,
+      "temples": false,
+      "oceanMonuments": false,
+      "woodlandMansions": false
+    }
+  },
+  "rules": {
+    "difficulty": "normal",
+    "gameMode": "survival",
+    "hardcore": false,
+    "pvp": false,
+    "keepInventory": false,
+    "naturalRegeneration": true,
+    "doDaylightCycle": true,
+    "doWeatherCycle": true,
+    "doMobSpawning": true,
+    "announceAdvancements": true,
+    "spawnRadius": 10
+  },
+  "spawn": {
+    "protection": true,
+    "radius": 16,
+    "forceGamemode": false
+  },
+  "datapacks": [
+    "coordinates_hud",
+    "player_head_drops"
+  ],
+  "server": {
+    "maxPlayers": 20,
+    "viewDistance": 12,
+    "simulationDistance": 10,
+    "motd": "Floating Isles - Survival Adventure!"
+  },
+  "metadata": {
+    "requestedBy": "ColeGendreau",
+    "requestedAt": "2026-01-16T20:30:00Z",
+    "userDescription": "I want a world with floating islands that feel magical and challenging to navigate. Make it survival mode with normal difficulty. I want it to look really cool visually.",
+    "aiModel": "gpt-4-turbo",
+    "version": "1.0.0"
+  }
+}
+
