@@ -102,7 +102,7 @@ export function InfrastructurePanel() {
     // Show offline/error state with deploy button
     return (
       <div className="bg-surface-raised border border-surface-border rounded-xl p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-surface-overlay">
               💤
@@ -112,20 +112,49 @@ export function InfrastructurePanel() {
                 Infrastructure OFF
               </h2>
               <p className="text-text-secondary">
-                {error ? 'API unavailable - server may be starting up' : 'No infrastructure deployed'}
+                Minecraft server not deployed - no billing
               </p>
             </div>
           </div>
-          <button
-            onClick={() => window.open('https://github.com/ColeGendreau/Minecraft-1.0/actions', '_blank')}
-            className="px-8 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-accent-success to-accent-primary hover:opacity-90 text-surface glow-emerald transition-all duration-300"
-          >
-            🚀 View Deploy Actions
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                if (!confirm('Deploy Minecraft infrastructure? This will cost ~$3-5/day.')) return;
+                try {
+                  const result = await toggleInfrastructure('ON');
+                  alert(`${result.message}\n\nMonitor at: ${result.workflowUrl}`);
+                  window.open(result.workflowUrl, '_blank');
+                } catch (err) {
+                  // Fallback: open GitHub Actions
+                  alert('API unavailable. Opening GitHub Actions to deploy manually.');
+                  window.open('https://github.com/ColeGendreau/Minecraft-1.0/actions/workflows/terraform.yaml', '_blank');
+                }
+              }}
+              disabled={toggling}
+              className="px-8 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-accent-success to-accent-primary hover:opacity-90 text-surface glow-emerald transition-all duration-300"
+            >
+              🚀 Deploy Minecraft
+            </button>
+          </div>
         </div>
-        <p className="text-text-muted text-sm mt-4 text-center">
-          To deploy the Minecraft infrastructure, set INFRASTRUCTURE_STATE to ON in the GitHub repo
-        </p>
+        <div className="mt-4 pt-4 border-t border-surface-border/50 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
+          <div className="text-text-muted">
+            <span className="block text-lg mb-1">☁️</span>
+            AKS Cluster
+          </div>
+          <div className="text-text-muted">
+            <span className="block text-lg mb-1">🎮</span>
+            Minecraft Server
+          </div>
+          <div className="text-text-muted">
+            <span className="block text-lg mb-1">📊</span>
+            Grafana Dashboard
+          </div>
+          <div className="text-text-muted">
+            <span className="block text-lg mb-1">📈</span>
+            Prometheus Metrics
+          </div>
+        </div>
       </div>
     );
   }
