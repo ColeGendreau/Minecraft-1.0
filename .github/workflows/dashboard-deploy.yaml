@@ -29,6 +29,10 @@ env:
   COORDINATOR_APP: mc-demo-dev-coordinator
   DASHBOARD_APP: mc-demo-dev-dashboard
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   # Check what changed
   changes:
