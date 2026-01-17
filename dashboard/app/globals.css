@@ -2,75 +2,325 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Minecraft-style pixel font */
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap');
+
 :root {
-  --background: #0C0C14;
-  --foreground: #E8E8F0;
+  /* Minecraft color palette */
+  --mc-dirt: #8B5A2B;
+  --mc-dirt-dark: #5D3A1A;
+  --mc-stone: #7F7F7F;
+  --mc-stone-dark: #4A4A4A;
+  --mc-grass: #5D9B3F;
+  --mc-grass-dark: #3D6B2F;
+  --mc-diamond: #4AEDD9;
+  --mc-emerald: #17DD62;
+  --mc-gold: #FCDB05;
+  --mc-redstone: #FF0000;
+  --mc-obsidian: #1A0A24;
+  --mc-bedrock: #0C0C0C;
+  --mc-oak: #BC9862;
+  --mc-dark-oak: #3D2813;
+  
+  /* UI Colors */
+  --background: #1A1A2E;
+  --background-darker: #0F0F1A;
+  --surface: #252540;
+  --surface-light: #35355A;
+  --text-primary: #E8E8F0;
+  --text-secondary: #A0A0B0;
+  --text-muted: #606070;
+  --accent: var(--mc-emerald);
+  --accent-secondary: var(--mc-diamond);
 }
 
+/* Base body with Minecraft night sky gradient */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: 
+    radial-gradient(ellipse at top, #1a1a3e 0%, transparent 50%),
+    linear-gradient(180deg, #0a0a14 0%, #1a1a2e 50%, #0a0a14 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
   min-height: 100vh;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  letter-spacing: 0.5px;
 }
 
-/* Custom scrollbar */
+/* Minecraft pixel font for headings */
+h1, h2, h3, .mc-title {
+  font-family: 'Press Start 2P', cursive;
+  letter-spacing: 1px;
+  line-height: 1.5;
+}
+
+/* Pixelated rendering for images and icons */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ===== MINECRAFT-STYLE COMPONENTS ===== */
+
+/* Inventory slot style */
+.mc-slot {
+  background: linear-gradient(135deg, #373737 0%, #8b8b8b 50%, #373737 100%);
+  border: 4px solid;
+  border-color: #373737 #ffffff #ffffff #373737;
+  box-shadow: inset 0 0 0 1px #000;
+}
+
+.mc-slot:hover {
+  background: linear-gradient(135deg, #474747 0%, #9b9b9b 50%, #474747 100%);
+}
+
+/* Stone button style */
+.mc-button {
+  background: linear-gradient(180deg, #9d9d9d 0%, #6d6d6d 50%, #8d8d8d 100%);
+  border: 4px solid;
+  border-color: #ffffff #373737 #373737 #ffffff;
+  box-shadow: 
+    inset 2px 2px 0 rgba(255,255,255,0.3),
+    inset -2px -2px 0 rgba(0,0,0,0.3),
+    4px 4px 0 rgba(0,0,0,0.5);
+  color: #1a1a1a;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.3);
+  padding: 12px 24px;
+  transition: all 0.1s;
+  cursor: pointer;
+}
+
+.mc-button:hover {
+  background: linear-gradient(180deg, #adadad 0%, #7d7d7d 50%, #9d9d9d 100%);
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset 2px 2px 0 rgba(255,255,255,0.3),
+    inset -2px -2px 0 rgba(0,0,0,0.3),
+    2px 2px 0 rgba(0,0,0,0.5);
+}
+
+.mc-button:active {
+  transform: translate(4px, 4px);
+  box-shadow: 
+    inset -2px -2px 0 rgba(255,255,255,0.3),
+    inset 2px 2px 0 rgba(0,0,0,0.3);
+}
+
+/* Green (grass) button */
+.mc-button-grass {
+  background: linear-gradient(180deg, #5d9b3f 0%, #3d7b2f 50%, #4d8b3f 100%);
+  border-color: #8ddb6f #2d5b1f #2d5b1f #8ddb6f;
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+
+.mc-button-grass:hover {
+  background: linear-gradient(180deg, #6dab4f 0%, #4d8b3f 50%, #5d9b4f 100%);
+}
+
+/* Red (redstone) button */
+.mc-button-redstone {
+  background: linear-gradient(180deg, #c62828 0%, #8b1a1a 50%, #a82222 100%);
+  border-color: #ff5252 #5b0a0a #5b0a0a #ff5252;
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+
+/* Dirt panel background */
+.mc-panel-dirt {
+  background: 
+    linear-gradient(135deg, rgba(139,90,43,0.9) 0%, rgba(93,58,26,0.9) 100%),
+    url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23000' fill-opacity='0.1' x='0' y='0' width='8' height='8'/%3E%3Crect fill='%23000' fill-opacity='0.1' x='8' y='8' width='8' height='8'/%3E%3C/svg%3E");
+  border: 4px solid;
+  border-color: #bc9862 #3d2813 #3d2813 #bc9862;
+}
+
+/* Stone panel background */
+.mc-panel-stone {
+  background: 
+    linear-gradient(135deg, rgba(127,127,127,0.9) 0%, rgba(74,74,74,0.9) 100%),
+    url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23000' fill-opacity='0.05' x='0' y='0' width='8' height='8'/%3E%3Crect fill='%23fff' fill-opacity='0.05' x='8' y='8' width='8' height='8'/%3E%3C/svg%3E");
+  border: 4px solid;
+  border-color: #afafaf #2a2a2a #2a2a2a #afafaf;
+}
+
+/* Obsidian panel (dark) */
+.mc-panel-obsidian {
+  background: 
+    linear-gradient(135deg, rgba(26,10,36,0.95) 0%, rgba(15,5,20,0.95) 100%);
+  border: 4px solid;
+  border-color: #3a2a4a #0a0510 #0a0510 #3a2a4a;
+  box-shadow: 
+    inset 0 0 60px rgba(137,50,184,0.1),
+    0 0 30px rgba(137,50,184,0.2);
+}
+
+/* Inventory/chest style card */
+.mc-card {
+  background: linear-gradient(180deg, #c6c6c6 0%, #8b8b8b 100%);
+  border: 4px solid;
+  border-color: #ffffff #555555 #555555 #ffffff;
+  box-shadow: 
+    inset 4px 4px 0 rgba(255,255,255,0.2),
+    inset -4px -4px 0 rgba(0,0,0,0.2),
+    8px 8px 0 rgba(0,0,0,0.3);
+}
+
+.mc-card-dark {
+  background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+  border-color: #5a5a6a #1a1a2a #1a1a2a #5a5a6a;
+}
+
+/* Health/XP bar style */
+.mc-bar {
+  height: 16px;
+  background: #1a1a1a;
+  border: 2px solid;
+  border-color: #0a0a0a #3a3a3a #3a3a3a #0a0a0a;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+}
+
+.mc-bar-fill {
+  height: 100%;
+  background: linear-gradient(180deg, var(--mc-emerald) 0%, #0a8a3a 100%);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.3);
+  transition: width 0.5s ease;
+}
+
+/* Hotbar style */
+.mc-hotbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+  border: 4px solid;
+  border-color: #4a4a4a #0a0a0a #0a0a0a #4a4a4a;
+}
+
+/* Tooltip style */
+.mc-tooltip {
+  background: linear-gradient(180deg, #100010 0%, #1a0a24 100%);
+  border: 2px solid #2a1a3a;
+  padding: 8px 12px;
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* ===== ANIMATIONS ===== */
+
+/* Block break animation */
+@keyframes blockBreak {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.5; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+/* Block place animation */
+@keyframes blockPlace {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Floating item animation (like dropped items) */
+@keyframes itemFloat {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-8px) rotate(5deg); }
+}
+
+.animate-float {
+  animation: itemFloat 3s ease-in-out infinite;
+}
+
+/* XP orb glow */
+@keyframes xpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 10px var(--mc-emerald), 0 0 20px var(--mc-emerald); 
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 20px var(--mc-emerald), 0 0 40px var(--mc-emerald); 
+    transform: scale(1.1);
+  }
+}
+
+.animate-xp-glow {
+  animation: xpGlow 2s ease-in-out infinite;
+}
+
+/* Torch flicker */
+@keyframes torchFlicker {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.8; filter: brightness(0.9); }
+}
+
+.animate-torch {
+  animation: torchFlicker 0.5s ease-in-out infinite;
+}
+
+/* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #13131F;
+  background: #1a1a1a;
+  border: 2px solid #2a2a2a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2A2A3E;
-  border-radius: 4px;
+  background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+  border: 2px solid;
+  border-color: #7a7a7a #2a2a2a #2a2a2a #7a7a7a;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A3A4E;
+  background: linear-gradient(180deg, #6a6a6a 0%, #4a4a4a 100%);
 }
 
 /* Selection */
 ::selection {
-  background: rgba(74, 237, 217, 0.3);
-  color: #E8E8F0;
+  background: rgba(23, 221, 98, 0.5);
+  color: white;
 }
 
 /* Focus styles */
 *:focus-visible {
-  outline: 2px solid #4AEDD9;
+  outline: 4px solid var(--mc-emerald);
   outline-offset: 2px;
 }
 
-/* Minecraft-style pixelated hover effect */
-.pixel-border {
-  box-shadow: 
-    inset -2px -2px 0 rgba(0,0,0,0.5),
-    inset 2px 2px 0 rgba(255,255,255,0.1);
-}
-
-.pixel-border:hover {
-  box-shadow: 
-    inset -2px -2px 0 rgba(0,0,0,0.3),
-    inset 2px 2px 0 rgba(255,255,255,0.2);
-}
-
-/* Glow effects */
+/* ===== GLOW EFFECTS ===== */
 .glow-diamond {
-  box-shadow: 0 0 30px rgba(74, 237, 217, 0.4);
+  box-shadow: 0 0 30px rgba(74, 237, 217, 0.5);
 }
 
 .glow-emerald {
-  box-shadow: 0 0 30px rgba(23, 221, 98, 0.4);
+  box-shadow: 0 0 30px rgba(23, 221, 98, 0.5);
+}
+
+.glow-gold {
+  box-shadow: 0 0 30px rgba(252, 219, 5, 0.5);
+}
+
+.glow-redstone {
+  box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
 }
 
 .glow-portal {
-  box-shadow: 0 0 30px rgba(137, 50, 184, 0.4);
+  box-shadow: 0 0 30px rgba(137, 50, 184, 0.5);
 }
 
-/* Text glow */
-.text-glow {
-  text-shadow: 0 0 20px currentColor;
+/* Text shadows */
+.text-shadow-mc {
+  text-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+}
+
+.text-shadow-mc-light {
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
 }
