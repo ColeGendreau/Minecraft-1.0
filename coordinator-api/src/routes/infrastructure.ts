@@ -1,116 +1,105 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
+import { Octokit } from '@octokit/rest';
 
 const router = Router();
 
-// Path to INFRASTRUCTURE_STATE file (relative to project root)
-const INFRA_STATE_PATH = process.env.INFRA_STATE_PATH || '../INFRASTRUCTURE_STATE';
+// GitHub configuration
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'ColeGendreau';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'Minecraft-1.0';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const STATE_FILE_PATH = 'INFRASTRUCTURE_STATE';
 
-// Service definitions with their health check info
+// Initialize Octokit (GitHub API client)
+const getOctokit = () => {
+  if (!GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN environment variable not set');
+  }
+  return new Octokit({ auth: GITHUB_TOKEN });
+};
+
+// Service definitions
 const SERVICES = [
-  {
-    id: 'azure-rg',
-    name: 'Azure Resource Group',
-    description: 'mc-demo-dev-rg',
-    category: 'infrastructure',
-    icon: 'cloud',
-  },
-  {
-    id: 'aks',
-    name: 'Kubernetes Cluster',
-    description: 'mc-demo-dev-aks (2 nodes)',
-    category: 'infrastructure',
-    icon: 'kubernetes',
-  },
-  {
-    id: 'acr',
-    name: 'Container Registry',
-    description: 'mcdemodevacr.azurecr.io',
-    category: 'infrastructure',
-    icon: 'container',
-  },
-  {
-    id: 'public-ip',
-    name: 'Static Public IP',
-    description: 'Load balancer ingress',
-    category: 'infrastructure',
-    icon: 'globe',
-  },
-  {
-    id: 'ingress',
-    name: 'NGINX Ingress',
-    description: 'External traffic routing',
-    category: 'kubernetes',
-    icon: 'route',
-  },
-  {
-    id: 'cert-manager',
-    name: 'Cert Manager',
-    description: "Let's Encrypt TLS automation",
-    category: 'kubernetes',
-    icon: 'lock',
-  },
-  {
-    id: 'minecraft',
-    name: 'Minecraft Server',
-    description: 'Vanilla 1.21.3 on port 25565',
-    category: 'application',
-    icon: 'game',
-  },
-  {
-    id: 'prometheus',
-    name: 'Prometheus',
-    description: 'Metrics collection',
-    category: 'monitoring',
-    icon: 'chart',
-  },
-  {
-    id: 'grafana',
-    name: 'Grafana',
-    description: 'Dashboards & visualization',
-    category: 'monitoring',
-    icon: 'dashboard',
-  },
-  {
-    id: 'log-analytics',
-    name: 'Log Analytics',
-    description: 'Azure Container Insights',
-    category: 'monitoring',
-    icon: 'logs',
-  },
+  { id: 'aks', name: 'Kubernetes Cluster', description: 'mc-demo-dev-aks', category: 'infrastructure', icon: 'kubernetes' },
+  { id: 'acr', name: 'Container Registry', description: 'mcdemodevacr.azurecr.io', category: 'infrastructure', icon: 'container' },
+  { id: 'public-ip', name: 'Static Public IP', description: 'Load balancer ingress', category: 'infrastructure', icon: 'globe' },
+  { id: 'ingress', name: 'NGINX Ingress', description: 'External traffic routing', category: 'kubernetes', icon: 'route' },
+  { id: 'cert-manager', name: 'Cert Manager', description: "Let's Encrypt TLS", category: 'kubernetes', icon: 'lock' },
+  { id: 'minecraft', name: 'Minecraft Server', description: 'Vanilla 1.21.3', category: 'application', icon: 'game' },
+  { id: 'prometheus', name: 'Prometheus', description: 'Metrics collection', category: 'monitoring', icon: 'chart' },
+  { id: 'grafana', name: 'Grafana', description: 'Dashboards', category: 'monitoring', icon: 'dashboard' },
 ];
 
 /**
+ * Get current INFRASTRUCTURE_STATE from GitHub
+ */
+async function getInfrastructureState(): Promise<{ state: string; sha: string }> {
+  try {
+    const octokit = getOctokit();
+    const { data } = await octokit.repos.getContent({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      path: STATE_FILE_PATH,
+    });
+
+    if ('content' in data) {
+      const content = Buffer.from(data.content, 'base64').toString('utf-8').trim().toUpperCase();
+      return { state: content, sha: data.sha };
+    }
+    return { state: 'UNKNOWN', sha: '' };
+  } catch (error) {
+    console.error('Error reading infrastructure state from GitHub:', error);
+    return { state: 'UNKNOWN', sha: '' };
+  }
+}
+
+/**
+ * Update INFRASTRUCTURE_STATE in GitHub (triggers workflow)
+ */
+async function updateInfrastructureState(newState: string, currentSha: string): Promise<{ success: boolean; commitUrl?: string; error?: string }> {
+  try {
+    const octokit = getOctokit();
+    
+    const message = newState === 'ON' 
+      ? '🚀 Deploy Minecraft infrastructure' 
+      : '🛑 Destroy Minecraft infrastructure';
+
+    const { data } = await octokit.repos.createOrUpdateFileContents({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      path: STATE_FILE_PATH,
+      message,
+      content: Buffer.from(newState + '\n').toString('base64'),
+      sha: currentSha,
+      committer: {
+        name: 'Minecraft Dashboard',
+        email: 'dashboard@minecraft.local',
+      },
+    });
+
+    return {
+      success: true,
+      commitUrl: data.commit.html_url,
+    };
+  } catch (error: unknown) {
+    console.error('Error updating infrastructure state:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * GET /api/infrastructure/status
- * Get current infrastructure state and service statuses
  */
 router.get('/status', async (req, res) => {
   try {
-    // Read INFRASTRUCTURE_STATE file
-    let infraState = 'UNKNOWN';
-    try {
-      const statePath = path.resolve(process.cwd(), INFRA_STATE_PATH);
-      if (fs.existsSync(statePath)) {
-        infraState = fs.readFileSync(statePath, 'utf-8').trim().toUpperCase();
-      }
-    } catch {
-      // File doesn't exist or can't be read
-    }
-
+    const { state: infraState } = await getInfrastructureState();
     const isRunning = infraState === 'ON';
 
-    // Generate service statuses based on infrastructure state
     const services = SERVICES.map((service) => ({
       ...service,
       status: isRunning ? 'running' : 'stopped',
-      // In a real implementation, we'd check actual service health
-      // For now, simulate based on INFRASTRUCTURE_STATE
     }));
 
-    // Calculate some mock metrics for the UI
     const metrics = isRunning
       ? {
           nodes: 2,
@@ -132,8 +121,8 @@ router.get('/status', async (req, res) => {
       gitHub: {
         owner: GITHUB_OWNER,
         repo: GITHUB_REPO,
-        stateFile: 'INFRASTRUCTURE_STATE',
-        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions`,
+        stateFile: STATE_FILE_PATH,
+        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
       },
     });
   } catch (error) {
@@ -144,7 +133,7 @@ router.get('/status', async (req, res) => {
 
 /**
  * POST /api/infrastructure/toggle
- * Toggle infrastructure state (triggers GitHub workflow)
+ * Toggle infrastructure state by committing to GitHub (triggers terraform workflow)
  */
 router.post('/toggle', async (req, res) => {
   try {
@@ -160,47 +149,67 @@ router.post('/toggle', async (req, res) => {
 
     const newState = targetState.toUpperCase();
 
-    // In a real implementation, this would:
-    // 1. Use GitHub API (Octokit) to update INFRASTRUCTURE_STATE file
-    // 2. This triggers the terraform.yaml workflow
-    // 3. Workflow provisions or destroys infrastructure
+    // Check if GITHUB_TOKEN is configured
+    if (!GITHUB_TOKEN) {
+      res.status(503).json({
+        error: 'GitHub integration not configured',
+        details: 'GITHUB_TOKEN environment variable is not set on the coordinator API',
+        manual: `To deploy manually, update INFRASTRUCTURE_STATE to "${newState}" and push to main branch`,
+        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+      });
+      return;
+    }
 
-    // For now, we'll update the local file (development mode)
-    try {
-      const statePath = path.resolve(process.cwd(), INFRA_STATE_PATH);
-      fs.writeFileSync(statePath, newState + '\n');
-    } catch {
-      // Can't write locally, would use GitHub API in production
+    // Get current state and SHA (needed for update)
+    const { state: currentState, sha } = await getInfrastructureState();
+
+    if (currentState === newState) {
+      res.json({
+        success: true,
+        message: `Infrastructure is already ${newState}`,
+        newState,
+        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+      });
+      return;
+    }
+
+    // Update the file in GitHub (this triggers the terraform workflow)
+    const result = await updateInfrastructureState(newState, sha);
+
+    if (!result.success) {
+      res.status(500).json({
+        error: 'Failed to update infrastructure state',
+        details: result.error,
+        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+      });
+      return;
     }
 
     res.json({
       success: true,
-      message: `Infrastructure state change to ${newState} initiated`,
+      message: `Infrastructure ${newState === 'ON' ? 'deployment' : 'destruction'} initiated!`,
       newState,
-      estimatedTime: newState === 'ON' ? '12-15 minutes' : '10-12 minutes',
-      note: 'Changes will be applied via GitHub Actions workflow',
-      workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions`,
+      previousState: currentState,
+      estimatedTime: newState === 'ON' ? '12-15 minutes' : '8-10 minutes',
+      commitUrl: result.commitUrl,
+      workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
     });
   } catch (error) {
     console.error('Error toggling infrastructure:', error);
-    res.status(500).json({ error: 'Failed to toggle infrastructure state' });
+    res.status(500).json({ 
+      error: 'Failed to toggle infrastructure state',
+      workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+    });
   }
 });
 
 /**
  * GET /api/infrastructure/cost
- * Get estimated cost information
  */
 router.get('/cost', (req, res) => {
   res.json({
-    daily: {
-      running: '$3-5',
-      stopped: '$0',
-    },
-    monthly: {
-      running: '$100-150',
-      stopped: '$0',
-    },
+    daily: { running: '$3-5', stopped: '$0' },
+    monthly: { running: '$100-150', stopped: '$0' },
     breakdown: [
       { service: 'AKS Cluster (2 nodes)', daily: '$3.50' },
       { service: 'Container Registry', daily: '$0.16' },
@@ -212,4 +221,3 @@ router.get('/cost', (req, res) => {
 });
 
 export default router;
-
