@@ -6,6 +6,7 @@ import {
   toggleInfrastructure,
   type InfrastructureStatusResponse,
 } from '@/lib/api';
+import { BlockBuildAnimation, MiniBlockProgress } from './BlockBuildAnimation';
 
 // Minecraft-themed service definitions
 const MINECRAFT_SERVICES = [
@@ -38,9 +39,10 @@ export function InfrastructurePanel() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deployProgress, setDeployProgress] = useState<string[]>([]);
+  const [deployProgress, setDeployProgress] = useState(0);
   const [currentQuote, setCurrentQuote] = useState(MINECRAFT_QUOTES[0]);
   const [showSecretCreeper, setShowSecretCreeper] = useState(false);
+  const [isDestroying, setIsDestroying] = useState(false);
 
   // Rotate quotes during loading
   useEffect(() => {
@@ -87,43 +89,44 @@ export function InfrastructurePanel() {
     if (!confirm(confirmMessage)) return;
 
     setToggling(true);
-    setDeployProgress([]);
+    setIsDestroying(isCurrentlyRunning);
+    setDeployProgress(0);
 
-    // Simulate progress updates
-    const progressSteps = isCurrentlyRunning
-      ? ['Stopping Minecraft server...', 'Draining pods...', 'Destroying cluster...', 'Cleaning up resources...']
-      : ['Initializing Terraform...', 'Creating AKS cluster...', 'Deploying ingress...', 'Starting Minecraft...', 'Configuring monitoring...'];
-
-    let stepIndex = 0;
+    // Animate progress over ~30 seconds (simulated)
     const progressInterval = setInterval(() => {
-      if (stepIndex < progressSteps.length) {
-        setDeployProgress(prev => [...prev, progressSteps[stepIndex]]);
-        stepIndex++;
-      }
-    }, 2000);
+      setDeployProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        // Random increments between 3-8%
+        return Math.min(prev + Math.random() * 5 + 3, 95);
+      });
+    }, 1500);
 
     try {
       const result = await toggleInfrastructure(targetState);
       clearInterval(progressInterval);
-      setDeployProgress(prev => [...prev, '✅ Workflow triggered!']);
+      setDeployProgress(100);
       
       setTimeout(() => {
         alert(`${result.message}\n\n⏱️ Estimated time: ${result.estimatedTime}\n\n🔗 Monitor progress:\n${result.workflowUrl}`);
         window.open(result.workflowUrl, '_blank');
-      }, 500);
+      }, 1000);
       
       await fetchStatus();
     } catch (err) {
       clearInterval(progressInterval);
       // Fallback to GitHub Actions
-      setDeployProgress(prev => [...prev, '⚠️ API unavailable, opening GitHub...']);
+      setDeployProgress(100);
       setTimeout(() => {
         window.open('https://github.com/ColeGendreau/Minecraft-1.0/actions/workflows/terraform.yaml', '_blank');
       }, 1000);
     } finally {
       setTimeout(() => {
         setToggling(false);
-        setDeployProgress([]);
+        setDeployProgress(0);
+        setIsDestroying(false);
       }, 3000);
     }
   };
@@ -145,21 +148,31 @@ export function InfrastructurePanel() {
     <div className="space-y-6">
       {/* Secret Creeper Easter Egg */}
       {showSecretCreeper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-pulse">
-          <div className="text-center">
-            <div className="text-9xl mb-4 animate-bounce">💥</div>
-            <div className="text-4xl font-bold text-green-500 font-mono">Ssssssss... BOOM!</div>
-            <div className="text-green-400 mt-2">Creeper says hi! 🟩⬛🟩</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+          <div className="text-center animate-pulse">
+            <div className="text-[150px] mb-4 animate-bounce">💥</div>
+            <div 
+              className="text-4xl font-bold text-green-500"
+              style={{ fontFamily: "'Press Start 2P', cursive" }}
+            >
+              Ssssssss... BOOM!
+            </div>
+            <div className="text-green-400 mt-4 text-2xl">
+              🟩⬛🟩<br/>
+              ⬛🟩⬛<br/>
+              🟩🟩🟩
+            </div>
+            <div className="text-gray-500 mt-4">Creeper says hi!</div>
           </div>
         </div>
       )}
 
       {/* Main Control Panel */}
       <div className={`
-        relative overflow-hidden rounded-2xl border-4 transition-all duration-700
+        relative overflow-hidden mc-card-dark rounded-xl border-4 transition-all duration-700
         ${isRunning 
-          ? 'bg-gradient-to-br from-emerald-900/40 via-green-900/30 to-cyan-900/40 border-emerald-500/60 shadow-[0_0_60px_-15px_rgba(16,185,129,0.5)]' 
-          : 'bg-gradient-to-br from-gray-900/60 via-slate-900/50 to-zinc-900/60 border-zinc-700/50'
+          ? 'border-emerald-500/60 shadow-[0_0_60px_-15px_rgba(16,185,129,0.5)]' 
+          : 'border-zinc-700/50'
         }
       `}>
         {/* Animated Minecraft-style background pattern */}
@@ -176,118 +189,118 @@ export function InfrastructurePanel() {
         {/* Torch decorations when running */}
         {isRunning && (
           <>
-            <div className="absolute top-4 left-4 text-3xl animate-pulse">🔥</div>
-            <div className="absolute top-4 right-4 text-3xl animate-pulse" style={{ animationDelay: '0.5s' }}>🔥</div>
+            <div className="absolute top-4 left-4 text-3xl animate-torch">🔥</div>
+            <div className="absolute top-4 right-4 text-3xl animate-torch" style={{ animationDelay: '0.25s' }}>🔥</div>
           </>
         )}
 
         <div className="relative p-8">
           {/* Header with Status */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-6">
               {/* Big Status Indicator - Redstone Lamp Style */}
               <div 
                 className={`
-                  relative w-20 h-20 rounded-xl flex items-center justify-center cursor-pointer
+                  relative w-24 h-24 rounded-xl flex items-center justify-center cursor-pointer
                   transition-all duration-500 transform hover:scale-105
                   ${isRunning 
-                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-[0_0_40px_rgba(251,191,36,0.6)] animate-pulse' 
-                    : 'bg-gradient-to-br from-zinc-700 to-zinc-800 shadow-inner'
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500' 
+                    : 'bg-gradient-to-br from-zinc-700 to-zinc-800'
                   }
                 `}
                 style={{
                   boxShadow: isRunning 
-                    ? '0 0 40px rgba(251,191,36,0.6), inset 0 2px 10px rgba(255,255,255,0.3)' 
-                    : 'inset 0 4px 10px rgba(0,0,0,0.5)'
+                    ? '0 0 50px rgba(251,191,36,0.7), inset 0 2px 10px rgba(255,255,255,0.4), inset 0 -4px 10px rgba(0,0,0,0.3)' 
+                    : 'inset 0 4px 10px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(255,255,255,0.1)',
+                  border: '4px solid',
+                  borderColor: isRunning ? '#f59e0b #92400e #92400e #f59e0b' : '#52525b #27272a #27272a #52525b',
                 }}
               >
-                <span className="text-4xl">{isRunning ? '⚡' : '💤'}</span>
+                <span className="text-5xl">{isRunning ? '⚡' : '💤'}</span>
                 {/* Redstone glow effect */}
                 {isRunning && (
-                  <div className="absolute inset-0 rounded-xl bg-yellow-400/30 animate-ping" />
+                  <div className="absolute inset-0 rounded-xl bg-yellow-400/40 animate-ping" style={{ animationDuration: '2s' }} />
                 )}
               </div>
 
               <div>
                 <h2 
-                  className="text-3xl font-bold text-text-primary cursor-pointer select-none font-mono tracking-wider"
+                  className="text-2xl lg:text-3xl font-bold cursor-pointer select-none text-shadow-mc"
                   onClick={handleTitleClick}
+                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px', color: isRunning ? '#4ade80' : '#ef4444' }}
                 >
-                  {isRunning ? '🟢 SERVER ONLINE' : '🔴 SERVER OFFLINE'}
+                  {isRunning ? 'SERVER ONLINE' : 'SERVER OFFLINE'}
                 </h2>
-                <p className="text-text-secondary mt-1 font-mono">
+                <p className="text-gray-400 mt-2" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
                   {isRunning 
                     ? '⛏️ All systems operational' 
                     : '💰 No infrastructure costs'
                   }
                 </p>
                 {status?.lastUpdated && (
-                  <p className="text-xs text-text-muted mt-1">
+                  <p className="text-xs text-gray-600 mt-1" style={{ fontFamily: "'VT323', monospace" }}>
                     Last check: {new Date(status.lastUpdated).toLocaleTimeString()}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Big Toggle Button - Lever Style */}
+            {/* Big Toggle Button - Stone Button Style */}
             <button
               onClick={handleToggle}
               disabled={toggling || loading}
               className={`
-                relative px-10 py-5 rounded-xl font-bold text-xl transition-all duration-300
+                relative px-8 py-4 font-bold text-lg transition-all duration-300
                 transform hover:scale-105 active:scale-95
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                font-mono tracking-wide
-                ${toggling ? 'animate-pulse' : ''}
-                ${isRunning
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white shadow-[0_4px_20px_rgba(220,38,38,0.4)]'
-                  : 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white shadow-[0_4px_20px_rgba(16,185,129,0.4)]'
-                }
+                ${toggling ? '' : ''}
+                ${isRunning ? 'mc-button-redstone' : 'mc-button-grass'}
               `}
+              style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}
             >
               {toggling ? (
                 <span className="flex items-center gap-3">
-                  <span className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                  {currentQuote}
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="hidden sm:inline">{currentQuote}</span>
+                  <span className="sm:hidden">Working...</span>
                 </span>
               ) : isRunning ? (
                 <span className="flex items-center gap-2">
-                  <span className="text-2xl">🛑</span>
+                  <span className="text-xl">🛑</span>
                   DESTROY
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <span className="text-2xl">🚀</span>
+                  <span className="text-xl">🚀</span>
                   DEPLOY
                 </span>
               )}
             </button>
           </div>
 
-          {/* Deployment Progress */}
-          {toggling && deployProgress.length > 0 && (
-            <div className="mb-8 p-4 bg-black/40 rounded-xl border border-emerald-500/30 font-mono text-sm">
-              <div className="flex items-center gap-2 mb-3 text-emerald-400">
-                <span className="animate-pulse">▶</span>
-                <span>Deployment Progress</span>
-              </div>
-              <div className="space-y-1">
-                {deployProgress.map((step, i) => (
-                  <div key={i} className="flex items-center gap-2 text-text-secondary">
-                    <span className="text-emerald-500">{step.startsWith('✅') ? '✅' : step.startsWith('⚠️') ? '⚠️' : '▸'}</span>
-                    <span>{step}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2 text-emerald-400 animate-pulse">
-                  <span>▸</span>
-                  <span>_</span>
-                </div>
-              </div>
+          {/* Block Building Animation when deploying */}
+          {toggling && (
+            <div className="mb-8">
+              <BlockBuildAnimation 
+                isBuilding={!isDestroying} 
+                isDestroying={isDestroying}
+                progress={deployProgress}
+              />
+            </div>
+          )}
+
+          {/* Mini Block Progress (always visible when not toggling) */}
+          {!toggling && (
+            <div className="mb-6 p-4 bg-black/30 rounded-lg">
+              <p className="text-xs text-gray-500 mb-2" style={{ fontFamily: "'VT323', monospace" }}>
+                AZURE SERVICES
+              </p>
+              <MiniBlockProgress progress={isRunning ? 100 : 0} isDestroying={false} />
             </div>
           )}
 
           {/* Quick Stats when Running */}
-          {isRunning && status?.metrics && (
+          {isRunning && status?.metrics && !toggling && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <StatBlock icon="🖥️" label="Nodes" value={status.metrics.nodes} color="cyan" />
               <StatBlock icon="📦" label="Pods" value={status.metrics.pods} color="purple" />
@@ -297,19 +310,21 @@ export function InfrastructurePanel() {
           )}
 
           {/* Service Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {MINECRAFT_SERVICES.map((service, index) => (
-              <ServiceBlock 
-                key={service.id} 
-                service={service} 
-                isRunning={isRunning}
-                delay={index * 100}
-              />
-            ))}
-          </div>
+          {!toggling && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {MINECRAFT_SERVICES.map((service, index) => (
+                <ServiceBlock 
+                  key={service.id} 
+                  service={service} 
+                  isRunning={isRunning}
+                  delay={index * 100}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Quick Links when Running */}
-          {isRunning && status?.metrics && (
+          {isRunning && status?.metrics && !toggling && (
             <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-white/10">
               <QuickLink href={status.metrics.grafanaUrl} icon="📈" label="Grafana" />
               <QuickLink href={`https://github.com/ColeGendreau/Minecraft-1.0/actions`} icon="🔧" label="GitHub Actions" />
@@ -318,13 +333,13 @@ export function InfrastructurePanel() {
           )}
 
           {/* Cost Estimate Footer */}
-          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm font-mono">
-            <span className="text-text-muted">
+          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm" style={{ fontFamily: "'VT323', monospace" }}>
+            <span className="text-gray-500">
               💰 {isRunning ? '~$3-5/day while running' : '$0/day when stopped'}
             </span>
             <span className="text-emerald-500 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {loading ? 'Checking...' : error ? 'API Unavailable' : 'Live'}
+              <span className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : error ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
+              {loading ? 'Checking...' : error ? 'API Unavailable' : 'Live Status'}
             </span>
           </div>
         </div>
@@ -344,11 +359,11 @@ function StatBlock({ icon, label, value, color }: { icon: string; label: string;
   return (
     <div className={`
       bg-gradient-to-br ${colorClasses[color]} 
-      border rounded-xl p-4 text-center backdrop-blur-sm
+      border-2 rounded-lg p-4 text-center backdrop-blur-sm mc-slot
     `}>
       <span className="text-2xl block mb-1">{icon}</span>
-      <span className="text-2xl font-bold text-text-primary block font-mono">{value}</span>
-      <span className="text-xs text-text-muted uppercase tracking-wider">{label}</span>
+      <span className="text-2xl font-bold text-white block" style={{ fontFamily: "'VT323', monospace" }}>{value}</span>
+      <span className="text-xs text-gray-400 uppercase tracking-wider" style={{ fontFamily: "'VT323', monospace" }}>{label}</span>
     </div>
   );
 }
@@ -357,11 +372,11 @@ function ServiceBlock({ service, isRunning, delay }: { service: typeof MINECRAFT
   return (
     <div 
       className={`
-        relative overflow-hidden rounded-lg border-2 p-3 transition-all duration-500
-        transform hover:scale-105 hover:-translate-y-1
+        relative overflow-hidden rounded-lg p-3 transition-all duration-500
+        transform hover:scale-105 hover:-translate-y-1 cursor-pointer
         ${isRunning 
-          ? 'bg-gradient-to-br from-emerald-900/30 to-green-900/20 border-emerald-500/40 shadow-lg shadow-emerald-500/10' 
-          : 'bg-zinc-900/50 border-zinc-700/30 opacity-50'
+          ? 'mc-slot bg-emerald-900/30' 
+          : 'mc-slot opacity-50'
         }
       `}
       style={{ transitionDelay: `${delay}ms` }}
@@ -374,18 +389,18 @@ function ServiceBlock({ service, isRunning, delay }: { service: typeof MINECRAFT
       <div className="relative flex items-center gap-3">
         {/* Status indicator */}
         <div className={`
-          w-2 h-2 rounded-full
-          ${isRunning ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse' : 'bg-zinc-600'}
+          w-3 h-3 rounded-full
+          ${isRunning ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] animate-pulse' : 'bg-zinc-600'}
         `} />
         
         {/* Icon */}
         <span className="text-2xl">{service.icon}</span>
         
         <div className="min-w-0">
-          <h4 className="font-medium text-text-primary text-sm truncate">
+          <h4 className="font-medium text-white text-sm truncate" style={{ fontFamily: "'VT323', monospace" }}>
             {service.name}
           </h4>
-          <p className="text-xs text-text-muted truncate">
+          <p className="text-xs text-gray-500 truncate" style={{ fontFamily: "'VT323', monospace" }}>
             {service.description}
           </p>
         </div>
@@ -400,10 +415,11 @@ function QuickLink({ href, icon, label }: { href: string; icon: string; label: s
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-text-secondary hover:text-emerald-400 transition-all border border-white/10 hover:border-emerald-500/30"
+      className="mc-button inline-flex items-center gap-2 text-xs"
+      style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '8px' }}
     >
       <span>{icon}</span>
-      <span className="font-mono">{label}</span>
+      <span>{label}</span>
     </a>
   );
 }
@@ -420,10 +436,11 @@ function CopyButton({ value, icon, label }: { value: string; icon: string; label
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-text-secondary hover:text-emerald-400 transition-all border border-white/10 hover:border-emerald-500/30"
+      className="mc-button inline-flex items-center gap-2 text-xs"
+      style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '8px' }}
     >
       <span>{copied ? '✅' : icon}</span>
-      <span className="font-mono">{copied ? 'Copied!' : label}</span>
+      <span>{copied ? 'COPIED!' : label}</span>
     </button>
   );
 }
