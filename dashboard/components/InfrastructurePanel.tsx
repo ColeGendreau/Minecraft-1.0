@@ -98,18 +98,37 @@ export function InfrastructurePanel() {
     );
   }
 
-  if (error) {
+  if (error || !status) {
+    // Show offline/error state with deploy button
     return (
-      <div className="bg-surface-raised border border-accent-error/30 rounded-xl p-6">
-        <p className="text-accent-error text-center">{error}</p>
-        <p className="text-text-muted text-sm text-center mt-2">
-          Make sure the coordinator API is running
+      <div className="bg-surface-raised border border-surface-border rounded-xl p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-surface-overlay">
+              💤
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-text-primary">
+                Infrastructure OFF
+              </h2>
+              <p className="text-text-secondary">
+                {error ? 'API unavailable - server may be starting up' : 'No infrastructure deployed'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.open('https://github.com/ColeGendreau/Minecraft-1.0/actions', '_blank')}
+            className="px-8 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-accent-success to-accent-primary hover:opacity-90 text-surface glow-emerald transition-all duration-300"
+          >
+            🚀 View Deploy Actions
+          </button>
+        </div>
+        <p className="text-text-muted text-sm mt-4 text-center">
+          To deploy the Minecraft infrastructure, set INFRASTRUCTURE_STATE to ON in the GitHub repo
         </p>
       </div>
     );
   }
-
-  if (!status) return null;
 
   const runningServices = status.services.filter(s => s.status === 'running').length;
   const totalServices = status.services.length;

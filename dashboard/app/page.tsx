@@ -20,8 +20,8 @@ export default function HomePage() {
         setCurrentWorld(world);
       } catch (err) {
         if (err instanceof Error) {
-          // Don't show error if it's just "no world deployed"
-          if (!err.message.includes('No world')) {
+          // Don't show error if it's just "no world deployed" or timeout
+          if (!err.message.includes('No world') && !err.message.includes('timed out')) {
             setError(err.message);
           }
         }
