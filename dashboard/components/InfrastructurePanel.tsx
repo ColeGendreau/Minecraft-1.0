@@ -115,7 +115,7 @@ export function InfrastructurePanel() {
       }, 1000);
       
       await fetchStatus();
-    } catch (err) {
+    } catch {
       clearInterval(progressInterval);
       // Fallback to GitHub Actions
       setDeployProgress(100);
