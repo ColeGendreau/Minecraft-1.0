@@ -36,9 +36,11 @@ minecraftServer:
     password: "worldforge-rcon-2024"
     serviceType: ClusterIP
   
-  # WorldEdit plugin - using direct download since Spiget API is unreliable
-  # downloadModpackPlugins:
-  #   - https://dev.bukkit.org/projects/worldedit/files/latest
+  # WorldEdit plugin via Modrinth (more reliable than Spiget)
+  modrinth:
+    projects:
+      - worldedit
+    allowedVersionType: release
   
   # Additional JVM arguments for better performance with WorldEdit
   jvmXXOpts: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
