@@ -26,7 +26,7 @@ RUN adduser --system --uid 1001 coordinator
 
 # Copy package files and install production deps only
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built files
 COPY --from=builder /app/dist ./dist

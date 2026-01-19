@@ -11,25 +11,35 @@ import type {
   WorldSpec,
 } from '../types/index.js';
 
-const DB_PATH = process.env.DATABASE_PATH || './data/coordinator.json';
-
 // Database structure
 interface Database {
   world_requests: WorldRequestRow[];
   deployments: DeploymentRow[];
 }
 
+// Global database instance (lazy initialized)
+let db: Database | null = null;
+let dbInitialized = false;
+
+function getDbPath(): string {
+  return process.env.DATABASE_PATH || './data/coordinator.json';
+}
+
 // Ensure data directory exists
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+function ensureDataDir(): void {
+  const dbPath = getDbPath();
+  const dataDir = path.dirname(dbPath);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
 }
 
 // Load database from file
 function loadDatabase(): Database {
-  if (fs.existsSync(DB_PATH)) {
+  const dbPath = getDbPath();
+  if (fs.existsSync(dbPath)) {
     try {
-      const data = fs.readFileSync(DB_PATH, 'utf-8');
+      const data = fs.readFileSync(dbPath, 'utf-8');
       return JSON.parse(data);
     } catch {
       console.warn('Failed to load database, creating new one');
@@ -39,16 +49,26 @@ function loadDatabase(): Database {
 }
 
 // Save database to file
-function saveDatabase(db: Database): void {
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+function saveDatabase(database: Database): void {
+  const dbPath = getDbPath();
+  ensureDataDir();
+  fs.writeFileSync(dbPath, JSON.stringify(database, null, 2));
 }
 
-// Global database instance
-let db: Database = loadDatabase();
+// Get database (lazy initialization)
+function getDb(): Database {
+  if (!db) {
+    ensureDataDir();
+    db = loadDatabase();
+  }
+  return db;
+}
 
 // Initialize database
 export function initializeDatabase(): void {
+  ensureDataDir();
   db = loadDatabase();
+  dbInitialized = true;
   console.log('Database initialized successfully');
   console.log(`  - ${db.world_requests.length} world requests`);
   console.log(`  - ${db.deployments.length} deployments`);
@@ -83,14 +103,15 @@ export function createWorldRequest(
     updated_at: now,
   };
 
-  db.world_requests.push(row);
-  saveDatabase(db);
+  const database = getDb();
+  database.world_requests.push(row);
+  saveDatabase(database);
 
   return row;
 }
 
 export function getWorldRequestById(id: string): WorldRequestRow | undefined {
-  return db.world_requests.find(r => r.id === id);
+  return getDb().world_requests.find(r => r.id === id);
 }
 
 export function getWorldRequests(
@@ -98,7 +119,8 @@ export function getWorldRequests(
   limit = 50,
   offset = 0
 ): { requests: WorldRequestRow[]; total: number } {
-  let results = [...db.world_requests];
+  const database = getDb();
+  let results = [...database.world_requests];
 
   // Filter by status if provided
   if (status) {
@@ -126,7 +148,8 @@ export function updateWorldRequestStatus(
     error?: string;
   }
 ): void {
-  const request = db.world_requests.find(r => r.id === id);
+  const database = getDb();
+  const request = database.world_requests.find(r => r.id === id);
   if (!request) return;
 
   request.status = status;
@@ -145,19 +168,19 @@ export function updateWorldRequestStatus(
     request.error = updates.error;
   }
 
-  saveDatabase(db);
+  saveDatabase(database);
 }
 
 export function getRequestCountSince(userGithubId: string, sinceDate: Date): number {
   const sinceIso = sinceDate.toISOString();
-  return db.world_requests.filter(
+  return getDb().world_requests.filter(
     r => r.user_github_id === userGithubId && r.created_at >= sinceIso
   ).length;
 }
 
 // Deployments
 export function getCurrentDeployment(): DeploymentRow | undefined {
-  return db.deployments.find(d => d.is_current === 1);
+  return getDb().deployments.find(d => d.is_current === 1);
 }
 
 export function createDeployment(
@@ -167,9 +190,10 @@ export function createDeployment(
 ): DeploymentRow {
   const id = `dep_${uuidv4().slice(0, 8)}`;
   const now = new Date().toISOString();
+  const database = getDb();
 
   // Clear current deployment flag
-  db.deployments.forEach(d => d.is_current = 0);
+  database.deployments.forEach(d => d.is_current = 0);
 
   // Create new deployment
   const row: DeploymentRow = {
@@ -181,14 +205,14 @@ export function createDeployment(
     is_current: 1,
   };
 
-  db.deployments.push(row);
-  saveDatabase(db);
+  database.deployments.push(row);
+  saveDatabase(database);
 
   return row;
 }
 
 export function getDeploymentById(id: string): DeploymentRow | undefined {
-  return db.deployments.find(d => d.id === id);
+  return getDb().deployments.find(d => d.id === id);
 }
 
 // Seed mock data for development
