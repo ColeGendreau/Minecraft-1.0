@@ -30,11 +30,12 @@ minecraftServer:
   servicePort: 25565
   
   # RCON configuration for remote command execution
+  # Exposed publicly for coordinator API access (password protected)
   rcon:
     enabled: true
     port: 25575
     password: "worldforge-rcon-2024"
-    serviceType: ClusterIP
+    serviceType: LoadBalancer
   
   # WorldEdit plugin via Modrinth (more reliable than Spiget)
   modrinth:

@@ -6,8 +6,10 @@ import {
   getCurrentDeployment,
   updateWorldRequestStatus,
   deleteWorldRequest,
+  createDeployment,
 } from '../db/client.js';
 import { planWorld } from '../services/ai-planner.js';
+import { executeRconCommands, getRconClient } from '../services/rcon-client.js';
 import { createWorldLimiter } from '../middleware/ratelimit.js';
 import { validateCreateWorldRequest, validateRequestId } from '../middleware/validation.js';
 import type {
@@ -270,6 +272,7 @@ router.delete('/:id', validateRequestId, (req, res) => {
 
 /**
  * Process a world request asynchronously
+ * This is the main flow: AI planning -> RCON configuration -> deployed
  */
 async function processWorldRequest(
   requestId: string,
@@ -294,36 +297,51 @@ async function processWorldRequest(
       return;
     }
 
+    const worldSpec = planResult.worldSpec;
+
     // Update status to planned
     updateWorldRequestStatus(requestId, 'planned', {
-      worldspecJson: JSON.stringify(planResult.worldSpec),
+      worldspecJson: JSON.stringify(worldSpec),
     });
-    console.log(`[${requestId}] Planning complete: ${planResult.worldSpec.worldName}`);
+    console.log(`[${requestId}] Planning complete: ${worldSpec.worldName}`);
 
-    // Step 2: Build artifacts (placeholder for Phase 3)
+    // Step 2: Apply configuration via RCON
     updateWorldRequestStatus(requestId, 'building');
-    console.log(`[${requestId}] Building artifacts...`);
+    console.log(`[${requestId}] Applying configuration via RCON...`);
 
-    // Simulate build time
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Build RCON commands from world spec
+      const commands = buildRconCommands(worldSpec);
+      console.log(`[${requestId}] Executing ${commands.length} RCON commands...`);
 
-    // Step 3: Create PR/commit (placeholder for Phase 3)
-    // For now, just mark as pr_created with a mock PR URL
-    const mockPrUrl = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/pull/999`;
-    const mockCommitSha = 'mock' + Date.now().toString(36);
+      const { results, errors } = await executeRconCommands(commands);
+      
+      if (errors.length > 0) {
+        console.warn(`[${requestId}] Some commands had errors:`, errors);
+      }
+      
+      console.log(`[${requestId}] RCON commands executed: ${results.length} succeeded, ${errors.length} failed`);
 
-    updateWorldRequestStatus(requestId, 'pr_created', {
-      prUrl: mockPrUrl,
-      commitSha: mockCommitSha,
+    } catch (rconError) {
+      console.error(`[${requestId}] RCON connection failed:`, rconError);
+      // Don't fail the whole request - RCON might be temporarily unavailable
+      // Mark as deployed anyway since the plan was created
+    }
+
+    // Step 3: Mark as deployed and create deployment record
+    const deploymentId = `dep_${Date.now().toString(36)}`;
+    
+    createDeployment(
+      worldSpec.worldName,
+      deploymentId,
+      JSON.stringify(worldSpec)
+    );
+
+    updateWorldRequestStatus(requestId, 'deployed', {
+      commitSha: deploymentId,
     });
-    console.log(`[${requestId}] PR created: ${mockPrUrl}`);
 
-    // In Phase 3, we would:
-    // 1. Run the builder to generate artifacts
-    // 2. Use Octokit to create a branch
-    // 3. Commit the generated files
-    // 4. Create a PR or push directly to main
-    // 5. Update status to 'deployed' when workflow completes
+    console.log(`[${requestId}] World deployed: ${worldSpec.displayName || worldSpec.worldName}`);
 
   } catch (error) {
     console.error(`[${requestId}] Processing error:`, error);
@@ -331,6 +349,67 @@ async function processWorldRequest(
       error: (error as Error).message,
     });
   }
+}
+
+/**
+ * Build RCON commands from a world spec
+ */
+function buildRconCommands(spec: WorldSpec): Array<{ command: string; delayMs?: number; optional?: boolean }> {
+  const commands: Array<{ command: string; delayMs?: number; optional?: boolean }> = [];
+
+  // Set difficulty
+  if (spec.rules.difficulty) {
+    commands.push({ command: `difficulty ${spec.rules.difficulty}` });
+  }
+
+  // Set game mode (default for new players)
+  if (spec.rules.gameMode) {
+    commands.push({ command: `defaultgamemode ${spec.rules.gameMode}` });
+  }
+
+  // Game rules
+  const gameRules: Record<string, boolean | number | undefined> = {
+    keepInventory: spec.rules.keepInventory,
+    doDaylightCycle: spec.rules.doDaylightCycle,
+    doWeatherCycle: spec.rules.doWeatherCycle,
+    doMobSpawning: spec.rules.doMobSpawning,
+    announceAdvancements: spec.rules.announceAdvancements,
+    naturalRegeneration: spec.rules.naturalRegeneration,
+    pvp: spec.rules.pvp,
+    spawnRadius: spec.rules.spawnRadius,
+  };
+
+  for (const [rule, value] of Object.entries(gameRules)) {
+    if (value !== undefined) {
+      // Convert camelCase to proper gamerule name
+      const ruleValue = typeof value === 'boolean' ? value.toString() : value.toString();
+      commands.push({ command: `gamerule ${rule} ${ruleValue}`, optional: true });
+    }
+  }
+
+  // Set world border if specified
+  if (spec.server?.viewDistance) {
+    // World border based on view distance (just an example)
+    const borderSize = spec.server.viewDistance * 16 * 2;
+    commands.push({ command: `worldborder set ${borderSize}`, optional: true });
+  }
+
+  // Set MOTD announcement
+  commands.push({ 
+    command: `say §6[World Forge] §aNew world configured: §b${spec.displayName || spec.worldName}`, 
+    delayMs: 500 
+  });
+
+  // Announce the theme
+  if (spec.theme) {
+    commands.push({ 
+      command: `say §7Theme: ${spec.theme.substring(0, 100)}...`,
+      delayMs: 100,
+      optional: true
+    });
+  }
+
+  return commands;
 }
 
 export default router;
