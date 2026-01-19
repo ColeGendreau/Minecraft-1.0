@@ -312,7 +312,7 @@ export function InfrastructurePanel() {
                   </a>
                 </div>
                 <p className="mt-3 text-xs text-gray-600" style={{ fontFamily: "'VT323', monospace" }}>
-                  💡 Tip: If deploy fails, click GitHub Actions → failed run → "Re-run all jobs"
+                  💡 Tip: If deploy fails, click GitHub Actions → failed run → Re-run all jobs
                 </p>
               </div>
             )}
