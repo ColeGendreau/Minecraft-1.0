@@ -1,9 +1,14 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import type { WorldSpec } from '../types/index.js';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import AjvModule from 'ajv';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import addFormatsModule from 'ajv-formats';
 
-// Use require for CommonJS modules
-const Ajv = require('ajv');
-const addFormats = require('ajv-formats');
+// Handle ESM/CJS interop - use any to bypass type issues with CJS modules
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Ajv = ((AjvModule as any).default || AjvModule) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any  
+const addFormats = ((addFormatsModule as any).default || addFormatsModule) as any;
 
 // WorldSpec JSON Schema (inline to avoid file reading issues)
 const worldSpecSchema = {
