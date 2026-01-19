@@ -36,10 +36,9 @@ minecraftServer:
     password: "worldforge-rcon-2024"
     serviceType: ClusterIP
   
-  # WorldEdit and essential plugins via Spiget (Spigot resource IDs)
-  # WorldEdit: 13932, FAWE (Fast Async WorldEdit): 13932
-  spigetResources:
-    - 13932  # WorldEdit
+  # WorldEdit plugin - using direct download since Spiget API is unreliable
+  # downloadModpackPlugins:
+  #   - https://dev.bukkit.org/projects/worldedit/files/latest
   
   # Additional JVM arguments for better performance with WorldEdit
   jvmXXOpts: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
