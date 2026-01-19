@@ -118,7 +118,7 @@ export function InfrastructurePanel() {
               disabled:opacity-50 disabled:cursor-not-allowed
               ${isRunning ? 'mc-button-red' : 'mc-button-grass'}
             `}
-            style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}
+            style={{ fontFamily: "'VT323', monospace", fontSize: '20px', letterSpacing: '1px' }}
           >
             {toggling || hasActiveWorkflow ? (
               <span className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function InfrastructurePanel() {
         {/* Service Status Grid */}
         {status?.services && (
           <div className="mb-4">
-            <h3 className="text-green-200 mb-3 text-shadow-mc-light" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px' }}>
+            <h3 className="text-green-200 mb-3 font-bold tracking-wide" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
               SERVICES
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -176,8 +176,8 @@ export function InfrastructurePanel() {
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-sm px-2" style={{ fontFamily: "'VT323', monospace" }}>
-        <span className="text-gray-600">
+      <div className="flex items-center justify-between text-sm px-2" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+        <span className="text-amber-800 font-semibold">
           💰 {isRunning ? '~$3-5/day while running' : '$0/day when stopped'}
         </span>
         <span className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export function InfrastructurePanel() {
             error ? 'bg-red-500' : 
             'bg-green-500'
           }`} />
-          <span className="text-gray-600">
+          <span className="text-green-700 font-semibold">
             {hasActiveWorkflow ? 'Workflow Running' : loading ? 'Loading...' : error ? 'Error' : 'Connected'}
           </span>
         </span>
@@ -244,7 +244,7 @@ function ServerInfoBox({ metrics }: { metrics: InfrastructureStatusResponse['met
 
   return (
     <div className="mc-panel-oak p-4 mb-4">
-      <h3 className="text-amber-900 mb-3 text-shadow-mc-light" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px' }}>
+      <h3 className="text-amber-900 mb-3 font-bold" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
         🎮 JOIN SERVER
       </h3>
       <div className="flex items-center gap-3">
@@ -253,14 +253,20 @@ function ServerInfoBox({ metrics }: { metrics: InfrastructureStatusResponse['met
         </code>
         <button
           onClick={copyIP}
-          className="mc-button text-xs"
+          className="mc-button"
+          style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}
         >
           {copied ? '✅ COPIED!' : '📋 COPY'}
         </button>
       </div>
-      <p className="text-amber-800 mt-2 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
-        Open Minecraft Java → Multiplayer → Add Server → Paste address above
-      </p>
+      <div className="mt-3 p-3 bg-amber-200 border-2 border-amber-400 rounded">
+        <p className="text-amber-900 font-bold" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+          📋 How to connect:
+        </p>
+        <p className="text-amber-800 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '17px' }}>
+          Open Minecraft Java → Multiplayer → Add Server → Paste address above
+        </p>
+      </div>
     </div>
   );
 }

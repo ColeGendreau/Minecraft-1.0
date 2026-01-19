@@ -57,10 +57,10 @@ export function Header() {
             
             <div>
               <h1 className="text-lg font-bold text-white text-shadow-mc" 
-                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}>
+                  style={{ fontFamily: "'VT323', monospace", fontSize: '22px', letterSpacing: '2px' }}>
                 WORLD FORGE
               </h1>
-              <p className="text-xs text-gray-300 mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+              <p className="text-xs text-gray-200 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
                 AI Minecraft World Creation
               </p>
             </div>

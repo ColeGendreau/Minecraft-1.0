@@ -53,12 +53,12 @@ export default function HomePage() {
         </div>
         
         {/* Subtitle */}
-        <p className="text-xl text-amber-900 max-w-2xl mx-auto mb-3" style={{ fontFamily: "'VT323', monospace", fontSize: '24px' }}>
+        <p className="text-xl max-w-2xl mx-auto mb-3" style={{ fontFamily: "'VT323', monospace", fontSize: '26px', color: '#2D1810', textShadow: '1px 1px 0 rgba(255,255,255,0.5)' }}>
           Create ANY Minecraft world you can imagine using natural language.
         </p>
         
-        <p className="text-green-700 text-lg" style={{ fontFamily: "'VT323', monospace", fontSize: '22px' }}>
-          ⚡ Pink banana world? Ferrari land? Moon base? ANYTHING GOES! ⚡
+        <p className="text-lg" style={{ fontFamily: "'VT323', monospace", fontSize: '22px', color: '#1a5c1a', textShadow: '1px 1px 0 rgba(255,255,255,0.4)' }}>
+          ⚡ Underwater kingdom? Floating steampunk city? Candy forest? ANYTHING GOES! ⚡
         </p>
 
         {/* Decorative blocks row */}
@@ -80,8 +80,8 @@ export default function HomePage() {
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">⚙️</span>
           <h2 
-            className="text-amber-900 text-shadow-mc-light"
-            style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
+            className="text-amber-900 font-bold tracking-wide"
+            style={{ fontFamily: "'VT323', monospace", fontSize: '24px', textShadow: '1px 1px 0 rgba(255,255,255,0.4)' }}
           >
             SERVER CONTROL
           </h2>

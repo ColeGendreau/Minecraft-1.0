@@ -6,16 +6,16 @@ import { createWorld } from '@/lib/api';
 
 // Example world ideas to inspire users
 const INSPIRATION_IDEAS = [
-  "A pink banana themed world where everything is made of giant bananas and the sky is cotton candy pink",
-  "Ferrari world - a racing paradise with checkered flag patterns, red clay, and trophy monuments everywhere",
-  "Barbie dreamland with pink castles, glamorous gardens, and sparkly everything",
-  "Candy land with chocolate rivers, lollipop forests, and gumdrop mountains",
-  "Moon base with low gravity feeling, crater landscapes, and futuristic domes",
-  "Army boot camp world with obstacle courses, military bunkers, and camo terrain",
-  "Giant Michael Jordan statue world - basketball courts everywhere with towering MJ monuments",
-  "Underwater Atlantis with coral palaces, sunken treasures, and bioluminescent caves",
-  "Steampunk industrial world with brass towers, gear mountains, and clockwork forests",
-  "Zen meditation world with peaceful gardens, koi ponds, and cherry blossom groves",
+  "Floating sky islands connected by rope bridges with waterfalls cascading into the void below",
+  "Ancient Egyptian pyramid complex with hidden tombs, sphinx statues, and golden treasures",
+  "Neon cyberpunk cityscape with towering skyscrapers, holographic billboards, and rainy streets",
+  "Enchanted mushroom forest with giant glowing fungi, fairy rings, and cozy hobbit holes",
+  "Viking village with longhouses, mead halls, fjord coastlines, and dragon ship harbors",
+  "Haunted gothic castle with graveyards, crypts, cobwebs, and spooky towers",
+  "Tropical pirate cove with shipwrecks, treasure islands, and hidden sea caves",
+  "Japanese cherry blossom temple gardens with koi ponds, torii gates, and zen rock arrangements",
+  "Crystal ice palace in a frozen tundra with aurora borealis skies and snow-covered peaks",
+  "Volcanic realm with lava rivers, obsidian fortresses, and fiery geysers erupting everywhere",
 ];
 
 export default function CreateWorldPage() {
@@ -57,13 +57,16 @@ export default function CreateWorldPage() {
     <div className="max-w-4xl mx-auto px-6 py-12">
       {/* Header */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent">
-          Create Any World
+        <h1 
+          className="text-4xl font-bold mb-4"
+          style={{ fontFamily: "'Press Start 2P', cursive", color: '#3D2817', textShadow: '2px 2px 0 rgba(0,0,0,0.3)' }}
+        >
+          CREATE ANY WORLD
         </h1>
-        <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-          Describe <span className="text-accent-primary font-semibold">anything</span> you can imagine.
-          Pink banana world? Ferrari land? Giant statues of Michael Jordan?
-          <span className="block mt-2 text-text-muted">
+        <p className="text-xl max-w-2xl mx-auto" style={{ fontFamily: "'VT323', monospace", fontSize: '24px', color: '#2D1810' }}>
+          Describe <span className="text-green-700 font-semibold">anything</span> you can imagine.
+          Floating islands? Viking fortress? Neon cyberpunk city?
+          <span className="block mt-2" style={{ color: '#5D4E37' }}>
             The AI will interpret your vision and create the closest possible configuration.
           </span>
         </p>
@@ -91,9 +94,12 @@ export default function CreateWorldPage() {
         </div>
 
         {/* Inspiration Ideas */}
-        <div className="bg-surface-raised/50 border border-surface-border rounded-xl p-6">
-          <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-4">
-            Need inspiration? Try one of these:
+        <div className="mc-panel-oak p-6 rounded-xl">
+          <h3 
+            className="font-bold uppercase tracking-wide mb-4"
+            style={{ fontFamily: "'VT323', monospace", fontSize: '20px', color: '#5D3A1A' }}
+          >
+            💡 Need inspiration? Try one of these:
           </h3>
           <div className="flex flex-wrap gap-2">
             {INSPIRATION_IDEAS.map((idea, index) => (
@@ -101,7 +107,8 @@ export default function CreateWorldPage() {
                 key={index}
                 type="button"
                 onClick={() => applyInspiration(idea)}
-                className="px-3 py-1.5 text-sm bg-surface border border-surface-border rounded-full text-text-secondary hover:text-accent-primary hover:border-accent-primary/50 transition-colors text-left"
+                className="px-3 py-2 bg-amber-100 border-2 border-amber-400 rounded-lg text-amber-900 hover:bg-amber-200 hover:border-amber-500 transition-colors text-left"
+                style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}
               >
                 {idea.split(' ').slice(0, 4).join(' ')}...
               </button>
