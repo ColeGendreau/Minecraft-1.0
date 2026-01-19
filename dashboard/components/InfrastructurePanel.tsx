@@ -32,6 +32,7 @@ export function InfrastructurePanel() {
   const [currentQuote, setCurrentQuote] = useState(DEPLOY_QUOTES[0]);
   const [showSecretCreeper, setShowSecretCreeper] = useState(false);
   const [titleClicks, setTitleClicks] = useState(0);
+  const [showAdminTools, setShowAdminTools] = useState(false);
 
   // Determine if we're deploying or destroying based on workflow
   const isDestroyOperation = workflow?.latestRun?.name?.toLowerCase().includes('destroy') ||
@@ -246,6 +247,76 @@ export function InfrastructurePanel() {
           {!hasActiveWorkflow && latestRun && (
             <LastRunSummary run={latestRun} />
           )}
+
+          {/* Admin Tools - Expandable */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowAdminTools(!showAdminTools)}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-400 transition-colors text-sm"
+              style={{ fontFamily: "'VT323', monospace" }}
+            >
+              <span className={`transition-transform ${showAdminTools ? 'rotate-90' : ''}`}>▶</span>
+              <span>🔧 Admin Tools</span>
+            </button>
+            
+            {showAdminTools && (
+              <div className="mt-3 p-4 bg-black/30 rounded-lg border border-gray-700/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <a
+                    href="https://github.com/ColeGendreau/Minecraft-1.0/actions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">🔧</span>
+                    <div>
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: "'VT323', monospace" }}>GitHub Actions</p>
+                      <p className="text-gray-500 text-xs">Re-run workflows, view all logs</p>
+                    </div>
+                  </a>
+                  <a
+                    href="https://github.com/ColeGendreau/Minecraft-1.0/actions/workflows/deploy.yaml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">🚀</span>
+                    <div>
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: "'VT323', monospace" }}>Deploy Workflow</p>
+                      <p className="text-gray-500 text-xs">Minecraft & monitoring deploy</p>
+                    </div>
+                  </a>
+                  <a
+                    href="https://github.com/ColeGendreau/Minecraft-1.0/actions/workflows/terraform.yaml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">🏗️</span>
+                    <div>
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: "'VT323', monospace" }}>Terraform Workflow</p>
+                      <p className="text-gray-500 text-xs">Infrastructure create/destroy</p>
+                    </div>
+                  </a>
+                  <a
+                    href="https://portal.azure.com/#view/HubsExtension/BrowseResourceGroups"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">☁️</span>
+                    <div>
+                      <p className="text-white text-sm font-medium" style={{ fontFamily: "'VT323', monospace" }}>Azure Portal</p>
+                      <p className="text-gray-500 text-xs">View resources directly</p>
+                    </div>
+                  </a>
+                </div>
+                <p className="mt-3 text-xs text-gray-600" style={{ fontFamily: "'VT323', monospace" }}>
+                  💡 Tip: If deploy fails, click GitHub Actions → failed run → "Re-run all jobs"
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Footer */}
           <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-sm" style={{ fontFamily: "'VT323', monospace" }}>
