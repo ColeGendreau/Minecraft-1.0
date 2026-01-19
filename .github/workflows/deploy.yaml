@@ -177,6 +177,7 @@ jobs:
         if: steps.changes.outputs.minecraft == 'true'
         run: |
           echo "🚀 Deploying Minecraft Server..."
+          echo "Note: First deployment can take 8-10 minutes (downloading image + Java startup)"
           helm upgrade minecraft itzg/minecraft \
             --install \
             --namespace minecraft \
@@ -184,7 +185,7 @@ jobs:
             --values apps/minecraft/values.yaml \
             --set minecraftServer.loadBalancerIP=${{ steps.infra.outputs.public_ip }} \
             --wait \
-            --timeout 5m
+            --timeout 12m
           echo "✅ Minecraft deployed successfully"
       
       - name: Deploy Monitoring Stack
