@@ -1,7 +1,8 @@
 minecraftServer:
   eula: "TRUE"
   version: "LATEST"
-  type: "VANILLA"
+  # Paper server for WorldEdit plugin support
+  type: "PAPER"
   difficulty: normal
   whitelist: ""
   ops: ""
@@ -10,7 +11,7 @@ minecraftServer:
   maxWorldSize: 10000
   allowNether: true
   announcePlayerAchievements: true
-  enableCommandBlock: false
+  enableCommandBlock: true
   forcegameMode: false
   generateStructures: true
   hardcore: false
@@ -23,21 +24,43 @@ minecraftServer:
   viewDistance: 10
   levelSeed: ""
   gameMode: survival
-  motd: "§6§lCole's K8s Server §r§7- §c§lLIVE DEMO! §a✓"
+  motd: "§6§lWorld Forge §r§7- §b§lAI-Crafted Worlds §a✓"
   serviceType: LoadBalancer
   loadBalancerIP: 57.154.70.117
   servicePort: 25565
+  
+  # RCON configuration for remote command execution
+  rcon:
+    enabled: true
+    port: 25575
+    password: "worldforge-rcon-2024"
+    serviceType: ClusterIP
+  
+  # WorldEdit and essential plugins via Spiget (Spigot resource IDs)
+  # WorldEdit: 13932, FAWE (Fast Async WorldEdit): 13932
+  spigetResources:
+    - 13932  # WorldEdit
+  
+  # Additional JVM arguments for better performance with WorldEdit
+  jvmXXOpts: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
+
+# Expose RCON as a separate service for coordinator access
+extraServicePorts:
+  - name: rcon
+    port: 25575
+    protocol: TCP
+    targetPort: 25575
 
 persistence:
   dataDir:
     enabled: true
-    Size: 1Gi
+    Size: 5Gi  # Increased for WorldEdit operations and structure storage
 
 resources:
   requests:
-    memory: 1Gi
-    cpu: 500m
-  limits:
     memory: 2Gi
     cpu: 1000m
+  limits:
+    memory: 4Gi
+    cpu: 2000m
 

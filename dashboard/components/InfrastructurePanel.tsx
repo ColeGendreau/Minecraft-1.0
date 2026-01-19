@@ -229,6 +229,11 @@ export function InfrastructurePanel() {
             </button>
           </div>
 
+          {/* Service Status Grid - The cool DevOps boxes */}
+          {status?.services && status.services.length > 0 && (
+            <ServiceStatusGrid services={status.services} />
+          )}
+
           {/* Active Workflow Progress */}
           {hasActiveWorkflow && latestRun && (
             <WorkflowProgressPanel 
@@ -333,6 +338,132 @@ export function InfrastructurePanel() {
             </span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Service Status Grid - The DevOps status boxes
+function ServiceStatusGrid({ 
+  services,
+}: { 
+  services: InfrastructureStatusResponse['services']; 
+}) {
+  // Icon mapping for services
+  const getServiceIcon = (icon: string) => {
+    const icons: Record<string, string> = {
+      kubernetes: '☸️',
+      container: '📦',
+      globe: '🌐',
+      route: '🚪',
+      lock: '🔒',
+      game: '🎮',
+      chart: '📊',
+      dashboard: '📈',
+    };
+    return icons[icon] || '⬜';
+  };
+
+  // Category colors
+  const getCategoryColor = (category: string, status: string) => {
+    if (status !== 'running') {
+      return {
+        bg: 'bg-gray-800/50',
+        border: 'border-gray-700/50',
+        glow: '',
+        text: 'text-gray-500',
+        dot: 'bg-gray-600',
+      };
+    }
+
+    const colors: Record<string, { bg: string; border: string; glow: string; text: string; dot: string }> = {
+      infrastructure: {
+        bg: 'bg-blue-900/30',
+        border: 'border-blue-500/50',
+        glow: 'shadow-blue-500/20',
+        text: 'text-blue-400',
+        dot: 'bg-blue-500',
+      },
+      kubernetes: {
+        bg: 'bg-purple-900/30',
+        border: 'border-purple-500/50',
+        glow: 'shadow-purple-500/20',
+        text: 'text-purple-400',
+        dot: 'bg-purple-500',
+      },
+      application: {
+        bg: 'bg-emerald-900/30',
+        border: 'border-emerald-500/50',
+        glow: 'shadow-emerald-500/20',
+        text: 'text-emerald-400',
+        dot: 'bg-emerald-500',
+      },
+      monitoring: {
+        bg: 'bg-orange-900/30',
+        border: 'border-orange-500/50',
+        glow: 'shadow-orange-500/20',
+        text: 'text-orange-400',
+        dot: 'bg-orange-500',
+      },
+    };
+
+    return colors[category] || colors.infrastructure;
+  };
+
+  return (
+    <div className="mb-6">
+      <h3 className="mb-4 flex items-center gap-2" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px', color: '#a3a3a3' }}>
+        <span>🖥️</span> SERVICES STATUS
+      </h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {services.map((service) => {
+          const colors = getCategoryColor(service.category, service.status);
+          const isOnline = service.status === 'running';
+
+          return (
+            <div
+              key={service.id}
+              className={`
+                relative p-3 rounded-lg border-2 transition-all duration-300
+                ${colors.bg} ${colors.border}
+                ${isOnline ? `shadow-lg ${colors.glow}` : 'opacity-60'}
+              `}
+            >
+              {/* Status dot - top right */}
+              <div className="absolute top-2 right-2 flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${colors.dot} ${isOnline ? 'animate-pulse' : ''}`} />
+              </div>
+
+              {/* Icon */}
+              <div className="text-2xl mb-2">
+                {getServiceIcon(service.icon)}
+              </div>
+
+              {/* Name */}
+              <p className={`text-sm font-bold ${colors.text}`} style={{ fontFamily: "'VT323', monospace" }}>
+                {service.name}
+              </p>
+
+              {/* Description */}
+              <p className="text-xs text-gray-500 truncate" style={{ fontFamily: "'VT323', monospace" }}>
+                {service.description}
+              </p>
+
+              {/* Status label */}
+              <div className="mt-2">
+                <span className={`
+                  text-xs px-2 py-0.5 rounded-full
+                  ${isOnline 
+                    ? 'bg-emerald-500/20 text-emerald-400' 
+                    : 'bg-gray-700/50 text-gray-500'
+                  }
+                `} style={{ fontFamily: "'VT323', monospace" }}>
+                  {isOnline ? 'ONLINE' : 'OFFLINE'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

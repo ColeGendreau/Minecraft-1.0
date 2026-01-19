@@ -117,6 +117,109 @@ export interface WorldSpec {
   datapacks?: DatapackName[];
   server?: ServerConfig;
   metadata?: WorldMetadata;
+  // AI-generated WorldEdit structures
+  structures?: GeneratedStructure[];
+}
+
+// ============== WORLDEDIT STRUCTURE TYPES ==============
+
+/**
+ * A generated structure with WorldEdit commands
+ * Each structure is procedurally generated based on theme and parameters
+ */
+export interface GeneratedStructure {
+  id: string;
+  name: string;
+  description: string;
+  // Relative position from spawn (or absolute coordinates)
+  position: StructurePosition;
+  // Category affects generation style
+  category: StructureCategory;
+  // The sequence of WorldEdit commands to execute
+  commands: WorldEditCommand[];
+  // Estimated block count for progress tracking
+  estimatedBlocks: number;
+  // Tags for filtering and organization
+  tags: string[];
+}
+
+export interface StructurePosition {
+  x: number;
+  y: number;
+  z: number;
+  // If true, position is relative to spawn point
+  relativeToSpawn: boolean;
+}
+
+export type StructureCategory =
+  | 'tower'           // Vertical structures
+  | 'monument'        // Large centerpiece structures
+  | 'terrain'         // Landscape modifications
+  | 'organic'         // Natural/curved shapes
+  | 'architectural'   // Buildings, arches, walls
+  | 'decoration'      // Details, paths, gardens
+  | 'megastructure'   // Massive world-defining builds
+  | 'floating'        // Suspended/flying structures
+  | 'underground'     // Subterranean structures
+  | 'water';          // Aquatic features
+
+/**
+ * A single WorldEdit command with metadata
+ */
+export interface WorldEditCommand {
+  // The raw command (e.g., "//cyl stone 10 50")
+  command: string;
+  // Human-readable description for logging
+  description?: string;
+  // Delay in ms before executing (for visual effect or server stability)
+  delayMs?: number;
+  // If true, failure of this command won't stop the sequence
+  optional?: boolean;
+}
+
+/**
+ * WorldEdit pattern string (e.g., "50%stone,30%cobblestone,20%andesite")
+ */
+export type BlockPattern = string;
+
+/**
+ * Parameters for procedural structure generation
+ */
+export interface StructureGenerationParams {
+  // Seed for reproducible randomness
+  seed: string;
+  // Theme influences material palette and style
+  theme: string;
+  // Scale factor (0.5 = half size, 2.0 = double)
+  scale: number;
+  // Complexity level (1-10, affects detail density)
+  complexity: number;
+  // Material palette override
+  palette?: MaterialPalette;
+}
+
+/**
+ * A curated material palette for consistent theming
+ */
+export interface MaterialPalette {
+  primary: string[];      // Main structural blocks
+  secondary: string[];    // Accent blocks
+  detail: string[];       // Fine detail blocks
+  light: string[];        // Light-emitting blocks
+  organic: string[];      // Natural/plant blocks
+  special: string[];      // Rare/magical blocks
+}
+
+/**
+ * Result of structure execution
+ */
+export interface StructureExecutionResult {
+  structureId: string;
+  success: boolean;
+  commandsExecuted: number;
+  commandsFailed: number;
+  executionTimeMs: number;
+  errors: string[];
 }
 
 export interface WorldGeneration {
