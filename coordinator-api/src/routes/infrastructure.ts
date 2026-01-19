@@ -220,4 +220,149 @@ router.get('/cost', (req, res) => {
   });
 });
 
+/**
+ * GET /api/infrastructure/logs
+ * Returns Azure resource status and activity logs by parsing GitHub workflow output
+ */
+router.get('/logs', async (req, res) => {
+  try {
+    const octokit = getOctokit();
+    const { state: infraState } = await getInfrastructureState();
+    const isRunning = infraState === 'ON';
+
+    // Azure Resource Groups (derived from terraform config)
+    const resourceGroups = [
+      { name: 'mc-demo-tfstate-rg', location: 'westus3', state: 'Succeeded', purpose: 'Terraform state storage' },
+      { name: 'mc-demo-dev-dashboard-rg', location: 'westus3', state: 'Succeeded', purpose: 'Dashboard & Coordinator (always on)' },
+      { name: 'mc-demo-dev-rg', location: 'westus3', state: isRunning ? 'Succeeded' : 'Deleted', purpose: 'Minecraft infrastructure' },
+      { name: 'MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3', location: 'westus3', state: isRunning ? 'Succeeded' : 'Deleted', purpose: 'AKS managed resources' },
+    ];
+
+    // AKS Cluster status
+    const aksCluster = isRunning ? {
+      name: 'mc-demo-dev-aks',
+      resourceGroup: 'mc-demo-dev-rg',
+      location: 'westus3',
+      kubernetesVersion: '1.28.5',
+      nodeCount: 2,
+      state: 'Running',
+    } : null;
+
+    // Get recent workflow runs for activity log
+    const { data: workflowRuns } = await octokit.actions.listWorkflowRunsForRepo({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      per_page: 10,
+    });
+
+    // Parse workflow runs into activity log format
+    const activityLog = workflowRuns.workflow_runs.map(run => ({
+      time: run.created_at,
+      operation: run.name || 'Workflow Run',
+      status: run.conclusion === 'success' ? 'Succeeded' : 
+              run.conclusion === 'failure' ? 'Failed' :
+              run.status === 'in_progress' ? 'Running' :
+              run.status === 'queued' ? 'Queued' : 'Unknown',
+      details: `${run.event} triggered by ${run.actor?.login || 'unknown'}`,
+      url: run.html_url,
+    }));
+
+    // Get jobs from most recent terraform run for detailed operations
+    const terraformRuns = workflowRuns.workflow_runs.filter(r => 
+      r.name?.toLowerCase().includes('terraform') || r.path?.includes('terraform')
+    );
+
+    let recentOperations: Array<{
+      time: string;
+      operation: string;
+      status: string;
+      resource?: string;
+    }> = [];
+
+    if (terraformRuns.length > 0) {
+      const latestTerraformRun = terraformRuns[0];
+      const { data: jobs } = await octokit.actions.listJobsForWorkflowRun({
+        owner: GITHUB_OWNER,
+        repo: GITHUB_REPO,
+        run_id: latestTerraformRun.id,
+      });
+
+      for (const job of jobs.jobs) {
+        for (const step of job.steps || []) {
+          // Map step names to Azure-like operations
+          let operation = step.name;
+          let resource = '';
+
+          if (step.name?.toLowerCase().includes('terraform init')) {
+            operation = 'Initialize Terraform Backend';
+            resource = 'mc-demo-tfstate-rg/tfstate';
+          } else if (step.name?.toLowerCase().includes('terraform plan')) {
+            operation = 'Plan Infrastructure Changes';
+            resource = 'mc-demo-dev-rg';
+          } else if (step.name?.toLowerCase().includes('terraform apply')) {
+            operation = 'Apply Infrastructure Changes';
+            resource = 'mc-demo-dev-rg/*';
+          } else if (step.name?.toLowerCase().includes('terraform destroy')) {
+            operation = 'Destroy Infrastructure';
+            resource = 'mc-demo-dev-rg/*';
+          } else if (step.name?.toLowerCase().includes('provision') || step.name?.toLowerCase().includes('create')) {
+            operation = `Create ${step.name?.replace(/provision|create/gi, '').trim() || 'Resource'}`;
+          } else if (step.name?.toLowerCase().includes('cleanup') || step.name?.toLowerCase().includes('destroy')) {
+            operation = `Delete ${step.name?.replace(/cleanup|destroy/gi, '').trim() || 'Resource'}`;
+          }
+
+          recentOperations.push({
+            time: step.completed_at || step.started_at || job.started_at || '',
+            operation,
+            status: step.conclusion === 'success' ? 'Succeeded' :
+                    step.conclusion === 'failure' ? 'Failed' :
+                    step.conclusion === 'skipped' ? 'Skipped' :
+                    step.status === 'in_progress' ? 'Running' : 'Pending',
+            resource,
+          });
+        }
+      }
+
+      // Sort by time descending, limit to 15
+      recentOperations = recentOperations
+        .filter(op => op.time)
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 15);
+    }
+
+    // Simulated Azure operations based on infrastructure state
+    const azureOperations = isRunning ? [
+      { time: new Date().toISOString(), operation: 'Get Managed Cluster', status: 'Running', resource: 'mc-demo-dev-aks' },
+      { time: new Date(Date.now() - 60000).toISOString(), operation: 'List Pods', status: 'Succeeded', resource: 'minecraft namespace' },
+      { time: new Date(Date.now() - 120000).toISOString(), operation: 'Get LoadBalancer Status', status: 'Succeeded', resource: 'ingress-nginx' },
+    ] : [];
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      infrastructureState: infraState,
+      resourceGroups: resourceGroups.filter(rg => rg.state === 'Succeeded'),
+      aksCluster,
+      activityLog,
+      recentOperations: [...azureOperations, ...recentOperations].slice(0, 20),
+      workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions`,
+    });
+  } catch (error) {
+    console.error('Error fetching infrastructure logs:', error);
+    
+    // Return minimal data even on error
+    res.json({
+      timestamp: new Date().toISOString(),
+      infrastructureState: 'UNKNOWN',
+      resourceGroups: [
+        { name: 'mc-demo-dev-dashboard-rg', location: 'westus3', state: 'Succeeded', purpose: 'Dashboard (always on)' },
+      ],
+      aksCluster: null,
+      activityLog: [],
+      recentOperations: [],
+      error: 'Could not fetch complete activity logs',
+      workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions`,
+    });
+  }
+});
+
 export default router;

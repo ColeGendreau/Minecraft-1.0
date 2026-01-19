@@ -297,6 +297,9 @@ export interface WorldMetadata {
   userDescription?: string;
   aiModel?: string;
   version?: string;
+  // Structure generation metadata
+  structureCount?: number;
+  totalWorldEditCommands?: number;
 }
 
 // Auth types

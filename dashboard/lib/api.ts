@@ -222,4 +222,53 @@ export async function getWorkflowRunDetails(runId: number): Promise<{
 }> {
   return fetchApi(`/api/workflows/runs/${runId}`, {}, 10000);
 }
-// Build trigger: 1768637808
+
+// ========== AZURE ACTIVITY LOGS ==========
+
+export interface ResourceGroup {
+  name: string;
+  location: string;
+  state: string;
+  purpose: string;
+}
+
+export interface AKSCluster {
+  name: string;
+  resourceGroup: string;
+  location: string;
+  kubernetesVersion: string;
+  nodeCount: number;
+  state: string;
+}
+
+export interface ActivityLogEntry {
+  time: string;
+  operation: string;
+  status: string;
+  details?: string;
+  url?: string;
+}
+
+export interface RecentOperation {
+  time: string;
+  operation: string;
+  status: string;
+  resource?: string;
+}
+
+export interface InfrastructureLogsResponse {
+  timestamp: string;
+  infrastructureState: string;
+  resourceGroups: ResourceGroup[];
+  aksCluster: AKSCluster | null;
+  activityLog: ActivityLogEntry[];
+  recentOperations: RecentOperation[];
+  workflowUrl: string;
+  error?: string;
+}
+
+// Get Azure infrastructure logs and activity
+export async function getInfrastructureLogs(): Promise<InfrastructureLogsResponse> {
+  return fetchApi<InfrastructureLogsResponse>('/api/infrastructure/logs', {}, 15000);
+}
+// Build trigger: 1768638888

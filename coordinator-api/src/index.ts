@@ -8,6 +8,7 @@ import healthRouter from './routes/health.js';
 import worldsRouter from './routes/worlds.js';
 import infrastructureRouter from './routes/infrastructure.js';
 import workflowsRouter from './routes/workflows.js';
+import minecraftRouter from './routes/minecraft.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -31,6 +32,7 @@ app.use('/health', healthRouter);
 app.use('/api/worlds', authMiddleware, worldsRouter);
 app.use('/api/infrastructure', authMiddleware, infrastructureRouter);
 app.use('/api/workflows', authMiddleware, workflowsRouter);
+app.use('/api/minecraft', authMiddleware, minecraftRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -59,21 +61,31 @@ function start() {
 
     app.listen(PORT, () => {
       console.log(`
-╔════════════════════════════════════════════════════════╗
-║          Coordinator API Server Started                ║
-╠════════════════════════════════════════════════════════╣
-║  Port:      ${PORT}                                       ║
-║  Mode:      ${process.env.NODE_ENV || 'development'}                               ║
-║  Mock AI:   ${process.env.MOCK_AI === 'true' ? 'enabled' : 'disabled'}                                  ║
-║                                                        ║
-║  Endpoints:                                            ║
-║    GET  /health              - Health check            ║
-║    GET  /api/worlds/current  - Current deployed world  ║
-║    GET  /api/worlds          - List all requests       ║
-║    POST /api/worlds          - Create new request      ║
-║    GET  /api/worlds/:id      - Get request details     ║
-║    POST /api/worlds/:id/retry - Retry failed request   ║
-╚════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════╗
+║           World Forge Coordinator API Started                 ║
+╠═══════════════════════════════════════════════════════════════╣
+║  Port:      ${PORT}                                              ║
+║  Mode:      ${(process.env.NODE_ENV || 'development').padEnd(12)}                              ║
+║  Mock AI:   ${(process.env.MOCK_AI === 'true' ? 'enabled' : 'disabled').padEnd(12)}                              ║
+║                                                               ║
+║  World Endpoints:                                             ║
+║    GET  /api/worlds/current     - Current deployed world      ║
+║    GET  /api/worlds             - List all requests           ║
+║    POST /api/worlds             - Create new request          ║
+║    GET  /api/worlds/:id         - Get request details         ║
+║                                                               ║
+║  Minecraft/WorldEdit Endpoints:                               ║
+║    GET  /api/minecraft/status   - Server & RCON status        ║
+║    POST /api/minecraft/command  - Execute single command      ║
+║    POST /api/minecraft/commands - Execute command batch       ║
+║    POST /api/minecraft/generate-structures - Generate builds  ║
+║    POST /api/minecraft/build-structure     - Build structure  ║
+║    POST /api/minecraft/build-world         - Build all        ║
+║                                                               ║
+║  Infrastructure Endpoints:                                    ║
+║    GET  /api/infrastructure/status - Current infra state      ║
+║    POST /api/infrastructure/toggle - Deploy/Destroy infra     ║
+╚═══════════════════════════════════════════════════════════════╝
       `);
     });
   } catch (error) {

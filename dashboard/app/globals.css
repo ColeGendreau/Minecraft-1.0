@@ -6,45 +6,98 @@
 @import url('https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap');
 
 :root {
-  /* Minecraft color palette */
-  --mc-dirt: #8B5A2B;
-  --mc-dirt-dark: #5D3A1A;
-  --mc-stone: #7F7F7F;
-  --mc-stone-dark: #4A4A4A;
+  /* Minecraft color palette - BRIGHT DAYTIME VERSION */
+  --mc-sky-light: #7EC8E3;
+  --mc-sky: #4AA3D8;
+  --mc-sky-dark: #2B7DB3;
+  
+  --mc-grass-top: #7CBB4D;
   --mc-grass: #5D9B3F;
-  --mc-grass-dark: #3D6B2F;
+  --mc-grass-dark: #4A7D32;
+  
+  --mc-dirt: #9B7653;
+  --mc-dirt-dark: #6B5344;
+  
+  --mc-stone: #8E8E8E;
+  --mc-stone-dark: #6B6B6B;
+  
+  --mc-oak: #BC9862;
+  --mc-oak-dark: #8B6B42;
+  
   --mc-diamond: #4AEDD9;
   --mc-emerald: #17DD62;
   --mc-gold: #FCDB05;
-  --mc-redstone: #FF0000;
-  --mc-obsidian: #1A0A24;
-  --mc-bedrock: #0C0C0C;
-  --mc-oak: #BC9862;
-  --mc-dark-oak: #3D2813;
+  --mc-redstone: #E03C31;
+  --mc-lapis: #345EC3;
+  --mc-iron: #D8D8D8;
   
-  /* UI Colors */
-  --background: #1A1A2E;
-  --background-darker: #0F0F1A;
-  --surface: #252540;
-  --surface-light: #35355A;
-  --text-primary: #E8E8F0;
-  --text-secondary: #A0A0B0;
-  --text-muted: #606070;
-  --accent: var(--mc-emerald);
-  --accent-secondary: var(--mc-diamond);
+  /* UI Colors - BRIGHTER */
+  --background: #87CEEB;
+  --surface: rgba(255,255,255,0.9);
+  --surface-dark: rgba(107, 83, 68, 0.95);
+  --text-primary: #3D2817;
+  --text-light: #FFFFFF;
+  --text-muted: #6B5344;
 }
 
-/* Base body with Minecraft night sky gradient */
+/* Base body with Minecraft daytime sky */
 body {
   background: 
-    radial-gradient(ellipse at top, #1a1a3e 0%, transparent 50%),
-    linear-gradient(180deg, #0a0a14 0%, #1a1a2e 50%, #0a0a14 100%);
+    linear-gradient(180deg, 
+      #7EC8E3 0%, 
+      #4AA3D8 30%,
+      #87CEEB 60%,
+      #B0E0E6 100%
+    );
   background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   font-family: 'VT323', monospace;
   font-size: 18px;
   letter-spacing: 0.5px;
+  position: relative;
+}
+
+/* Add subtle clouds */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: 
+    url("data:image/svg+xml,%3Csvg width='200' height='80' viewBox='0 0 200 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cellipse cx='50' cy='40' rx='40' ry='25' fill='white' fill-opacity='0.8'/%3E%3Cellipse cx='85' cy='35' rx='35' ry='22' fill='white' fill-opacity='0.8'/%3E%3Cellipse cx='120' cy='42' rx='38' ry='24' fill='white' fill-opacity='0.8'/%3E%3Cellipse cx='70' cy='50' rx='30' ry='18' fill='white' fill-opacity='0.8'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 0 20px;
+  animation: cloudDrift 60s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+@keyframes cloudDrift {
+  from { background-position-x: 0; }
+  to { background-position-x: 200px; }
+}
+
+/* Ground strip at bottom */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: 
+    linear-gradient(180deg,
+      #7CBB4D 0%,
+      #5D9B3F 4px,
+      #9B7653 4px,
+      #6B5344 100%
+    );
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Minecraft pixel font for headings */
@@ -52,6 +105,7 @@ h1, h2, h3, .mc-title {
   font-family: 'Press Start 2P', cursive;
   letter-spacing: 1px;
   line-height: 1.5;
+  color: #3D2817;
 }
 
 /* Pixelated rendering for images and icons */
@@ -64,228 +118,286 @@ h1, h2, h3, .mc-title {
 
 /* Inventory slot style */
 .mc-slot {
-  background: linear-gradient(135deg, #373737 0%, #8b8b8b 50%, #373737 100%);
+  background: linear-gradient(135deg, #8B8B8B 0%, #C6C6C6 50%, #8B8B8B 100%);
   border: 4px solid;
   border-color: #373737 #ffffff #ffffff #373737;
-  box-shadow: inset 0 0 0 1px #000;
+  box-shadow: inset 0 0 0 1px #555;
 }
 
 .mc-slot:hover {
-  background: linear-gradient(135deg, #474747 0%, #9b9b9b 50%, #474747 100%);
+  background: linear-gradient(135deg, #9B9B9B 0%, #D6D6D6 50%, #9B9B9B 100%);
 }
 
-/* Stone button style */
+/* Classic Minecraft stone button */
 .mc-button {
-  background: linear-gradient(180deg, #9d9d9d 0%, #6d6d6d 50%, #8d8d8d 100%);
+  background: linear-gradient(180deg, #ABABAB 0%, #8B8B8B 50%, #9B9B9B 100%);
   border: 4px solid;
-  border-color: #ffffff #373737 #373737 #ffffff;
+  border-color: #DFDFDF #404040 #404040 #DFDFDF;
   box-shadow: 
-    inset 2px 2px 0 rgba(255,255,255,0.3),
-    inset -2px -2px 0 rgba(0,0,0,0.3),
-    4px 4px 0 rgba(0,0,0,0.5);
-  color: #1a1a1a;
+    inset 2px 2px 0 rgba(255,255,255,0.4),
+    inset -2px -2px 0 rgba(0,0,0,0.2),
+    4px 4px 0 rgba(0,0,0,0.4);
+  color: #3D3D3D;
   font-family: 'Press Start 2P', cursive;
-  font-size: 12px;
-  text-shadow: 2px 2px 0 rgba(255,255,255,0.3);
+  font-size: 11px;
+  text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
   padding: 12px 24px;
-  transition: all 0.1s;
+  transition: all 0.05s;
   cursor: pointer;
 }
 
 .mc-button:hover {
-  background: linear-gradient(180deg, #adadad 0%, #7d7d7d 50%, #9d9d9d 100%);
-  transform: translate(2px, 2px);
-  box-shadow: 
-    inset 2px 2px 0 rgba(255,255,255,0.3),
-    inset -2px -2px 0 rgba(0,0,0,0.3),
-    2px 2px 0 rgba(0,0,0,0.5);
+  background: linear-gradient(180deg, #BCBCBC 0%, #9C9C9C 50%, #ACACAC 100%);
+  border-color: #EFEFEF #505050 #505050 #EFEFEF;
 }
 
 .mc-button:active {
-  transform: translate(4px, 4px);
+  transform: translate(2px, 2px);
   box-shadow: 
     inset -2px -2px 0 rgba(255,255,255,0.3),
-    inset 2px 2px 0 rgba(0,0,0,0.3);
+    inset 2px 2px 0 rgba(0,0,0,0.2);
 }
 
-/* Green (grass) button */
+/* Green (grass) button - PRIMARY ACTION */
 .mc-button-grass {
-  background: linear-gradient(180deg, #5d9b3f 0%, #3d7b2f 50%, #4d8b3f 100%);
-  border-color: #8ddb6f #2d5b1f #2d5b1f #8ddb6f;
+  background: linear-gradient(180deg, #7CBB4D 0%, #5D9B3F 50%, #6DAA45 100%);
+  border-color: #9DDB6D #3D7B2F #3D7B2F #9DDB6D;
   color: white;
   text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
 }
 
 .mc-button-grass:hover {
-  background: linear-gradient(180deg, #6dab4f 0%, #4d8b3f 50%, #5d9b4f 100%);
+  background: linear-gradient(180deg, #8CCB5D 0%, #6DAB4F 50%, #7DBA55 100%);
 }
 
-/* Red (redstone) button */
-.mc-button-redstone {
-  background: linear-gradient(180deg, #c62828 0%, #8b1a1a 50%, #a82222 100%);
-  border-color: #ff5252 #5b0a0a #5b0a0a #ff5252;
+/* Red button - DANGER ACTION */
+.mc-button-red {
+  background: linear-gradient(180deg, #E05050 0%, #C03030 50%, #D04040 100%);
+  border-color: #FF7070 #901010 #901010 #FF7070;
   color: white;
   text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
 }
 
-/* Dirt panel background */
+.mc-button-red:hover {
+  background: linear-gradient(180deg, #F06060 0%, #D04040 50%, #E05050 100%);
+}
+
+/* Secondary button */
+.mc-button-secondary {
+  background: linear-gradient(180deg, #D4A76A 0%, #A87D4A 50%, #BC925A 100%);
+  border-color: #E8C08A #7A5A2A #7A5A2A #E8C08A;
+  color: #3D2817;
+  text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
+  padding: 8px 16px;
+  font-size: 10px;
+}
+
+/* Main panel - Dirt style with grass top */
 .mc-panel-dirt {
   background: 
-    linear-gradient(135deg, rgba(139,90,43,0.9) 0%, rgba(93,58,26,0.9) 100%),
-    url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23000' fill-opacity='0.1' x='0' y='0' width='8' height='8'/%3E%3Crect fill='%23000' fill-opacity='0.1' x='8' y='8' width='8' height='8'/%3E%3C/svg%3E");
+    linear-gradient(180deg, 
+      #7CBB4D 0%, 
+      #5D9B3F 8px,
+      #9B7653 8px,
+      #8B6543 50%,
+      #7B5533 100%
+    );
   border: 4px solid;
-  border-color: #bc9862 #3d2813 #3d2813 #bc9862;
+  border-color: #9DDB6D #5B4333 #5B4333 #9DDB6D;
+  border-radius: 4px;
+  box-shadow: 
+    inset 0 8px 0 rgba(255,255,255,0.1),
+    6px 6px 0 rgba(0,0,0,0.3);
 }
 
-/* Stone panel background */
+/* Stone panel */
 .mc-panel-stone {
   background: 
-    linear-gradient(135deg, rgba(127,127,127,0.9) 0%, rgba(74,74,74,0.9) 100%),
-    url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%23000' fill-opacity='0.05' x='0' y='0' width='8' height='8'/%3E%3Crect fill='%23fff' fill-opacity='0.05' x='8' y='8' width='8' height='8'/%3E%3C/svg%3E");
+    linear-gradient(135deg, #9E9E9E 0%, #7E7E7E 50%, #8E8E8E 100%);
   border: 4px solid;
-  border-color: #afafaf #2a2a2a #2a2a2a #afafaf;
+  border-color: #BEBEBE #4E4E4E #4E4E4E #BEBEBE;
+  box-shadow: 
+    inset 2px 2px 0 rgba(255,255,255,0.2),
+    inset -2px -2px 0 rgba(0,0,0,0.2),
+    4px 4px 0 rgba(0,0,0,0.3);
 }
 
-/* Obsidian panel (dark) */
-.mc-panel-obsidian {
+/* Oak wood panel */
+.mc-panel-oak {
   background: 
-    linear-gradient(135deg, rgba(26,10,36,0.95) 0%, rgba(15,5,20,0.95) 100%);
+    linear-gradient(135deg, #D4A76A 0%, #A87D4A 50%, #BC925A 100%);
   border: 4px solid;
-  border-color: #3a2a4a #0a0510 #0a0510 #3a2a4a;
+  border-color: #E8C08A #7A5A2A #7A5A2A #E8C08A;
   box-shadow: 
-    inset 0 0 60px rgba(137,50,184,0.1),
-    0 0 30px rgba(137,50,184,0.2);
+    inset 2px 2px 0 rgba(255,255,255,0.2),
+    inset -2px -2px 0 rgba(0,0,0,0.15),
+    4px 4px 0 rgba(0,0,0,0.3);
 }
 
-/* Inventory/chest style card */
+/* Inventory/chest style card - LIGHT GRAY */
 .mc-card {
-  background: linear-gradient(180deg, #c6c6c6 0%, #8b8b8b 100%);
+  background: linear-gradient(180deg, #C6C6C6 0%, #A8A8A8 100%);
   border: 4px solid;
-  border-color: #ffffff #555555 #555555 #ffffff;
+  border-color: #DFDFDF #606060 #606060 #DFDFDF;
   box-shadow: 
-    inset 4px 4px 0 rgba(255,255,255,0.2),
-    inset -4px -4px 0 rgba(0,0,0,0.2),
-    8px 8px 0 rgba(0,0,0,0.3);
+    inset 4px 4px 0 rgba(255,255,255,0.3),
+    inset -4px -4px 0 rgba(0,0,0,0.15),
+    6px 6px 0 rgba(0,0,0,0.25);
+  color: #3D3D3D;
 }
 
+/* Dark inventory style */
 .mc-card-dark {
-  background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
-  border-color: #5a5a6a #1a1a2a #1a1a2a #5a5a6a;
+  background: linear-gradient(180deg, #5A5A5A 0%, #3A3A3A 100%);
+  border-color: #7A7A7A #1A1A1A #1A1A1A #7A7A7A;
+  color: #E8E8E8;
 }
 
-/* Health/XP bar style */
+/* Health bar */
 .mc-bar {
-  height: 16px;
-  background: #1a1a1a;
-  border: 2px solid;
-  border-color: #0a0a0a #3a3a3a #3a3a3a #0a0a0a;
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+  height: 20px;
+  background: #2A2A2A;
+  border: 3px solid;
+  border-color: #1A1A1A #4A4A4A #4A4A4A #1A1A1A;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+  border-radius: 2px;
 }
 
-.mc-bar-fill {
+.mc-bar-fill-green {
   height: 100%;
-  background: linear-gradient(180deg, var(--mc-emerald) 0%, #0a8a3a 100%);
-  box-shadow: inset 0 2px 4px rgba(255,255,255,0.3);
-  transition: width 0.5s ease;
+  background: linear-gradient(180deg, #7CBB4D 0%, #4A8A2D 100%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.4);
 }
 
-/* Hotbar style */
-.mc-hotbar {
-  display: flex;
-  gap: 4px;
-  padding: 8px;
-  background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
-  border: 4px solid;
-  border-color: #4a4a4a #0a0a0a #0a0a0a #4a4a4a;
+.mc-bar-fill-red {
+  height: 100%;
+  background: linear-gradient(180deg, #E05050 0%, #A02020 100%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.3);
+}
+
+.mc-bar-fill-blue {
+  height: 100%;
+  background: linear-gradient(180deg, #5090E0 0%, #3070C0 100%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.4);
+}
+
+.mc-bar-fill-gold {
+  height: 100%;
+  background: linear-gradient(180deg, #FCDB05 0%, #C8A804 100%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,0.4);
 }
 
 /* Tooltip style */
 .mc-tooltip {
-  background: linear-gradient(180deg, #100010 0%, #1a0a24 100%);
-  border: 2px solid #2a1a3a;
+  background: linear-gradient(180deg, #1A0A24 0%, #100010 100%);
+  border: 2px solid #5A3A6A;
   padding: 8px 12px;
   font-family: 'VT323', monospace;
   font-size: 16px;
   color: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  border-radius: 0;
+}
+
+/* Text input - Minecraft sign style */
+.mc-input {
+  background: #D4C4A8;
+  border: 4px solid;
+  border-color: #8B7355 #F4E4C8 #F4E4C8 #8B7355;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #3D2817;
+  padding: 12px 16px;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.mc-input:focus {
+  outline: 4px solid var(--mc-emerald);
+  outline-offset: 2px;
+}
+
+.mc-input::placeholder {
+  color: #8B7355;
+}
+
+/* ===== STATUS INDICATORS ===== */
+
+.status-online {
+  background: linear-gradient(180deg, #7CBB4D 0%, #4A8A2D 100%);
+  box-shadow: 0 0 12px rgba(124, 187, 77, 0.6);
+}
+
+.status-offline {
+  background: linear-gradient(180deg, #8B8B8B 0%, #5B5B5B 100%);
+}
+
+.status-warning {
+  background: linear-gradient(180deg, #FCDB05 0%, #C8A804 100%);
+  box-shadow: 0 0 12px rgba(252, 219, 5, 0.6);
+}
+
+.status-error {
+  background: linear-gradient(180deg, #E05050 0%, #A02020 100%);
+  box-shadow: 0 0 12px rgba(224, 80, 80, 0.6);
 }
 
 /* ===== ANIMATIONS ===== */
 
-/* Block break animation */
-@keyframes blockBreak {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.5; }
-  100% { transform: scale(0); opacity: 0; }
-}
-
-/* Block place animation */
-@keyframes blockPlace {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
 /* Floating item animation (like dropped items) */
 @keyframes itemFloat {
-  0%, 100% { transform: translateY(0) rotate(-5deg); }
-  50% { transform: translateY(-8px) rotate(5deg); }
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
 }
 
 .animate-float {
-  animation: itemFloat 3s ease-in-out infinite;
+  animation: itemFloat 2.5s ease-in-out infinite;
 }
 
-/* XP orb glow */
-@keyframes xpGlow {
-  0%, 100% { 
-    box-shadow: 0 0 10px var(--mc-emerald), 0 0 20px var(--mc-emerald); 
-    transform: scale(1);
-  }
-  50% { 
-    box-shadow: 0 0 20px var(--mc-emerald), 0 0 40px var(--mc-emerald); 
-    transform: scale(1.1);
-  }
+/* Block place bounce */
+@keyframes blockBounce {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
-.animate-xp-glow {
-  animation: xpGlow 2s ease-in-out infinite;
+.animate-place {
+  animation: blockBounce 0.3s ease-out;
 }
 
-/* Torch flicker */
-@keyframes torchFlicker {
-  0%, 100% { opacity: 1; filter: brightness(1); }
-  50% { opacity: 0.8; filter: brightness(0.9); }
+/* Heartbeat for status indicators */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.9; }
 }
 
-.animate-torch {
-  animation: torchFlicker 0.5s ease-in-out infinite;
+.animate-heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
 }
 
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border: 2px solid #2a2a2a;
+  background: #9B7653;
+  border: 2px solid #6B5344;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
-  border: 2px solid;
-  border-color: #7a7a7a #2a2a2a #2a2a2a #7a7a7a;
+  background: linear-gradient(180deg, #BC9862 0%, #8B6B42 100%);
+  border: 3px solid;
+  border-color: #D4A872 #6B4B22 #6B4B22 #D4A872;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #6a6a6a 0%, #4a4a4a 100%);
+  background: linear-gradient(180deg, #CCA872 0%, #9B7B52 100%);
 }
 
 /* Selection */
 ::selection {
-  background: rgba(23, 221, 98, 0.5);
+  background: rgba(124, 187, 77, 0.6);
   color: white;
 }
 
@@ -297,30 +409,67 @@ h1, h2, h3, .mc-title {
 
 /* ===== GLOW EFFECTS ===== */
 .glow-diamond {
-  box-shadow: 0 0 30px rgba(74, 237, 217, 0.5);
+  box-shadow: 0 0 20px rgba(74, 237, 217, 0.6);
 }
 
 .glow-emerald {
-  box-shadow: 0 0 30px rgba(23, 221, 98, 0.5);
+  box-shadow: 0 0 20px rgba(23, 221, 98, 0.6);
 }
 
 .glow-gold {
-  box-shadow: 0 0 30px rgba(252, 219, 5, 0.5);
+  box-shadow: 0 0 20px rgba(252, 219, 5, 0.6);
 }
 
 .glow-redstone {
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+  box-shadow: 0 0 20px rgba(224, 60, 49, 0.6);
 }
 
-.glow-portal {
-  box-shadow: 0 0 30px rgba(137, 50, 184, 0.5);
-}
-
-/* Text shadows */
+/* Text shadows - Minecraft style */
 .text-shadow-mc {
-  text-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.4);
 }
 
 .text-shadow-mc-light {
-  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
+}
+
+/* ===== CONTENT WRAPPER ===== */
+/* Ensure content appears above background effects */
+main, .content-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Log/terminal style - like command blocks */
+.mc-terminal {
+  background: linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%);
+  border: 4px solid;
+  border-color: #4A4A4A #0A0A0A #0A0A0A #4A4A4A;
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: #7CBB4D;
+  padding: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.mc-terminal .log-time {
+  color: #8B8B8B;
+}
+
+.mc-terminal .log-success {
+  color: #7CBB4D;
+}
+
+.mc-terminal .log-error {
+  color: #E05050;
+}
+
+.mc-terminal .log-warning {
+  color: #FCDB05;
+}
+
+.mc-terminal .log-info {
+  color: #5090E0;
 }

@@ -31,51 +31,43 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Hero Section - Minecraft Title Screen Style */}
-      <div className="text-center mb-12 relative">
-        {/* Floating particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 bg-emerald-400/30 rounded-full animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${3 + Math.random() * 2}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Main Title */}
-        <div className="relative">
+    <main className="content-wrapper max-w-7xl mx-auto px-6 py-8">
+      {/* Hero Section - Bright Minecraft Style */}
+      <div className="text-center mb-12">
+        {/* Main Title - Minecraft logo style */}
+        <div className="relative inline-block">
           <h1 
-            className="text-4xl md:text-5xl font-bold mb-6 text-yellow-400 text-shadow-mc animate-pulse"
-            style={{ fontFamily: "'Press Start 2P', cursive", lineHeight: '1.4' }}
+            className="text-4xl md:text-5xl font-bold mb-4 text-shadow-mc"
+            style={{ 
+              fontFamily: "'Press Start 2P', cursive", 
+              lineHeight: '1.4',
+              color: '#3D2817',
+              WebkitTextStroke: '2px #1A0A00',
+            }}
           >
             WORLD FORGE
           </h1>
           
-          {/* Subtitle with typewriter effect */}
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4" style={{ fontFamily: "'VT323', monospace" }}>
-            Create ANY Minecraft world you can imagine using natural language.
-          </p>
-          
-          <p className="text-emerald-400 text-lg animate-pulse" style={{ fontFamily: "'VT323', monospace" }}>
-            ⚡ Pink banana world? Ferrari land? Moon base? ANYTHING GOES! ⚡
-          </p>
+          {/* Decorative pickaxe */}
+          <span className="absolute -right-12 top-0 text-4xl animate-float">⛏️</span>
         </div>
+        
+        {/* Subtitle */}
+        <p className="text-xl text-amber-900 max-w-2xl mx-auto mb-3" style={{ fontFamily: "'VT323', monospace", fontSize: '24px' }}>
+          Create ANY Minecraft world you can imagine using natural language.
+        </p>
+        
+        <p className="text-green-700 text-lg" style={{ fontFamily: "'VT323', monospace", fontSize: '22px' }}>
+          ⚡ Pink banana world? Ferrari land? Moon base? ANYTHING GOES! ⚡
+        </p>
 
-        {/* Decorative blocks */}
-        <div className="flex justify-center gap-4 mt-8">
-          {['🟫', '🟩', '💎', '🟨', '🟫'].map((block, i) => (
+        {/* Decorative blocks row */}
+        <div className="flex justify-center gap-3 mt-6">
+          {['🟫', '🟩', '💎', '⬜', '🟨', '🟩', '🟫'].map((block, i) => (
             <span 
               key={i} 
-              className="text-3xl animate-float"
-              style={{ animationDelay: `${i * 0.2}s` }}
+              className="text-2xl animate-float drop-shadow-lg"
+              style={{ animationDelay: `${i * 0.15}s` }}
             >
               {block}
             </span>
@@ -84,92 +76,92 @@ export default function HomePage() {
       </div>
 
       {/* Infrastructure Control Panel */}
-      <section className="mb-12">
-        <div className="flex items-center gap-3 mb-6">
+      <section className="mb-10">
+        <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">⚙️</span>
           <h2 
-            className="text-xl text-white text-shadow-mc-light"
+            className="text-amber-900 text-shadow-mc-light"
             style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
           >
-            INFRASTRUCTURE
+            SERVER CONTROL
           </h2>
         </div>
         <InfrastructurePanel />
       </section>
 
       {/* Current World Section */}
-      <section className="mb-12">
-        <div className="flex items-center justify-between mb-6">
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🌍</span>
             <h2 
-              className="text-xl text-white text-shadow-mc-light"
+              className="text-amber-900 text-shadow-mc-light"
               style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
             >
               ACTIVE WORLD
             </h2>
           </div>
           
-          <Link href="/create" className="mc-button mc-button-grass">
+          <Link href="/create" className="mc-button-grass">
             + NEW WORLD
           </Link>
         </div>
 
         {loading && (
-          <div className="mc-card-dark p-12 text-center rounded-lg">
+          <div className="mc-card p-12 text-center">
             <div className="text-4xl mb-4 animate-float">⏳</div>
-            <p className="text-gray-400" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
+            <p className="text-gray-600" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
               Loading world data...
             </p>
           </div>
         )}
 
         {error && (
-          <div className="mc-panel-obsidian p-8 text-center rounded-lg">
+          <div className="mc-panel-stone p-8 text-center">
             <div className="text-4xl mb-4">💀</div>
-            <p className="text-red-400 mb-2" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
+            <p className="text-red-700 mb-2" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
               {error}
             </p>
             <p className="text-gray-500 text-sm">
-              The End? Make sure the server is running!
+              Make sure the server is running!
             </p>
           </div>
         )}
 
         {!loading && !error && !currentWorld && (
-          <div className="mc-card-dark p-12 text-center rounded-lg border-2 border-dashed border-gray-600">
+          <div className="mc-card p-12 text-center border-4 border-dashed border-amber-400">
             <div className="text-6xl mb-6 animate-float">🌱</div>
-            <p className="text-gray-300 text-xl mb-2" style={{ fontFamily: "'VT323', monospace" }}>
+            <p className="text-amber-800 text-xl mb-2" style={{ fontFamily: "'VT323', monospace" }}>
               No world currently deployed
             </p>
             <p className="text-gray-500 mb-6" style={{ fontFamily: "'VT323', monospace" }}>
               The void awaits your creation...
             </p>
-            <Link href="/create" className="mc-button mc-button-grass inline-block">
+            <Link href="/create" className="mc-button-grass inline-block">
               🏗️ BUILD YOUR FIRST WORLD
             </Link>
           </div>
         )}
 
         {currentWorld && (
-          <div className="mc-card-dark p-6 rounded-lg">
+          <div className="mc-panel-oak p-6">
             <div className="flex items-start gap-6">
               <div className="text-6xl animate-float">🌍</div>
               <div className="flex-1">
-                <h3 className="text-2xl text-emerald-400 font-bold mb-2" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}>
+                <h3 className="text-xl text-amber-900 font-bold mb-2" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}>
                   {currentWorld.spec.displayName || currentWorld.spec.worldName}
                 </h3>
-                <p className="text-gray-400 mb-4" style={{ fontFamily: "'VT323', monospace" }}>
+                <p className="text-amber-700 mb-4" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
                   {currentWorld.spec.theme}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded text-sm">
+                  <span className="px-3 py-1 bg-green-200 text-green-800 rounded text-sm border-2 border-green-400">
                     {currentWorld.spec.rules.gameMode}
                   </span>
-                  <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded text-sm">
+                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm border-2 border-yellow-400">
                     {currentWorld.spec.rules.difficulty}
                   </span>
-                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">
+                  <span className="px-3 py-1 bg-blue-200 text-blue-800 rounded text-sm border-2 border-blue-400">
                     {currentWorld.spec.generation.levelType}
                   </span>
                 </div>
@@ -181,30 +173,32 @@ export default function HomePage() {
 
       {/* Quick Actions - Crafting Table Style */}
       <section>
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📦</span>
           <h2 
-            className="text-xl text-white text-shadow-mc-light"
+            className="text-amber-900 text-shadow-mc-light"
             style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
           >
             QUICK ACTIONS
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-4">
           <ActionCard
             href="/create"
             icon="⚒️"
             title="CRAFT WORLD"
             description="Describe ANY world idea and watch AI bring it to life"
-            color="emerald"
+            bgColor="bg-gradient-to-br from-green-100 to-green-200"
+            borderColor="border-green-400"
           />
           <ActionCard
             href="/worlds"
             icon="📜"
             title="WORLD LIST"
             description="Browse all your world creation requests"
-            color="amber"
+            bgColor="bg-gradient-to-br from-amber-100 to-amber-200"
+            borderColor="border-amber-400"
           />
           <ActionCard
             href="https://github.com/ColeGendreau/Minecraft-1.0"
@@ -212,21 +206,19 @@ export default function HomePage() {
             icon="🔧"
             title="GITHUB"
             description="View the source code and infrastructure"
-            color="purple"
+            bgColor="bg-gradient-to-br from-blue-100 to-blue-200"
+            borderColor="border-blue-400"
           />
         </div>
       </section>
 
-      {/* Footer Easter Egg */}
-      <footer className="mt-16 text-center">
-        <p className="text-gray-600 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
+      {/* Footer */}
+      <footer className="mt-12 text-center">
+        <p className="text-amber-700 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
           Made with 💎 by Cole Gendreau
         </p>
-        <p className="text-gray-700 text-xs mt-2" style={{ fontFamily: "'VT323', monospace" }}>
-          Tip: Try clicking things... there might be secrets 🥚
-        </p>
       </footer>
-    </div>
+    </main>
   );
 }
 
@@ -235,58 +227,46 @@ function ActionCard({
   icon,
   title,
   description,
-  color,
+  bgColor,
+  borderColor,
   external,
 }: {
   href: string;
   icon: string;
   title: string;
   description: string;
-  color: 'emerald' | 'amber' | 'purple';
+  bgColor: string;
+  borderColor: string;
   external?: boolean;
 }) {
   const Component = external ? 'a' : Link;
   const props = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
-
-  const colorClasses = {
-    emerald: 'hover:border-emerald-500/50 hover:shadow-emerald-500/20',
-    amber: 'hover:border-amber-500/50 hover:shadow-amber-500/20',
-    purple: 'hover:border-purple-500/50 hover:shadow-purple-500/20',
-  };
-
-  const glowClasses = {
-    emerald: 'group-hover:bg-emerald-500/10',
-    amber: 'group-hover:bg-amber-500/10',
-    purple: 'group-hover:bg-purple-500/10',
-  };
 
   return (
     <Component
       href={href}
       {...props}
       className={`
-        group relative mc-card-dark p-6 rounded-lg border-2 border-gray-700
-        transition-all duration-300 hover:scale-105 hover:-translate-y-1
-        hover:shadow-lg ${colorClasses[color]}
+        group relative p-6 rounded border-4 ${bgColor} ${borderColor}
+        transition-all duration-200 hover:scale-105 hover:-translate-y-1
+        hover:shadow-lg
       `}
+      style={{
+        boxShadow: 'inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 rgba(0,0,0,0.1), 4px 4px 0 rgba(0,0,0,0.2)'
+      }}
     >
-      {/* Hover glow */}
-      <div className={`absolute inset-0 rounded-lg transition-colors ${glowClasses[color]}`} />
-      
-      <div className="relative">
-        <span className="text-4xl block mb-4 group-hover:animate-float transition-transform">
-          {icon}
-        </span>
-        <h3 
-          className="text-white mb-2 text-shadow-mc-light"
-          style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px' }}
-        >
-          {title}
-        </h3>
-        <p className="text-gray-400 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
-          {description}
-        </p>
-      </div>
+      <span className="text-4xl block mb-4 group-hover:animate-float">
+        {icon}
+      </span>
+      <h3 
+        className="text-amber-900 mb-2"
+        style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '10px' }}
+      >
+        {title}
+      </h3>
+      <p className="text-amber-700 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
+        {description}
+      </p>
     </Component>
   );
 }
