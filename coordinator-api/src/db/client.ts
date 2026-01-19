@@ -178,6 +178,16 @@ export function getRequestCountSince(userGithubId: string, sinceDate: Date): num
   ).length;
 }
 
+export function deleteWorldRequest(id: string): boolean {
+  const database = getDb();
+  const index = database.world_requests.findIndex(r => r.id === id);
+  if (index === -1) return false;
+  
+  database.world_requests.splice(index, 1);
+  saveDatabase(database);
+  return true;
+}
+
 // Deployments
 export function getCurrentDeployment(): DeploymentRow | undefined {
   return getDb().deployments.find(d => d.is_current === 1);

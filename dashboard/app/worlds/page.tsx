@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getWorlds } from '@/lib/api';
+import { getWorlds, deleteWorld } from '@/lib/api';
 import type { WorldListItem, WorldRequestStatus } from '@/lib/types';
 import { StatusBadge } from '@/components/StatusBadge';
 
+// Simplified status filters - only what users care about
 const statusFilters: (WorldRequestStatus | 'all')[] = [
   'all',
-  'pending',
-  'planned',
-  'building',
-  'pr_created',
-  'deployed',
-  'failed',
+  'building',  // In progress
+  'deployed',  // Live and playable
 ];
 
 export default function WorldsPage() {
@@ -22,28 +19,48 @@ export default function WorldsPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<WorldRequestStatus | 'all'>('all');
   const [total, setTotal] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchWorlds = async () => {
+    setLoading(true);
+    try {
+      const response = await getWorlds({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        limit: 50,
+      });
+      setWorlds(response.worlds);
+      setTotal(response.pagination.total);
+      setError(null);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchWorlds() {
-      setLoading(true);
-      try {
-        const response = await getWorlds({
-          status: statusFilter === 'all' ? undefined : statusFilter,
-          limit: 50,
-        });
-        setWorlds(response.worlds);
-        setTotal(response.pagination.total);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchWorlds();
   }, [statusFilter]);
+
+  const handleDelete = async (id: string, worldName: string) => {
+    if (!confirm(`Delete "${worldName || 'this world'}"? This cannot be undone.`)) {
+      return;
+    }
+    
+    setDeletingId(id);
+    try {
+      await deleteWorld(id);
+      // Remove from local state immediately
+      setWorlds(worlds.filter(w => w.id !== id));
+      setTotal(t => t - 1);
+    } catch (err) {
+      alert(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
@@ -65,21 +82,25 @@ export default function WorldsPage() {
 
       {/* Status Filter */}
       <div className="flex flex-wrap gap-2 mb-8">
-        {statusFilters.map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize
-              ${statusFilter === status
-                ? 'bg-accent-primary text-surface'
-                : 'bg-surface-raised border border-surface-border text-text-secondary hover:border-accent-primary/50 hover:text-text-primary'
-              }
-            `}
-          >
-            {status === 'all' ? 'All' : status.replace('_', ' ')}
-          </button>
-        ))}
+        {statusFilters.map((status) => {
+          // Map internal status to user-friendly labels
+          const label = status === 'all' ? 'All' : status === 'deployed' ? '🟢 Live' : '🔨 Building';
+          return (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`
+                px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${statusFilter === status
+                  ? 'bg-accent-primary text-surface'
+                  : 'bg-surface-raised border border-surface-border text-text-secondary hover:border-accent-primary/50 hover:text-text-primary'
+                }
+              `}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Error */}
@@ -174,16 +195,13 @@ export default function WorldsPage() {
                       >
                         View
                       </Link>
-                      {world.prUrl && (
-                        <a
-                          href={world.prUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-text-secondary hover:text-text-primary"
-                        >
-                          PR
-                        </a>
-                      )}
+                      <button
+                        onClick={() => handleDelete(world.id, world.displayName || world.worldName || '')}
+                        disabled={deletingId === world.id}
+                        className="text-sm text-red-500 hover:text-red-400 font-medium disabled:opacity-50"
+                      >
+                        {deletingId === world.id ? '...' : '🗑️ Delete'}
+                      </button>
                     </div>
                   </td>
                 </tr>

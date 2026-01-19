@@ -113,6 +113,13 @@ export async function retryWorld(id: string): Promise<CreateWorldResponse> {
   });
 }
 
+// Delete a world request
+export async function deleteWorld(id: string): Promise<{ success: boolean; message: string }> {
+  return fetchApi(`/api/worlds/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // Infrastructure types
 export interface ServiceStatus {
   id: string;

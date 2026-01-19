@@ -5,6 +5,7 @@ import {
   getWorldRequests,
   getCurrentDeployment,
   updateWorldRequestStatus,
+  deleteWorldRequest,
 } from '../db/client.js';
 import { planWorld } from '../services/ai-planner.js';
 import { createWorldLimiter } from '../middleware/ratelimit.js';
@@ -234,6 +235,36 @@ router.post('/:id/retry', validateRequestId, async (req, res) => {
     id: request.id,
     status: 'pending',
     message: 'Request resubmitted for processing',
+  });
+});
+
+/**
+ * DELETE /api/worlds/:id
+ * Delete a world request
+ */
+router.delete('/:id', validateRequestId, (req, res) => {
+  const { id } = req.params;
+  const request = getWorldRequestById(id);
+
+  if (!request) {
+    res.status(404).json({ error: 'World request not found' });
+    return;
+  }
+
+  // Delete the request
+  const deleted = deleteWorldRequest(id);
+  
+  if (!deleted) {
+    res.status(500).json({ error: 'Failed to delete world request' });
+    return;
+  }
+
+  console.log(`[${id}] World request deleted`);
+  
+  res.json({
+    success: true,
+    message: 'World request deleted successfully',
+    id,
   });
 });
 
