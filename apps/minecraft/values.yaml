@@ -26,7 +26,7 @@ minecraftServer:
   gameMode: survival
   motd: "§6§lWorld Forge §r§7- §b§lAI-Crafted Worlds §a✓"
   serviceType: LoadBalancer
-  loadBalancerIP: 57.154.70.117
+  # loadBalancerIP is set dynamically by the deploy workflow using --set
   servicePort: 25565
   
   # RCON configuration for remote command execution

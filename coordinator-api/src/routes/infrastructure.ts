@@ -106,9 +106,9 @@ router.get('/status', async (req, res) => {
           pods: 12,
           cpuUsage: Math.floor(Math.random() * 30) + 20,
           memoryUsage: Math.floor(Math.random() * 40) + 30,
-          publicIp: process.env.PUBLIC_IP || '57.154.70.117',
-          grafanaUrl: `https://grafana.${process.env.PUBLIC_IP || '57.154.70.117'}.nip.io`,
-          minecraftAddress: `${process.env.PUBLIC_IP || '57.154.70.117'}:25565`,
+          publicIp: process.env.PUBLIC_IP || '4.236.122.90',
+          grafanaUrl: `https://grafana.${process.env.PUBLIC_IP || '4.236.122.90'}.nip.io`,
+          minecraftAddress: `${process.env.PUBLIC_IP || '4.236.122.90'}:25565`,
         }
       : null;
 
