@@ -72,15 +72,13 @@ jobs:
 
       - name: Build and push to ACR
         run: |
-          # Login to ACR
-          az acr login --name ${{ env.ACR_NAME }}
-          
-          # Build and push
-          cd coordinator-api
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }} .
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:latest .
-          docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }}
-          docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:latest
+          # Build in Azure (faster + more reliable than local docker)
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image coordinator-api:${{ github.sha }} \
+            --image coordinator-api:latest \
+            --file coordinator-api/Dockerfile \
+            coordinator-api/
 
       - name: Get Azure OpenAI credentials from main infra
         id: get_openai
@@ -217,18 +215,14 @@ jobs:
 
       - name: Build and push to ACR
         run: |
-          # Login to ACR
-          az acr login --name ${{ env.ACR_NAME }}
-          
-          # Build with API URL
-          cd dashboard
-          docker build \
+          # Build in Azure (faster + more reliable than local docker)
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image dashboard:${{ github.sha }} \
+            --image dashboard:latest \
             --build-arg NEXT_PUBLIC_API_URL=${{ steps.get_url.outputs.url }} \
-            -t ${{ env.ACR_NAME }}.azurecr.io/dashboard:${{ github.sha }} \
-            -t ${{ env.ACR_NAME }}.azurecr.io/dashboard:latest \
-            .
-          docker push ${{ env.ACR_NAME }}.azurecr.io/dashboard:${{ github.sha }}
-          docker push ${{ env.ACR_NAME }}.azurecr.io/dashboard:latest
+            --file dashboard/Dockerfile \
+            dashboard/
 
       - name: Deploy to Container Apps
         run: |
