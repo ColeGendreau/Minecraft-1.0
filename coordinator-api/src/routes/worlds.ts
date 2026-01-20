@@ -12,6 +12,7 @@ import { planWorld } from '../services/ai-planner.js';
 import { executeRconCommands, getRconClient } from '../services/rcon-client.js';
 import { updateMinecraftMOTD } from '../services/kubernetes.js';
 import { processBuildCommands } from '../services/shape-library.js';
+import { buildLogo, pixelsTo3DRelief, fetchImagePixels, optimizeCommands } from '../services/image-to-voxel.js';
 import { createWorldLimiter } from '../middleware/ratelimit.js';
 import { validateCreateWorldRequest, validateRequestId } from '../middleware/validation.js';
 import type {
@@ -438,6 +439,70 @@ async function processWorldRequest(
       console.error(`[${requestId}] RCON connection failed:`, rconError);
       // Don't fail the whole request - RCON might be temporarily unavailable
       // Mark as deployed anyway since the plan was created
+    }
+
+    // Step 2.5: Build custom image/logo if provided
+    if (body.imageUrl) {
+      try {
+        console.log(`[${requestId}] Building custom image from URL: ${body.imageUrl}`);
+        
+        const imageScale = body.imageScale || 2;
+        const imageDepth = body.imageDepth || 1;
+        
+        // Position the image at a good viewing location (offset from spawn)
+        const imageX = 0;
+        const imageY = 65;
+        const imageZ = 80; // In front of spawn
+        
+        const result = await buildLogo(body.imageUrl, imageX, imageY, imageZ, {
+          maxSize: 80,
+          scale: imageScale,
+          depth: imageDepth,
+          facing: 'south'
+        });
+        
+        console.log(`[${requestId}] Image processed: ${result.buildInfo.width}x${result.buildInfo.height} blocks`);
+        
+        // Get RCON connection
+        const rcon = getRconClient();
+        if (!rcon.isConnected()) {
+          await rcon.connect();
+        }
+        
+        // Forceload the image area
+        console.log(`[${requestId}] Forceload: ${result.forceloadCommand}`);
+        await rcon.send(result.forceloadCommand);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Execute image build commands in batches
+        const batchSize = 50;
+        let imageSuccessCount = 0;
+        let imageErrorCount = 0;
+        
+        for (let i = 0; i < result.commands.length; i += batchSize) {
+          const batch = result.commands.slice(i, i + batchSize);
+          for (const cmd of batch) {
+            try {
+              await rcon.send(cmd);
+              imageSuccessCount++;
+            } catch {
+              imageErrorCount++;
+            }
+          }
+          if (i + batchSize < result.commands.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+        
+        console.log(`[${requestId}] Image built: ${imageSuccessCount} blocks placed, ${imageErrorCount} errors`);
+        
+        // Announce the image
+        await rcon.send(`say §6[World Forge] §a🖼️ Custom image built! ${result.buildInfo.width}x${result.buildInfo.height} blocks`);
+        
+      } catch (imageError) {
+        console.error(`[${requestId}] Image building failed:`, imageError);
+        // Don't fail the world creation - image is optional
+      }
     }
 
     // Step 3: Mark as deployed and create deployment record

@@ -243,7 +243,7 @@ export default function WorldPage() {
                   </div>
                 </div>
                 <p className="text-sm text-text-muted">
-                  {new Date(world.requestedAt).toLocaleDateString()} • Click "View Details" to see original prompt
+                  {new Date(world.requestedAt).toLocaleDateString()} • Click &quot;View Details&quot; to see original prompt
                 </p>
               </div>
             ))}

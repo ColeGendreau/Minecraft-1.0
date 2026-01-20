@@ -45,6 +45,10 @@ export interface CreateWorldRequest {
   difficulty?: Difficulty;
   gameMode?: GameMode;
   size?: WorldSize;
+  // Optional logo/image to build in the world
+  imageUrl?: string;
+  imageScale?: number;  // Blocks per pixel (1-4, default 2)
+  imageDepth?: number;  // 1 = flat, 5+ = 3D relief (default 1)
 }
 
 export interface CreateWorldResponse {

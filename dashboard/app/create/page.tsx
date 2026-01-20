@@ -23,6 +23,10 @@ export default function CreateWorldPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [showImageOptions, setShowImageOptions] = useState(false);
+  const [imageScale, setImageScale] = useState(2);
+  const [imageDepth, setImageDepth] = useState(1);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +38,9 @@ export default function CreateWorldPage() {
     try {
       const response = await createWorld({
         description: description.trim(),
-        // Let AI decide everything based on the description
+        imageUrl: imageUrl.trim() || undefined,
+        imageScale: imageUrl.trim() ? imageScale : undefined,
+        imageDepth: imageUrl.trim() ? imageDepth : undefined,
       });
 
       // Redirect to the request detail page
@@ -91,6 +97,97 @@ export default function CreateWorldPage() {
           <p className="text-sm text-text-muted">
             Be as creative, abstract, or specific as you want. There are no wrong answers.
           </p>
+        </div>
+
+        {/* Optional Logo/Image */}
+        <div className="mc-panel-stone p-6 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setShowImageOptions(!showImageOptions)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <div>
+              <h3 
+                className="font-bold uppercase tracking-wide"
+                style={{ fontFamily: "'VT323', monospace", fontSize: '20px', color: '#4A5568' }}
+              >
+                🖼️ Add Custom Logo/Image (Optional)
+              </h3>
+              <p className="text-sm text-text-muted mt-1">
+                Build a logo or image as pixel art in your world
+              </p>
+            </div>
+            <span className="text-2xl text-text-muted">
+              {showImageOptions ? '−' : '+'}
+            </span>
+          </button>
+          
+          {showImageOptions && (
+            <div className="mt-4 pt-4 border-t border-surface-border space-y-4">
+              <div>
+                <label htmlFor="imageUrl" className="block text-sm font-medium text-text-primary mb-2">
+                  Image URL (PNG, JPG, etc.)
+                </label>
+                <input
+                  id="imageUrl"
+                  type="url"
+                  placeholder="https://example.com/your-logo.png"
+                  className="w-full bg-surface-raised border-2 border-surface-border rounded-lg p-3 text-text-primary placeholder:text-text-muted focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition-all"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                />
+                <p className="text-xs text-text-muted mt-1">
+                  The image will be converted to Minecraft blocks and built in your world
+                </p>
+              </div>
+              
+              {imageUrl && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="imageScale" className="block text-sm font-medium text-text-primary mb-2">
+                      Scale (blocks per pixel)
+                    </label>
+                    <select
+                      id="imageScale"
+                      className="w-full bg-surface-raised border-2 border-surface-border rounded-lg p-3 text-text-primary"
+                      value={imageScale}
+                      onChange={(e) => setImageScale(Number(e.target.value))}
+                    >
+                      <option value={1}>1x (Small)</option>
+                      <option value={2}>2x (Medium)</option>
+                      <option value={3}>3x (Large)</option>
+                      <option value={4}>4x (Huge)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="imageDepth" className="block text-sm font-medium text-text-primary mb-2">
+                      Depth Style
+                    </label>
+                    <select
+                      id="imageDepth"
+                      className="w-full bg-surface-raised border-2 border-surface-border rounded-lg p-3 text-text-primary"
+                      value={imageDepth}
+                      onChange={(e) => setImageDepth(Number(e.target.value))}
+                    >
+                      <option value={1}>Flat (1 block)</option>
+                      <option value={5}>3D Relief (5 blocks)</option>
+                      <option value={10}>Deep Relief (10 blocks)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              
+              {imageUrl && (
+                <div className="bg-surface-raised rounded-lg p-3 flex items-center gap-3">
+                  <span className="text-2xl">✅</span>
+                  <div className="text-sm text-text-secondary">
+                    Image will be built at spawn as a {imageScale}x scale pixel art
+                    {imageDepth > 1 ? ` with ${imageDepth}-block 3D depth` : ' (flat wall)'}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Inspiration Ideas */}
