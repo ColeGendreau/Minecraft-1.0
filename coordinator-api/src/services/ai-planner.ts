@@ -106,86 +106,136 @@ Parameters:
 Example: heart(0, 80, 0, 4, 1, "south")  - Large heart wall
 
 ═══════════════════════════════════════════════════════════════
-## 4. DETAILED VOXEL STRUCTURES - Architectural Masterpieces
+## 4. PRE-BUILT VOXEL STRUCTURES
 ═══════════════════════════════════════════════════════════════
 
-Pre-built detailed structures with proper proportions, varied materials, windows, and details:
-
-tower(x, y, z, scale)            - Medieval castle tower with battlements & windows
-cottage(x, y, z, scale)          - Cozy house with pitched roof & chimney
-house(x, y, z, scale)            - Same as cottage
-ship(x, y, z, scale)             - Sailing ship with masts & sails
-boat(x, y, z, scale)             - Same as ship
-statue(x, y, z, scale)           - Heroic figure on pedestal
-lighthouse(x, y, z, scale)       - Striped lighthouse with glowing top
-mushroom(x, y, z, scale)         - Giant fantasy mushroom house
-airplane(x, y, z, scale)         - Aircraft with wings & tail
-
-Example: tower(0, 65, 0, 2)      - 2x scale medieval tower!
-Example: ship(0, 65, 0, 3)       - 3x scale sailing ship!
+tower(x, y, z, scale)            - Medieval castle tower
+cottage(x, y, z, scale)          - Cozy house with roof & chimney
+ship(x, y, z, scale)             - Sailing ship with masts
+statue(x, y, z, scale)           - Figure on pedestal
+lighthouse(x, y, z, scale)       - Striped lighthouse
+mushroom(x, y, z, scale)         - Fantasy mushroom house
+airplane(x, y, z, scale)         - Aircraft with wings
 
 ═══════════════════════════════════════════════════════════════
-## 5. RAW FILL COMMANDS - Custom Details
+## 5. CUSTOM VOXEL OBJECTS - BUILD ANYTHING! ⭐ MOST POWERFUL ⭐
+═══════════════════════════════════════════════════════════════
+
+You can CREATE ANY OBJECT by defining it layer-by-layer!
+
+For objects NOT in the library (guitars, watches, shoes, trucks, candy, animals, logos, abstract art, ANYTHING), define a custom voxel in the "customVoxels" field.
+
+### HOW TO DESIGN CUSTOM OBJECTS:
+
+1. Think about the object from ABOVE looking DOWN (bird's eye view)
+2. Slice it into horizontal layers from BOTTOM to TOP
+3. Each layer is a 2D grid where each character = one block
+4. Use "." for air/empty space
+
+### CUSTOM VOXEL FORMAT:
+
+In your JSON output, add a "customVoxels" object:
+
+"customVoxels": {
+  "guitar": {
+    "palette": {
+      "B": "brown_concrete",
+      "G": "gold_block", 
+      "S": "black_concrete",
+      "W": "white_concrete"
+    },
+    "layers": [
+      ["..B..", "..B..", "..B.."],           // Y=0: neck bottom
+      ["..B..", "..B..", "..B.."],           // Y=1
+      ["..B..", ".BBB.", "BBBBB", ".BBB."],  // Y=2: body starts
+      [".BBB.", "BBBBB", "BBGBB", "BBBBB"],  // Y=3: body with sound hole
+      // ... more layers up
+    ]
+  }
+}
+
+Then use it: "guitar(0, 65, 0, 2)" in buildCommands (2 = scale)
+
+### DESIGN TIPS:
+
+- Each layer is an array of strings (Z rows)
+- Each string is X columns (characters)
+- Use single letters for blocks in palette
+- Think about RECOGNIZABLE SILHOUETTE
+- Add DETAILS (eyes, buttons, stripes)
+- Use MULTIPLE COLORS for visual interest
+- Scale 2-5x for large objects
+
+### EXAMPLE - GIANT SHOE HOUSE:
+
+"customVoxels": {
+  "shoe_house": {
+    "palette": {
+      "L": "brown_concrete",
+      "W": "white_concrete",
+      "S": "black_concrete",
+      "G": "glass_pane",
+      "D": "oak_door"
+    },
+    "layers": [
+      ["LLLLLLLLLL", "LLLLLLLLLL", "SSSSSSSSSS"],  // Y=0: sole
+      ["LLLLLLLLLL", "L........L", "LLLLLLLLLL"],  // Y=1: interior
+      ["LLLLLLLLLL", "LG......GL", "LLLLLLLLLL"],  // Y=2: windows
+      ["LLLLLLLL..", "L.........", "LLLLLLLL.."],  // Y=3: toe narrows
+      ["..LLLLLL..", "..L.D.....", "..LLLLLL.."],  // Y=4: door
+      ["....LLLL..", "....WWWW..", "....LLLL.."],  // Y=5: tongue
+    ]
+  }
+}
+
+### EXAMPLE - ROLEX WATCH:
+
+"customVoxels": {
+  "watch": {
+    "palette": {
+      "G": "gold_block",
+      "B": "black_concrete",
+      "W": "white_concrete",
+      "D": "diamond_block"
+    },
+    "layers": [
+      ["..GGG..", ".GGGGG.", "GG...GG", "G.....G", "GG...GG", ".GGGGG.", "..GGG.."],  // face
+      ["..GGG..", ".GBBBG.", "GB...BG", "GB.D.BG", "GB...BG", ".GBBBG.", "..GGG.."],  // dial
+      // ... crown and band layers
+    ]
+  }
+}
+
+═══════════════════════════════════════════════════════════════
+## 6. RAW FILL COMMANDS - Foundations & Details
 ═══════════════════════════════════════════════════════════════
 
 fill x1 y1 z1 x2 y2 z2 block [hollow]
 
-Use for: platforms, walls, windows, decorations, custom shapes
+Use for: platforms, floors, walls, foundations
 
 ═══════════════════════════════════════════════════════════════
 ## BLOCK PALETTE
 ═══════════════════════════════════════════════════════════════
 
-CONCRETE (vibrant): white, orange, magenta, light_blue, yellow, lime, pink, gray, purple, blue, brown, green, red, black (add _concrete)
-WOOL (soft): same colors (add _wool)
+CONCRETE: white, orange, magenta, light_blue, yellow, lime, pink, gray, purple, blue, brown, green, red, black (add _concrete)
+WOOL: same colors (add _wool)
 BUILDING: stone_bricks, quartz_block, bricks, sandstone, smooth_stone
 METAL: gold_block, iron_block, diamond_block, copper_block
 LIGHT: glowstone, sea_lantern, shroomlight
 NATURAL: grass_block, dirt, stone, oak_log, oak_leaves, water
 
 ═══════════════════════════════════════════════════════════════
-## CREATIVE EXAMPLES
-═══════════════════════════════════════════════════════════════
-
-### Medieval Castle:
-tower(0, 65, 0, 2)                       // Main tower (scaled 2x)
-tower(40, 65, 0, 1)                      // Corner tower
-tower(-40, 65, 0, 1)                     // Corner tower  
-tower(0, 65, 40, 1)                      // Corner tower
-fill -30 64 -30 30 70 30 stone_bricks hollow  // Castle walls
-fill -35 64 -35 35 64 35 cobblestone    // Courtyard floor
-
-### Seaside Harbor:
-ship(0, 65, -30, 2)                      // Large sailing ship
-lighthouse(50, 65, 0, 1)                 // Lighthouse
-cottage(-40, 65, 20, 1)                  // Fisherman's cottage
-cottage(-60, 65, 30, 1)                  // Another cottage
-fill -70 64 -50 70 64 50 oak_planks     // Wooden dock
-
-### Fantasy Village:
-mushroom(0, 65, 0, 2)                    // Giant mushroom house
-mushroom(40, 65, 20, 1)                  // Smaller mushroom
-cottage(-30, 65, -20, 1)                 // Cottage
-fountain(20, 65, -30)                    // Village fountain
-fill -50 64 -50 50 64 50 grass_block    // Village green
-
-### Aviation Museum:
-airplane(0, 75, 0, 3)                    // Display aircraft (elevated)
-airplane(-50, 75, 30, 2)                 // Second plane
-box(0, 65, 0, 100, 20, 60, glass)       // Glass hangar
-fill -60 64 -40 60 64 40 gray_concrete  // Tarmac
-
-═══════════════════════════════════════════════════════════════
 ## CRITICAL RULES
 ═══════════════════════════════════════════════════════════════
 
-1. USE VOXEL STRUCTURES for detailed buildings - tower, cottage, ship, lighthouse, statue
-2. USE SHAPES for large geometric forms - domes, spheres, pyramids
-3. USE COMPONENTS for small details - fountain, car, rocket, throne, lamp
-4. SCALE things appropriately - towers 2-3x, ships 2-4x
-5. COMPOSE SCENES - multiple structures that make sense together
-6. VARY MATERIALS - use different blocks for visual interest
-7. NEVER REJECT - find creative Minecraft equivalent for ANYTHING
+1. **USE CUSTOM VOXELS** for ANY unique object (guitars, shoes, animals, logos, vehicles, food, abstract art)
+2. USE PRE-BUILT VOXELS for standard structures (tower, ship, lighthouse)
+3. USE SHAPES for geometric forms (domes, spheres, pyramids)
+4. USE COMPONENTS for small items (fountain, car, lamp)
+5. **DESIGN RECOGNIZABLE SILHOUETTES** - the shape should be identifiable
+6. **USE MULTIPLE COLORS** - monochrome looks boring
+7. **NEVER SAY NO** - create ANY requested object using custom voxels!
 
 Generate 15-30 commands mixing shapes, components, and voxels!
 
@@ -219,15 +269,39 @@ Generate 15-30 commands mixing shapes, components, and voxels!
   "server": { "maxPlayers": 20, "viewDistance": 16, "simulationDistance": 12, "motd": "Epic World Description" },
   "metadata": { "requestedBy": "user", "requestedAt": "2026-01-20T12:00:00.000Z", "userDescription": "original prompt", "aiModel": "gpt-4o", "version": "1.0.0" },
   "buildCommands": [
-    "tower(0, 65, 0, 2)",
-    "tower(50, 65, 50, 1)",
-    "cottage(-40, 65, 0, 1)",
-    "fountain(20, 65, -20)",
-    "statue(-30, 65, 30, 1)",
-    "fill -60 64 -60 60 70 60 stone_bricks hollow",
-    "fill -65 64 -65 65 64 65 cobblestone"
-  ]
+    "guitar(0, 65, 0, 3)",
+    "shoe_house(60, 65, 0, 2)",
+    "sphere(0, 90, 0, 15, pink_wool)",
+    "fill -80 64 -80 80 64 80 white_concrete"
+  ],
+  "customVoxels": {
+    "guitar": {
+      "palette": { "B": "brown_concrete", "G": "gold_block", "W": "white_concrete", "S": "black_concrete" },
+      "layers": [
+        ["..B..", "..B..", "..B.."],
+        ["..B..", "..B..", "..B.."],
+        ["..B..", ".BBB.", "..B.."],
+        [".BBB.", "BWBWB", ".BBB."],
+        ["BBBBB", "BGGGB", "BBBBB"],
+        ["BBBBB", "BWWWB", "BBBBB"],
+        [".BBB.", ".BBB.", ".BBB."]
+      ]
+    },
+    "shoe_house": {
+      "palette": { "L": "brown_concrete", "W": "white_wool", "G": "glass_pane", "D": "dark_oak_door" },
+      "layers": [
+        ["LLLLLLLL", "LLLLLLLL"],
+        ["L......L", "LLLLLLLL"],
+        ["LG....GL", "LLLLLLLL"],
+        ["L......L", "LLLL...."],
+        ["LD....WW", "LLLL...."]
+      ]
+    }
+  }
 }
+
+IMPORTANT: For ANY object not in the pre-built libraries, CREATE IT using customVoxels!
+Think layer-by-layer from bottom to top. Make recognizable shapes with multiple colors.
 
 VALID BIOMES: plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove, snowy_plains, beach, river
 
@@ -316,11 +390,20 @@ Think like a theme park designer. Make it MAGICAL!`;
       return { success: false, error: `Failed to parse AI response: ${parseError}` };
     }
 
-    // Extract build commands (vanilla Minecraft commands like fill, setblock)
-    // Also support legacy worldEditCommands for backwards compatibility
-    const buildCommands = worldSpec.buildCommands || worldSpec.worldEditCommands || [];
-    delete worldSpec.buildCommands;
-    delete worldSpec.worldEditCommands;
+    // Extract build commands and custom voxels
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawSpec = worldSpec as any;
+    const buildCommands = rawSpec.buildCommands || rawSpec.worldEditCommands || [];
+    const customVoxels = rawSpec.customVoxels || {};
+    delete rawSpec.buildCommands;
+    delete rawSpec.worldEditCommands;
+    delete rawSpec.customVoxels;
+
+    // Log custom voxels if present
+    const customVoxelNames = Object.keys(customVoxels);
+    if (customVoxelNames.length > 0) {
+      console.log(`AI defined ${customVoxelNames.length} custom voxels: ${customVoxelNames.join(', ')}`);
+    }
 
     // Truncate theme if AI got too creative (schema limit is 500 chars)
     if (worldSpec.theme && worldSpec.theme.length > 500) {
@@ -329,7 +412,6 @@ Think like a theme park designer. Make it MAGICAL!`;
     }
 
     // Ensure metadata is present and valid
-    // Always override with correct values since AI may output placeholder text
     worldSpec.metadata = {
       requestedBy: input.requestedBy,
       requestedAt: new Date().toISOString(),
@@ -350,9 +432,10 @@ Think like a theme park designer. Make it MAGICAL!`;
 
     console.log(`AI generated world: "${worldSpec.displayName}" with ${buildCommands.length} build commands`);
 
-    // Attach build commands for execution
-    if (buildCommands.length > 0) {
-      (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands = buildCommands;
+    // Attach build commands AND custom voxels for execution
+    if (buildCommands.length > 0 || customVoxelNames.length > 0) {
+      (worldSpec as WorldSpec & { _buildCommands?: string[]; _customVoxels?: Record<string, { palette: Record<string, string>; layers: string[][] }> })._buildCommands = buildCommands;
+      (worldSpec as WorldSpec & { _customVoxels?: Record<string, { palette: Record<string, string>; layers: string[][] }> })._customVoxels = customVoxels;
     }
 
     return { success: true, worldSpec };

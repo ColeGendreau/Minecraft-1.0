@@ -325,16 +325,18 @@ async function processWorldRequest(
       console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
 
       // Execute build commands if present
-      // Supports both shape library commands (sphere, dome, etc.) and raw fill commands
+      // Supports shape library, components, custom voxels, and raw fill commands
       // IMPORTANT: Chunks must be loaded for fill commands to work!
       const buildCmds = (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands;
+      const customVoxels = (worldSpec as WorldSpec & { _customVoxels?: Record<string, { palette: Record<string, string>; layers: string[][] }> })._customVoxels;
+      
       if (buildCmds && buildCmds.length > 0) {
-        console.log(`[${requestId}] Processing ${buildCmds.length} build commands through shape library...`);
+        const customVoxelCount = customVoxels ? Object.keys(customVoxels).length : 0;
+        console.log(`[${requestId}] Processing ${buildCmds.length} build commands (${customVoxelCount} custom voxels)...`);
         
-        // Process through shape library - converts shape commands to fill commands
-        // e.g., "sphere(0, 80, 0, 20, gold_block)" -> multiple "fill ..." commands
-        const processedCommands = processBuildCommands(buildCmds);
-        console.log(`[${requestId}] Shape library expanded to ${processedCommands.length} fill commands`);
+        // Process through shape library - converts shape/component/custom voxel commands to fill commands
+        const processedCommands = processBuildCommands(buildCmds, customVoxels);
+        console.log(`[${requestId}] Expanded to ${processedCommands.length} Minecraft commands`);
 
         // Extract coordinates from all fill commands to determine forceload area
         const coords: { x: number; z: number }[] = [];
