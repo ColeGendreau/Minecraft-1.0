@@ -129,7 +129,7 @@ resource "azurerm_container_app" "coordinator" {
   }
 
   template {
-    min_replicas = 1  # Keep at least 1 replica for responsiveness
+    min_replicas = 1 # Keep at least 1 replica for responsiveness
     max_replicas = 2
 
     container {
