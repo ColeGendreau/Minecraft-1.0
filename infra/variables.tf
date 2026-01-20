@@ -50,3 +50,9 @@ variable "tags" {
   }
 }
 
+variable "coordinator_identity_principal_id" {
+  description = "Principal ID of the coordinator managed identity (for AKS RBAC). Empty string skips RBAC assignment."
+  type        = string
+  default     = ""
+}
+

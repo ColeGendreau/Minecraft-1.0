@@ -65,9 +65,30 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+      - name: Get coordinator identity for RBAC
+        if: steps.check_state.outputs.state == 'ON'
+        id: get_identity
+        run: |
+          # Look up the coordinator managed identity from permanent infrastructure
+          PRINCIPAL_ID=$(az identity show \
+            --name mc-demo-dev-coordinator-identity \
+            --resource-group mc-demo-dev-dashboard-rg \
+            --query principalId -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PRINCIPAL_ID" ]; then
+            echo "principal_id=$PRINCIPAL_ID" >> $GITHUB_OUTPUT
+            echo "✅ Coordinator identity found: $PRINCIPAL_ID"
+          else
+            echo "principal_id=" >> $GITHUB_OUTPUT
+            echo "⚠️ Coordinator identity not found - RBAC will be skipped"
+          fi
+
       - name: Terraform plan (provision)
         if: steps.check_state.outputs.state == 'ON'
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan \
+            -var="coordinator_identity_principal_id=${{ steps.get_identity.outputs.principal_id }}" \
+            -out=tfplan
 
       - name: Terraform apply (provision)
         if: steps.check_state.outputs.state == 'ON' && github.ref == 'refs/heads/main'

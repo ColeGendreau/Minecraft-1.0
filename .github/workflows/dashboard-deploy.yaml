@@ -109,7 +109,7 @@ jobs:
         id: get_rcon
         run: |
           # Get AKS credentials to query services
-          az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --overwrite-existing || true
+          az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --admin --overwrite-existing || true
           
           # Get RCON service IP (separate from game server IP)
           RCON_IP=$(kubectl get svc -n minecraft minecraft-rcon -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
@@ -128,10 +128,33 @@ jobs:
             fi
           fi
 
+      - name: Get coordinator identity for AKS auth
+        id: get_identity
+        run: |
+          # Get the coordinator's managed identity client ID for Azure auth
+          CLIENT_ID=$(az identity show \
+            --name mc-demo-dev-coordinator-identity \
+            --resource-group mc-demo-dev-dashboard-rg \
+            --query clientId -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$CLIENT_ID" ]; then
+            echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+            echo "✅ Coordinator identity client ID: $CLIENT_ID"
+          else
+            echo "⚠️ Coordinator identity not found - kubectl MOTD updates will be disabled"
+          fi
+
       - name: Deploy to Container Apps
         run: |
           # Build environment variables - use correct RCON password from values.yaml
           ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_rcon.outputs.host }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
+          
+          # Add AKS config for kubectl MOTD updates
+          ENV_VARS="$ENV_VARS AKS_RESOURCE_GROUP=mc-demo-dev-rg AKS_CLUSTER_NAME=mc-demo-dev-aks"
+          
+          if [ -n "${{ steps.get_identity.outputs.client_id }}" ]; then
+            ENV_VARS="$ENV_VARS AZURE_CLIENT_ID=${{ steps.get_identity.outputs.client_id }}"
+          fi
           
           if [ "${{ steps.get_openai.outputs.configured }}" == "true" ]; then
             ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=${{ steps.get_openai.outputs.endpoint }} AZURE_OPENAI_API_KEY=${{ steps.get_openai.outputs.key }} AZURE_OPENAI_DEPLOYMENT=gpt-4o"
