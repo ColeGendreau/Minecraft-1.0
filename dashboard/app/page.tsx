@@ -2,23 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getCurrentWorld } from '@/lib/api';
-import type { CurrentWorldResponse } from '@/lib/types';
+import { getAssetsStatus, checkHealth } from '@/lib/api';
 import { InfrastructurePanel } from '@/components/InfrastructurePanel';
 
 export default function HomePage() {
-  const [currentWorld, setCurrentWorld] = useState<CurrentWorldResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiAvailable, setAiAvailable] = useState(false);
 
   useEffect(() => {
-    async function fetchCurrentWorld() {
+    async function checkStatus() {
       try {
-        const world = await getCurrentWorld();
-        setCurrentWorld(world);
+        // Check if API is healthy
+        await checkHealth();
+        // Check if AI is available
+        const status = await getAssetsStatus();
+        setAiAvailable(status.aiImageGeneration.available);
       } catch (err) {
         if (err instanceof Error) {
-          if (!err.message.includes('No world') && !err.message.includes('timed out')) {
+          if (!err.message.includes('timed out')) {
             setError(err.message);
           }
         }
@@ -27,7 +29,7 @@ export default function HomePage() {
       }
     }
 
-    fetchCurrentWorld();
+    checkStatus();
   }, []);
 
   return (
@@ -54,11 +56,11 @@ export default function HomePage() {
         
         {/* Subtitle */}
         <p className="text-xl max-w-2xl mx-auto mb-3" style={{ fontFamily: "'VT323', monospace", fontSize: '26px', color: '#2D1810', textShadow: '1px 1px 0 rgba(255,255,255,0.5)' }}>
-          Create ANY Minecraft world you can imagine using natural language.
+          Build pixel art assets in Minecraft from images or AI prompts - LIVE!
         </p>
         
         <p className="text-lg" style={{ fontFamily: "'VT323', monospace", fontSize: '22px', color: '#1a5c1a', textShadow: '1px 1px 0 rgba(255,255,255,0.4)' }}>
-          ⚡ Underwater kingdom? Floating steampunk city? Candy forest? ANYTHING GOES! ⚡
+          ⚡ Company logos? Game characters? AI-generated art? Watch them build in real-time! ⚡
         </p>
 
         {/* Decorative blocks row */}
@@ -89,21 +91,21 @@ export default function HomePage() {
         <InfrastructurePanel />
       </section>
 
-      {/* Current World Section */}
+      {/* Assets Section - PRIMARY ACTION */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🌍</span>
+            <span className="text-2xl">🎨</span>
             <h2 
               className="text-amber-900 text-shadow-mc-light"
               style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
             >
-              ACTIVE WORLD
+              PIXEL ART ASSETS
             </h2>
           </div>
           
-          <Link href="/create" className="mc-button-grass">
-            + NEW WORLD
+          <Link href="/assets/create" className="mc-button-grass">
+            + NEW ASSET
           </Link>
         </div>
 
@@ -111,7 +113,7 @@ export default function HomePage() {
           <div className="mc-card p-12 text-center">
             <div className="text-4xl mb-4 animate-float">⏳</div>
             <p className="text-gray-600" style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}>
-              Loading world data...
+              Loading...
             </p>
           </div>
         )}
@@ -128,44 +130,22 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && !error && !currentWorld && (
-          <div className="mc-card p-12 text-center border-4 border-dashed border-amber-400">
-            <div className="text-6xl mb-6 animate-float">🌱</div>
+        {!loading && !error && (
+          <div className="mc-card p-8 text-center border-4 border-dashed border-amber-400">
+            <div className="text-6xl mb-6 animate-float">🖼️</div>
             <p className="text-amber-800 text-xl mb-2" style={{ fontFamily: "'VT323', monospace" }}>
-              No world currently deployed
+              Build pixel art live in Minecraft!
             </p>
             <p className="text-gray-500 mb-6" style={{ fontFamily: "'VT323', monospace" }}>
-              The void awaits your creation...
+              Upload an image URL or use AI to generate one - then watch it build block by block.
             </p>
-            <Link href="/create" className="mc-button-grass inline-block">
-              🏗️ BUILD YOUR FIRST WORLD
-            </Link>
-          </div>
-        )}
-
-        {currentWorld && (
-          <div className="mc-panel-oak p-6">
-            <div className="flex items-start gap-6">
-              <div className="text-6xl animate-float">🌍</div>
-              <div className="flex-1">
-                <h3 className="text-xl text-amber-900 font-bold mb-2" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '12px' }}>
-                  {currentWorld.spec.displayName || currentWorld.spec.worldName}
-                </h3>
-                <p className="text-amber-700 mb-4" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                  {currentWorld.spec.theme}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-green-200 text-green-800 rounded text-sm border-2 border-green-400">
-                    {currentWorld.spec.rules.gameMode}
-                  </span>
-                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm border-2 border-yellow-400">
-                    {currentWorld.spec.rules.difficulty}
-                  </span>
-                  <span className="px-3 py-1 bg-blue-200 text-blue-800 rounded text-sm border-2 border-blue-400">
-                    {currentWorld.spec.generation.levelType}
-                  </span>
-                </div>
-              </div>
+            <div className="flex justify-center gap-4">
+              <Link href="/assets/create" className="mc-button-grass inline-block">
+                🎨 CREATE ASSET
+              </Link>
+              <Link href="/assets" className="mc-button-stone inline-block">
+                📋 VIEW ALL ASSETS
+              </Link>
             </div>
           </div>
         )}
@@ -185,18 +165,18 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-4">
           <ActionCard
-            href="/create"
-            icon="⚒️"
-            title="CRAFT WORLD"
-            description="Describe ANY world idea and watch AI bring it to life"
+            href="/assets/create"
+            icon="🎨"
+            title="CREATE ASSET"
+            description="Build pixel art from images or AI-generated art"
             bgColor="bg-gradient-to-br from-green-100 to-green-200"
             borderColor="border-green-400"
           />
           <ActionCard
-            href="/worlds"
-            icon="📜"
-            title="WORLD LIST"
-            description="Browse all your world creation requests"
+            href="/assets"
+            icon="📋"
+            title="MY ASSETS"
+            description="View, duplicate, or delete your built assets"
             bgColor="bg-gradient-to-br from-amber-100 to-amber-200"
             borderColor="border-amber-400"
           />

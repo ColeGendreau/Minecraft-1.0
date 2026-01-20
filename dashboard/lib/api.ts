@@ -278,5 +278,122 @@ export interface InfrastructureLogsResponse {
 export async function getInfrastructureLogs(): Promise<InfrastructureLogsResponse> {
   return fetchApi<InfrastructureLogsResponse>('/api/infrastructure/logs', {}, 15000);
 }
+
+// ========== ASSETS ==========
+
+export interface Asset {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  prompt: string | null;
+  generatedImageUrl: string | null;
+  position: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  dimensions: {
+    width: number;
+    height: number;
+    depth: number;
+  };
+  scale: number;
+  facing: 'north' | 'south' | 'east' | 'west';
+  status: 'building' | 'active' | 'deleted';
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface AssetListResponse {
+  assets: Asset[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
+export interface AssetStatusResponse {
+  totalAssets: number;
+  aiImageGeneration: {
+    available: boolean;
+    deployment: string;
+    note: string;
+  };
+  capabilities: string[];
+}
+
+export interface CreateAssetRequest {
+  name?: string;
+  imageUrl?: string;
+  prompt?: string;
+  position?: { x: number; y: number; z: number };
+  scale?: number;
+  depth?: number;
+  facing?: 'north' | 'south' | 'east' | 'west';
+}
+
+export interface CreateAssetResponse {
+  success: boolean;
+  asset?: Asset;
+  stats?: {
+    blocksPlaced: number;
+    errors: number;
+  };
+  error?: string;
+}
+
+// Get assets status (including AI availability)
+export async function getAssetsStatus(): Promise<AssetStatusResponse> {
+  return fetchApi<AssetStatusResponse>('/api/assets/status');
+}
+
+// List all assets
+export async function getAssets(options?: {
+  status?: 'active' | 'deleted' | 'building';
+  limit?: number;
+  offset?: number;
+}): Promise<AssetListResponse> {
+  const params = new URLSearchParams();
+  if (options?.status) params.set('status', options.status);
+  if (options?.limit) params.set('limit', options.limit.toString());
+  if (options?.offset) params.set('offset', options.offset.toString());
+
+  const query = params.toString();
+  return fetchApi<AssetListResponse>(`/api/assets${query ? `?${query}` : ''}`);
+}
+
+// Create a new asset
+export async function createAsset(request: CreateAssetRequest): Promise<CreateAssetResponse> {
+  // Asset creation can take a while (image processing + building)
+  return fetchApi<CreateAssetResponse>('/api/assets', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  }, 120000); // 2 minute timeout
+}
+
+// Delete an asset
+export async function deleteAsset(id: string): Promise<{ success: boolean; message: string }> {
+  return fetchApi(`/api/assets/${id}`, {
+    method: 'DELETE',
+  }, 30000);
+}
+
+// Duplicate an asset
+export async function duplicateAsset(id: string, position?: { x: number; y: number; z: number }): Promise<CreateAssetResponse> {
+  return fetchApi<CreateAssetResponse>(`/api/assets/${id}/duplicate`, {
+    method: 'POST',
+    body: JSON.stringify({ position }),
+  }, 120000);
+}
+
+// Nuke all assets
+export async function nukeAllAssets(): Promise<{ success: boolean; message: string; deletedCount: number }> {
+  return fetchApi('/api/assets/nuke', {
+    method: 'POST',
+    body: JSON.stringify({ confirm: 'NUKE' }),
+  }, 60000);
+}
+
 // Build trigger: 1768638888
 // Build trigger: 1768867666

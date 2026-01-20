@@ -39,6 +39,30 @@ export interface DeploymentRow {
   is_current: number;
 }
 
+// Asset status
+export type AssetStatus = 'building' | 'active' | 'deleted';
+
+// Asset row for database
+export interface AssetRow {
+  id: string;
+  name: string;
+  image_url: string | null;
+  prompt: string | null;
+  generated_image_url: string | null;  // URL of AI-generated image
+  position_x: number;
+  position_y: number;
+  position_z: number;
+  width: number;
+  height: number;
+  depth: number;
+  scale: number;
+  facing: 'north' | 'south' | 'east' | 'west';
+  status: AssetStatus;
+  created_by: string;
+  created_at: string;
+  deleted_at: string | null;
+}
+
 // API Request/Response types
 export interface CreateWorldRequest {
   description: string;

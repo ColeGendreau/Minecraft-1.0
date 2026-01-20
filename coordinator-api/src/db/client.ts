@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   WorldRequestRow,
   DeploymentRow,
+  AssetRow,
+  AssetStatus,
   WorldRequestStatus,
   Difficulty,
   GameMode,
@@ -15,6 +17,7 @@ import type {
 interface Database {
   world_requests: WorldRequestRow[];
   deployments: DeploymentRow[];
+  assets: AssetRow[];
 }
 
 // Global database instance (lazy initialized)
@@ -40,12 +43,17 @@ function loadDatabase(): Database {
   if (fs.existsSync(dbPath)) {
     try {
       const data = fs.readFileSync(dbPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      // Ensure assets array exists (migration for existing DBs)
+      if (!parsed.assets) {
+        parsed.assets = [];
+      }
+      return parsed;
     } catch {
       console.warn('Failed to load database, creating new one');
     }
   }
-  return { world_requests: [], deployments: [] };
+  return { world_requests: [], deployments: [], assets: [] };
 }
 
 // Save database to file
@@ -72,6 +80,7 @@ export function initializeDatabase(): void {
   console.log('Database initialized successfully');
   console.log(`  - ${db.world_requests.length} world requests`);
   console.log(`  - ${db.deployments.length} deployments`);
+  console.log(`  - ${db.assets.length} assets`);
 }
 
 // World Requests
@@ -285,4 +294,158 @@ export function seedMockDeployment(): void {
     createDeployment('floating-isles', 'a1b2c3d', JSON.stringify(mockWorldSpec));
     console.log('Seeded mock deployment: floating-isles');
   }
+}
+
+// ============================================================
+// ASSETS
+// ============================================================
+
+export interface CreateAssetParams {
+  name: string;
+  imageUrl?: string;
+  prompt?: string;
+  generatedImageUrl?: string;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  width: number;
+  height: number;
+  depth: number;
+  scale: number;
+  facing: 'north' | 'south' | 'east' | 'west';
+  createdBy: string;
+}
+
+export function createAsset(params: CreateAssetParams): AssetRow {
+  const id = `asset_${uuidv4().slice(0, 8)}`;
+  const now = new Date().toISOString();
+
+  const row: AssetRow = {
+    id,
+    name: params.name,
+    image_url: params.imageUrl || null,
+    prompt: params.prompt || null,
+    generated_image_url: params.generatedImageUrl || null,
+    position_x: params.positionX,
+    position_y: params.positionY,
+    position_z: params.positionZ,
+    width: params.width,
+    height: params.height,
+    depth: params.depth,
+    scale: params.scale,
+    facing: params.facing,
+    status: 'active',
+    created_by: params.createdBy,
+    created_at: now,
+    deleted_at: null,
+  };
+
+  const database = getDb();
+  database.assets.push(row);
+  saveDatabase(database);
+
+  return row;
+}
+
+export function getAssetById(id: string): AssetRow | undefined {
+  return getDb().assets.find(a => a.id === id);
+}
+
+export function getAssets(
+  status?: AssetStatus,
+  limit = 50,
+  offset = 0
+): { assets: AssetRow[]; total: number } {
+  const database = getDb();
+  let results = [...database.assets];
+
+  // Filter by status if provided (default to active only)
+  if (status) {
+    results = results.filter(a => a.status === status);
+  } else {
+    // By default, only show active assets
+    results = results.filter(a => a.status === 'active');
+  }
+
+  const total = results.length;
+
+  // Sort by created_at DESC
+  results.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  // Apply pagination
+  results = results.slice(offset, offset + limit);
+
+  return { assets: results, total };
+}
+
+export function getActiveAssets(): AssetRow[] {
+  return getDb().assets.filter(a => a.status === 'active');
+}
+
+export function updateAssetStatus(id: string, status: AssetStatus): void {
+  const database = getDb();
+  const asset = database.assets.find(a => a.id === id);
+  if (!asset) return;
+
+  asset.status = status;
+  if (status === 'deleted') {
+    asset.deleted_at = new Date().toISOString();
+  }
+
+  saveDatabase(database);
+}
+
+export function deleteAsset(id: string): boolean {
+  const database = getDb();
+  const asset = database.assets.find(a => a.id === id);
+  if (!asset) return false;
+
+  // Soft delete - mark as deleted
+  asset.status = 'deleted';
+  asset.deleted_at = new Date().toISOString();
+  saveDatabase(database);
+  return true;
+}
+
+export function nukeAllAssets(): number {
+  const database = getDb();
+  const activeAssets = database.assets.filter(a => a.status === 'active');
+  const count = activeAssets.length;
+  
+  // Soft delete all active assets
+  const now = new Date().toISOString();
+  activeAssets.forEach(a => {
+    a.status = 'deleted';
+    a.deleted_at = now;
+  });
+  
+  saveDatabase(database);
+  return count;
+}
+
+// Get the next available position for a new asset (to avoid overlap)
+export function getNextAssetPosition(): { x: number; y: number; z: number } {
+  const activeAssets = getActiveAssets();
+  
+  if (activeAssets.length === 0) {
+    return { x: 0, y: 65, z: 50 };
+  }
+  
+  // Find the rightmost asset and place new one to its right
+  let maxX = 0;
+  let maxWidth = 0;
+  
+  for (const asset of activeAssets) {
+    if (asset.position_x + asset.width > maxX + maxWidth) {
+      maxX = asset.position_x;
+      maxWidth = asset.width;
+    }
+  }
+  
+  // Place new asset with 20 block gap
+  return {
+    x: maxX + maxWidth + 20,
+    y: 65,
+    z: 50
+  };
 }

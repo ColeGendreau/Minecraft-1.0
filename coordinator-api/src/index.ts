@@ -6,6 +6,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { generalLimiter } from './middleware/ratelimit.js';
 import healthRouter from './routes/health.js';
 import worldsRouter from './routes/worlds.js';
+import assetsRouter from './routes/assets.js';
 import infrastructureRouter from './routes/infrastructure.js';
 import workflowsRouter from './routes/workflows.js';
 import minecraftRouter from './routes/minecraft.js';
@@ -30,6 +31,7 @@ app.use('/health', healthRouter);
 
 // API routes (auth required)
 app.use('/api/worlds', authMiddleware, worldsRouter);
+app.use('/api/assets', authMiddleware, assetsRouter);
 app.use('/api/infrastructure', authMiddleware, infrastructureRouter);
 app.use('/api/workflows', authMiddleware, workflowsRouter);
 app.use('/api/minecraft', authMiddleware, minecraftRouter);
@@ -68,19 +70,17 @@ function start() {
 ║  Mode:      ${(process.env.NODE_ENV || 'development').padEnd(12)}                              ║
 ║  Mock AI:   ${(process.env.MOCK_AI === 'true' ? 'enabled' : 'disabled').padEnd(12)}                              ║
 ║                                                               ║
+║  Asset Endpoints (NEW!):                                      ║
+║    GET  /api/assets             - List all assets             ║
+║    POST /api/assets             - Create asset from image/AI  ║
+║    DELETE /api/assets/:id       - Delete asset from world     ║
+║    POST /api/assets/:id/duplicate - Duplicate at new pos      ║
+║    POST /api/assets/nuke        - Remove all assets           ║
+║                                                               ║
 ║  World Endpoints:                                             ║
 ║    GET  /api/worlds/current     - Current deployed world      ║
 ║    GET  /api/worlds             - List all requests           ║
 ║    POST /api/worlds             - Create new request          ║
-║    GET  /api/worlds/:id         - Get request details         ║
-║                                                               ║
-║  Minecraft/WorldEdit Endpoints:                               ║
-║    GET  /api/minecraft/status   - Server & RCON status        ║
-║    POST /api/minecraft/command  - Execute single command      ║
-║    POST /api/minecraft/commands - Execute command batch       ║
-║    POST /api/minecraft/generate-structures - Generate builds  ║
-║    POST /api/minecraft/build-structure     - Build structure  ║
-║    POST /api/minecraft/build-world         - Build all        ║
 ║                                                               ║
 ║  Infrastructure Endpoints:                                    ║
 ║    GET  /api/infrastructure/status - Current infra state      ║
