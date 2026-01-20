@@ -3,10 +3,10 @@ minecraftServer:
   version: "LATEST"
   # Paper server for WorldEdit plugin support
   type: "PAPER"
-  difficulty: normal
+  difficulty: peaceful
   whitelist: ""
   ops: ""
-  pvp: true
+  pvp: false
   maxPlayers: 20
   maxWorldSize: 10000
   allowNether: true
@@ -18,12 +18,12 @@ minecraftServer:
   maxBuildHeight: 256
   maxTickTime: 60000
   spawnAnimals: true
-  spawnMonsters: true
+  spawnMonsters: false
   spawnNPCs: true
-  spawnProtection: 16
-  viewDistance: 10
+  spawnProtection: 0
+  viewDistance: 12
   levelSeed: ""
-  gameMode: survival
+  gameMode: creative
   motd: "§6§lWorld Forge §r§7- §b§lAI-Crafted Worlds §a✓"
   serviceType: LoadBalancer
   # loadBalancerIP is set dynamically by the deploy workflow using --set

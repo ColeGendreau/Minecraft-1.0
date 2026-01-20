@@ -419,43 +419,37 @@ function buildRconCommands(spec: WorldSpec): Array<{ command: string; delayMs?: 
     commands.push({ command: `defaultgamemode ${spec.rules.gameMode}` });
   }
 
-  // Game rules
-  const gameRules: Record<string, boolean | number | undefined> = {
-    keepInventory: spec.rules.keepInventory,
-    doDaylightCycle: spec.rules.doDaylightCycle,
-    doWeatherCycle: spec.rules.doWeatherCycle,
-    doMobSpawning: spec.rules.doMobSpawning,
-    announceAdvancements: spec.rules.announceAdvancements,
-    naturalRegeneration: spec.rules.naturalRegeneration,
-    pvp: spec.rules.pvp,
-    spawnRadius: spec.rules.spawnRadius,
-  };
+  // === SET DAYTIME AND CLEAR WEATHER ===
+  // Note: gamerule commands don't work via RCON in Paper 1.21
+  // So we just set the time and weather - they'll need to be reset periodically
+  commands.push({ command: 'time set day', delayMs: 100 });
+  commands.push({ command: 'weather clear 1000000', delayMs: 100 }); // Clear for ~11 days
 
-  for (const [rule, value] of Object.entries(gameRules)) {
-    if (value !== undefined) {
-      // Convert camelCase to proper gamerule name
-      const ruleValue = typeof value === 'boolean' ? value.toString() : value.toString();
-      commands.push({ command: `gamerule ${rule} ${ruleValue}`, optional: true });
-    }
-  }
+  // Note: Gamerule commands don't work via RCON in Paper 1.21
+  // Gamerules are set in server config instead (values.yaml)
 
-  // Set world border if specified
-  if (spec.server?.viewDistance) {
-    // World border based on view distance (just an example)
-    const borderSize = spec.server.viewDistance * 16 * 2;
-    commands.push({ command: `worldborder set ${borderSize}`, optional: true });
-  }
-
-  // Set MOTD announcement
+  // === WORLD NAME ANNOUNCEMENT ===
+  // Since MOTD in server.properties can't be changed at runtime,
+  // we announce the world name prominently in chat
+  const worldTitle = spec.displayName || spec.worldName;
   commands.push({ 
-    command: `say §6[World Forge] §aNew world configured: §b${spec.displayName || spec.worldName}`, 
-    delayMs: 500 
+    command: `say §6═══════════════════════════════════════`,
+    delayMs: 100 
+  });
+  commands.push({ 
+    command: `say §6   🌍 WORLD FORGE - ${worldTitle.toUpperCase()}`,
+    delayMs: 100 
+  });
+  commands.push({ 
+    command: `say §6═══════════════════════════════════════`,
+    delayMs: 100 
   });
 
   // Announce the theme
   if (spec.theme) {
+    const shortTheme = spec.theme.length > 80 ? spec.theme.substring(0, 80) + '...' : spec.theme;
     commands.push({ 
-      command: `say §7Theme: ${spec.theme.substring(0, 100)}...`,
+      command: `say §7${shortTheme}`,
       delayMs: 100,
       optional: true
     });
