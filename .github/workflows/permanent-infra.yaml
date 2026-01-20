@@ -1,0 +1,89 @@
+# Manage Permanent Infrastructure (Dashboard + Coordinator)
+# This is the "control plane" that allows managing the main Minecraft infrastructure
+
+name: Permanent Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - destroy
+          - status
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_WORKING_DIR: infra-permanent
+
+jobs:
+  permanent-infra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        if: inputs.action == 'deploy'
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'deploy'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          echo "⚠️ Destroying permanent infrastructure..."
+          echo "This will remove the Dashboard and Coordinator!"
+          terraform destroy -auto-approve
+
+      - name: Get Status
+        if: inputs.action == 'status'
+        run: |
+          echo "=== Permanent Infrastructure Status ==="
+          terraform output -json || echo "No outputs (not deployed)"
+          
+          echo ""
+          echo "=== Container Apps ==="
+          az containerapp list --resource-group mc-demo-dev-dashboard-rg -o table 2>/dev/null || echo "Resource group not found"
+
+      - name: Output URLs
+        if: inputs.action == 'deploy'
+        run: |
+          echo "=== Deployment Complete ==="
+          echo ""
+          DASHBOARD_URL=$(terraform output -raw dashboard_url 2>/dev/null || echo "N/A")
+          COORDINATOR_URL=$(terraform output -raw coordinator_api_url 2>/dev/null || echo "N/A")
+          echo "🎮 Dashboard: $DASHBOARD_URL"
+          echo "🔧 Coordinator API: $COORDINATOR_URL"
+          echo ""
+          echo "Next steps:"
+          echo "1. Go to Dashboard"
+          echo "2. Click 'Deploy' to start Minecraft infrastructure"
+

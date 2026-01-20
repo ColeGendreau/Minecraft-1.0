@@ -19,7 +19,6 @@ import type {
   WorldDetailResponse,
   CurrentWorldResponse,
   WorldSpec,
-  WorldSpec,
   WorldRequestStatus,
 } from '../types/index.js';
 
