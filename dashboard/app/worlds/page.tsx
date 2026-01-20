@@ -207,38 +207,44 @@ export default function WorldPage() {
             {historyWorlds.map((world) => (
               <div
                 key={world.id}
-                className="mc-panel-oak p-4 flex items-center justify-between"
+                className="mc-panel-oak p-4"
               >
-                <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-text-primary truncate">
+                    <h3 className="font-medium text-text-primary">
                       {world.displayName || world.worldName || 'Unnamed World'}
                     </h3>
                     <StatusBadge status={world.status} size="sm" />
                   </div>
-                  <p className="text-sm text-text-muted">
-                    {new Date(world.requestedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  {world.status === 'deployed' || world.status === 'failed' ? (
-                    <button
-                      onClick={() => handleRebuild(world)}
-                      disabled={rebuildingId === world.id || !!buildingWorld}
-                      className="px-3 py-1.5 bg-accent-primary/20 text-accent-primary rounded text-sm font-medium hover:bg-accent-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={buildingWorld ? 'Wait for current build to finish' : 'Rebuild this world'}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/worlds/${world.id}`}
+                      className="px-3 py-1.5 bg-surface text-text-secondary rounded text-sm hover:bg-surface-border transition-colors"
                     >
-                      {rebuildingId === world.id ? '...' : '🔄 Rebuild'}
+                      View Details
+                    </Link>
+                    {(world.status === 'deployed' || world.status === 'failed') && (
+                      <button
+                        onClick={() => handleRebuild(world)}
+                        disabled={rebuildingId === world.id || !!buildingWorld}
+                        className="px-3 py-1.5 bg-accent-primary/20 text-accent-primary rounded text-sm font-medium hover:bg-accent-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={buildingWorld ? 'Wait for current build to finish' : 'Rebuild this world'}
+                      >
+                        {rebuildingId === world.id ? '...' : '🔄 Rebuild'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(world.id, world.displayName || world.worldName || 'this world')}
+                      disabled={deletingId === world.id}
+                      className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                    >
+                      {deletingId === world.id ? '...' : '🗑️'}
                     </button>
-                  ) : null}
-                  <button
-                    onClick={() => handleDelete(world.id, world.displayName || world.worldName || 'this world')}
-                    disabled={deletingId === world.id}
-                    className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
-                  >
-                    {deletingId === world.id ? '...' : '🗑️'}
-                  </button>
+                  </div>
                 </div>
+                <p className="text-sm text-text-muted">
+                  {new Date(world.requestedAt).toLocaleDateString()} • Click "View Details" to see original prompt
+                </p>
               </div>
             ))}
           </div>

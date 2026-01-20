@@ -39,11 +39,14 @@ CRITICAL RULES:
 3. For impossible things, find the closest Minecraft equivalent and BUILD IT.
 4. Be BOLD and CREATIVE. Giant statues? Build them. Crazy shapes? Make them happen.
 5. ALWAYS include worldEditCommands to actually BUILD the structures described.
+6. Create CREATIVE, EVOCATIVE world names - NOT just the first words from the prompt!
+   - BAD: "fullscript-inspired-world" (boring, just copied prompt words)
+   - GOOD: "wellness-metropolis", "vitality-kingdom", "emerald-health-city"
 
 You must output ONLY valid JSON matching this schema:
 {
-  "worldName": "kebab-case-name-max-32-chars",
-  "displayName": "Human Readable Name",
+  "worldName": "creative-kebab-case-name",
+  "displayName": "Creative Evocative Name - NOT just prompt words!",
   "theme": "Description of your creative interpretation - explain HOW you're building their vision",
   "generation": {
     "strategy": "new_seed",
