@@ -236,6 +236,12 @@ Think like a theme park designer or movie set builder. Make it MEMORABLE and FUN
     delete worldSpec.buildCommands;
     delete worldSpec.worldEditCommands;
 
+    // Truncate theme if AI got too creative (schema limit is 500 chars)
+    if (worldSpec.theme && worldSpec.theme.length > 500) {
+      console.log(`Truncating theme from ${worldSpec.theme.length} to 500 chars`);
+      worldSpec.theme = worldSpec.theme.substring(0, 497) + '...';
+    }
+
     // Ensure metadata is present and valid
     // Always override with correct values since AI may output placeholder text
     worldSpec.metadata = {
