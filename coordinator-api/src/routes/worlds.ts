@@ -520,60 +520,11 @@ async function processWorldRequest(
 
     console.log(`[${requestId}] World deployed: ${worldSpec.displayName || worldSpec.worldName}`);
 
-    // Step 4: Update MOTD and restart the server
+    // NOTE: Server restart is DISABLED - we now use live asset building instead
+    // The world/restart endpoint remains available if needed manually
     const worldTitle = worldSpec.displayName || worldSpec.worldName;
-    console.log(`[${requestId}] Updating MOTD and restarting server...`);
-    
-    // First, update the MOTD via Kubernetes API (so it shows in server list after restart)
-    try {
-      const motdResult = await updateMinecraftMOTD(worldTitle, worldSpec.theme);
-      if (motdResult.success) {
-        console.log(`[${requestId}] ✅ MOTD updated to: ${worldTitle}`);
-      } else {
-        console.warn(`[${requestId}] MOTD update skipped: ${motdResult.error}`);
-      }
-    } catch (motdError) {
-      console.warn(`[${requestId}] Could not update MOTD:`, motdError);
-      // Continue anyway - MOTD is nice-to-have
-    }
-    
-    // Now restart via RCON
-    try {
-      const rcon = getRconClient();
-      if (!rcon.isConnected()) {
-        await rcon.connect();
-      }
-      
-      // Warn players
-      await executeRconCommands([
-        { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
-        { command: `say §6   🌍 NEW WORLD FORGED!`, delayMs: 100 },
-        { command: `say §b   ${worldTitle}`, delayMs: 100 },
-        { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
-        { command: `say §c§l⚠ SERVER RESTARTING IN 10 SECONDS ⚠`, delayMs: 100 },
-        { command: `say §7Reconnect in ~60 seconds to explore!`, delayMs: 100 },
-      ]);
-      
-      // Wait then restart
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      await executeRconCommands([
-        { command: 'say §c§l3...', delayMs: 1000 },
-        { command: 'say §c§l2...', delayMs: 1000 },
-        { command: 'say §c§l1...', delayMs: 1000 },
-      ]);
-      
-      // Stop the server - Kubernetes will restart it with new MOTD
-      try {
-        await rcon.send('stop');
-      } catch {
-        // Expected - connection closes when server stops
-      }
-      
-      console.log(`[${requestId}] Server restart triggered - MOTD will show: ${worldTitle}`);
-    } catch (restartError) {
-      console.warn(`[${requestId}] Could not restart server:`, restartError);
-      // Don't fail the deployment - the world was still created
-    }
+    console.log(`[${requestId}] World built live - no server restart needed`);
+    console.log(`[${requestId}] World: ${worldTitle}`);
 
   } catch (error) {
     console.error(`[${requestId}] Processing error:`, error);
