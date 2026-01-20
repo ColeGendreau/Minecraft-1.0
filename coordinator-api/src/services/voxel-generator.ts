@@ -1,32 +1,24 @@
 /**
- * Voxel Generator - Layer-by-Layer Custom Object Creation
+ * Voxel Generator - Detailed Artistic 3D Objects
  * 
- * Allows the AI to define custom objects by specifying each layer (Y level)
- * as a 2D grid of blocks. This enables creation of any shape without
- * needing predefined components.
+ * Creates complex, good-looking structures through layer-by-layer
+ * voxel definitions. Each object is carefully designed to look
+ * meaningful and visually appealing in Minecraft.
  * 
- * The AI specifies:
- * 1. A character palette (A=stone, B=gold, etc.)
- * 2. Layers from bottom to top, each as a 2D string grid
+ * Design Principles:
+ * - Use varied materials for visual interest
+ * - Proper proportions that look natural
+ * - Include details (windows, decorations)
+ * - Good color coordination
  */
 
 export interface VoxelDefinition {
-  palette: Record<string, string>;  // Character to block mapping
-  layers: string[][];               // [y][z] where each string is X row
+  palette: Record<string, string>;
+  layers: string[][];
 }
 
 /**
- * Parse a voxel definition from AI output and generate commands
- * 
- * Input format:
- * voxel(x, y, z, scale, {
- *   palette: { W: "white_concrete", B: "blue_concrete", G: "glass" },
- *   layers: [
- *     ["WWW", "WBW", "WWW"],  // Y=0
- *     ["W.W", "...", "W.W"],  // Y=1
- *     ["WWW", "WGW", "WWW"],  // Y=2
- *   ]
- * })
+ * Generate fill/setblock commands from a voxel definition
  */
 export function voxelToCommands(
   definition: VoxelDefinition,
@@ -44,15 +36,10 @@ export function voxelToCommands(
       const row = layer[lz];
       for (let lx = 0; lx < row.length; lx++) {
         const char = row[lx];
-        
-        // Skip air/empty
         if (char === ' ' || char === '.' || char === '_') continue;
         
         const block = palette[char];
-        if (!block) {
-          console.warn(`Unknown palette character: ${char}`);
-          continue;
-        }
+        if (!block) continue;
         
         const worldX = x + lx * scale;
         const worldY = y + ly * scale;
@@ -70,174 +57,559 @@ export function voxelToCommands(
   return commands;
 }
 
-/**
- * Parse a voxel command string
- * Format: voxel(x, y, z, scale, definition)
- * Where definition is a JSON object with palette and layers
- */
-export function parseVoxelCommand(cmd: string): { commands: string[]; error?: string } {
-  // Extract parameters from voxel(...) command
-  const match = cmd.match(/^voxel\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*,\s*(\{[\s\S]*\})\s*\)$/);
-  
-  if (!match) {
-    return { commands: [], error: 'Invalid voxel command format' };
-  }
-  
-  const x = parseInt(match[1]);
-  const y = parseInt(match[2]);
-  const z = parseInt(match[3]);
-  const scale = parseInt(match[4]);
-  const definitionStr = match[5];
-  
-  try {
-    const definition = JSON.parse(definitionStr) as VoxelDefinition;
-    const commands = voxelToCommands(definition, x, y, z, scale);
-    return { commands };
-  } catch (e) {
-    return { commands: [], error: `Failed to parse voxel definition: ${e}` };
-  }
-}
+// ═══════════════════════════════════════════════════════════════
+// DETAILED VOXEL OBJECTS
+// ═══════════════════════════════════════════════════════════════
 
 /**
- * Simplified voxel definition using a more compact format
- * This is easier for the AI to generate
- * 
- * Format:
- * voxelLayers(x, y, z, scale, palette_string, layer1, layer2, ...)
- * 
- * palette_string: "W=white_concrete,B=blue_concrete,G=glass"
- * layers: each layer is a string with rows separated by |
- *   "WWW|WBW|WWW" = 3x3 layer
+ * Castle Tower - A medieval tower with battlements, windows, and door
+ * Size: 9x20x9
  */
-export function parseVoxelLayers(
-  x: number,
-  y: number,
-  z: number,
-  scale: number,
-  paletteStr: string,
-  ...layerStrs: string[]
-): string[] {
-  // Parse palette
-  const palette: Record<string, string> = {};
-  for (const pair of paletteStr.split(',')) {
-    const [char, block] = pair.trim().split('=');
-    if (char && block) {
-      palette[char.trim()] = block.trim();
-    }
-  }
+export function createCastleTower(x: number, y: number, z: number, scale: number = 1): string[] {
+  const palette: Record<string, string> = {
+    'S': 'stone_bricks',
+    'M': 'mossy_stone_bricks',
+    'C': 'cracked_stone_bricks',
+    'D': 'dark_oak_planks',
+    'W': 'glass_pane',
+    'T': 'stone_brick_stairs',
+    'L': 'lantern',
+    'B': 'polished_blackstone',
+  };
   
-  // Parse layers
-  const layers: string[][] = layerStrs.map(layerStr => 
-    layerStr.split('|').map(row => row.trim())
-  );
+  const layers: string[][] = [
+    // Y=0-1: Foundation (slightly wider)
+    ...[0, 1].map(() => [
+      '.MMMMMMM.',
+      'MMSSSSSMM',
+      'MSSSSSSSM',
+      'MSSSSSSSM',
+      'MSSSSSSSM',
+      'MSSSSSSSM',
+      'MSSSSSSSM',
+      'MMSSSSSMM',
+      '.MMMMMMM.',
+    ]),
+    // Y=2: Door level
+    [
+      '..SSSSS..',
+      '.SSSSSSS.',
+      'SSS...SSS',
+      'SSD...DSS',  // Door
+      'SSD...DSS',
+      'SSS...SSS',
+      '.SSSSSSS.',
+      '..SSSSS..',
+      '.........',
+    ],
+    // Y=3-5: Lower tower
+    ...[3, 4, 5].map(() => [
+      '..SCSCS..',
+      '.SSSSSSS.',
+      'SSS...SSS',
+      'CS.....SC',
+      'SS.....SS',
+      'CS.....SC',
+      'SSS...SSS',
+      '.SSSSSSS.',
+      '..SCSCS..',
+    ]),
+    // Y=6: Window level
+    [
+      '..SSSSS..',
+      '.SSWSWSS.',
+      'SSS...SSS',
+      'SW.....WS',
+      'SS.....SS',
+      'SW.....WS',
+      'SSS...SSS',
+      '.SSWSWSS.',
+      '..SSSSS..',
+    ],
+    // Y=7-10: Mid tower
+    ...[7, 8, 9, 10].map(() => [
+      '..SCSCS..',
+      '.SSSSSSS.',
+      'SSS...SSS',
+      'CS.....SC',
+      'SS.....SS',
+      'CS.....SC',
+      'SSS...SSS',
+      '.SSSSSSS.',
+      '..SCSCS..',
+    ]),
+    // Y=11: Upper window level
+    [
+      '..SSSSS..',
+      '.SSWSWSS.',
+      'SSW...WSS',
+      'SW..L..WS',  // Lantern
+      'SS.....SS',
+      'SW.....WS',
+      'SSW...WSS',
+      '.SSWSWSS.',
+      '..SSSSS..',
+    ],
+    // Y=12-14: Upper tower
+    ...[12, 13, 14].map(() => [
+      '..SSSSS..',
+      '.SSSSSSS.',
+      'SSS...SSS',
+      'SS.....SS',
+      'SS.....SS',
+      'SS.....SS',
+      'SSS...SSS',
+      '.SSSSSSS.',
+      '..SSSSS..',
+    ]),
+    // Y=15: Battlement floor
+    [
+      '.BBBBBBB.',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      'BBBBBBBBB',
+      '.BBBBBBB.',
+    ],
+    // Y=16-17: Battlements (crenellations)
+    ...[16, 17].map(() => [
+      '.S.S.S.S.',
+      'S.......S',
+      '.........',
+      'S.......S',
+      '.........',
+      'S.......S',
+      '.........',
+      'S.......S',
+      '.S.S.S.S.',
+    ]),
+  ];
   
   return voxelToCommands({ palette, layers }, x, y, z, scale);
 }
 
 /**
- * Create a unicorn shape using voxel layers
- * This demonstrates how complex organic shapes can be built
+ * Cottage - A cozy house with chimney, windows, and pitched roof
+ * Size: 11x10x9
  */
-export function createUnicornLayers(x: number, y: number, z: number, scale: number = 1): string[] {
+export function createCottage(x: number, y: number, z: number, scale: number = 1): string[] {
   const palette: Record<string, string> = {
-    'W': 'white_concrete',    // Body
-    'P': 'pink_concrete',     // Mane/tail
-    'G': 'gold_block',        // Horn
-    'B': 'black_concrete',    // Eyes/hooves
-    'L': 'light_blue_concrete', // Magical sparkles
+    'S': 'stone_bricks',
+    'W': 'oak_planks',
+    'L': 'oak_log',
+    'G': 'glass_pane',
+    'D': 'oak_door',
+    'R': 'bricks',       // Roof
+    'C': 'cobblestone',  // Chimney
+    'F': 'campfire',
   };
   
-  // Simplified unicorn - 12 wide, 10 tall, 6 deep
   const layers: string[][] = [
-    // Y=0: Hooves
+    // Y=0: Foundation
     [
-      '..B.....B...',
-      '..B.....B...',
-      '............',
-      '..B.....B...',
-      '..B.....B...',
-      '............',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
+      'SSSSSSSSSSS',
     ],
-    // Y=1-3: Legs
-    ...[1, 2, 3].map(() => [
-      '..W.....W...',
-      '..W.....W...',
-      '............',
-      '..W.....W...',
-      '..W.....W...',
-      '............',
+    // Y=1: Floor level with door
+    [
+      'LWWWWWWWWWL',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      '...........',  // Door opening
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'LWWWWWWWWWL',
+    ],
+    // Y=2: Walls with windows
+    [
+      'LWGWWWWGWWL',
+      'W.........W',
+      'G.........G',
+      'W.........W',
+      '...........',
+      'W.........W',
+      'G.........G',
+      'W.........W',
+      'LWGWWWWGWWL',
+    ],
+    // Y=3: Upper walls
+    [
+      'LWWWWWWWWWL',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'W.........W',
+      'LWWWCWWWWWL', // Chimney start
+    ],
+    // Y=4: Roof start
+    [
+      '.RRRRRRRRR.',
+      'RRRRRRRRRRR',
+      'RR.......RR',
+      'RR.......RR',
+      'RR.......RR',
+      'RR.......RR',
+      'RR.......RR',
+      'RRRRRRRRRRR',
+      '.RRRRCRRRR.',
+    ],
+    // Y=5: Roof middle
+    [
+      '..RRRRRRR..',
+      '.RRRRRRRRR.',
+      'RR.......RR',
+      'R.........R',
+      'R.........R',
+      'R.........R',
+      'RR.......RR',
+      '.RRRRRRRRR.',
+      '..RRRCRRRR.',
+    ],
+    // Y=6: Roof upper
+    [
+      '...RRRRR...',
+      '..RRRRRRR..',
+      '.RR.....RR.',
+      'R.........R',
+      'R.........R',
+      'R.........R',
+      '.RR.....RR.',
+      '..RRRRRRR..',
+      '...RRCRR...',
+    ],
+    // Y=7: Roof peak
+    [
+      '....RRR....',
+      '...RRRRR...',
+      '..RRRRRRR..',
+      '.RRRRRRRRR.',
+      '.RRRRRRRRR.',
+      '.RRRRRRRRR.',
+      '..RRRRRRR..',
+      '...RRRRR...',
+      '....RCR....',
+    ],
+    // Y=8-9: Chimney top
+    ...[8, 9].map(() => [
+      '...........',
+      '...........',
+      '...........',
+      '...........',
+      '...........',
+      '...........',
+      '...........',
+      '...........',
+      '....CCC....',
     ]),
-    // Y=4-5: Body
-    ...[4, 5].map(() => [
-      '..WWWWWWW...',
-      '.WWWWWWWWW..',
-      '.WWWWWWWWW..',
-      '.WWWWWWWWW..',
-      '..WWWWWWW...',
-      '............',
+  ];
+  
+  return voxelToCommands({ palette, layers }, x, y, z, scale);
+}
+
+/**
+ * Ship/Boat - A sailing ship with hull, mast, and sails
+ * Size: 7x15x20 (width x height x length)
+ */
+export function createShip(x: number, y: number, z: number, scale: number = 1): string[] {
+  const palette: Record<string, string> = {
+    'W': 'oak_planks',      // Hull
+    'D': 'dark_oak_planks', // Deck details
+    'L': 'oak_log',         // Mast
+    'S': 'white_wool',      // Sails
+    'R': 'red_wool',        // Sail stripe
+    'F': 'oak_fence',       // Railings
+    'B': 'barrel',
+  };
+  
+  const layers: string[][] = [
+    // Y=0: Hull bottom (keel)
+    [
+      '.......',
+      '.......',
+      '.......',
+      '...W...',
+      '...W...',
+      '...W...',
+      '...W...',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '...W...',
+      '...W...',
+      '...W...',
+      '.......',
+      '.......',
+      '.......',
+    ],
+    // Y=1: Lower hull
+    [
+      '.......',
+      '.......',
+      '...W...',
+      '..WWW..',
+      '..WWW..',
+      '.WWWWW.',
+      '.WWWWW.',
+      '.WWWWW.',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      '.WWWWW.',
+      '.WWWWW.',
+      '.WWWWW.',
+      '..WWW..',
+      '..WWW..',
+      '...W...',
+      '.......',
+      '.......',
+    ],
+    // Y=2: Mid hull
+    [
+      '.......',
+      '...W...',
+      '..WWW..',
+      '.WW.WW.',
+      '.W...W.',
+      'WW...WW',
+      'W.....W',
+      'W.....W',
+      'W.....W',
+      'W..B..W',
+      'W..B..W',
+      'W.....W',
+      'W.....W',
+      'W.....W',
+      'WW...WW',
+      '.W...W.',
+      '.WW.WW.',
+      '..WWW..',
+      '...W...',
+      '.......',
+    ],
+    // Y=3: Deck level
+    [
+      '.......',
+      '..FWF..',
+      '.FWDWF.',
+      'FWD.DWF',
+      'WD...DW',
+      'WD...DW',
+      'W..L..W',  // Mast
+      'WD...DW',
+      'WD...DW',
+      'WD...DW',
+      'WD...DW',
+      'WD...DW',
+      'W..L..W',  // Mast
+      'WD...DW',
+      'WD...DW',
+      'FWD.DWF',
+      '.FWDWF.',
+      '..FWF..',
+      '.......',
+      '.......',
+    ],
+    // Y=4-6: Masts
+    ...[4, 5, 6].map(() => [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '...L...',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '...L...',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
     ]),
-    // Y=6: Body with tail start
+    // Y=7-9: Lower sails
+    ...[7, 8, 9].map(() => [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.SSSSS.',
+      '.SSLSS.',
+      '.SSSSS.',
+      '.SRSSS.',
+      '.SSSSS.',
+      '.SSSSS.',
+      '.SSLSS.',
+      '.SSSSS.',
+      '.SRSSS.',
+      '.SSSSS.',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ]),
+    // Y=10-12: Upper masts and sails
+    ...[10, 11, 12].map(() => [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '..SSS..',
+      '..SLS..',
+      '..SSS..',
+      '..SSS..',
+      '..SSS..',
+      '..SSS..',
+      '..SLS..',
+      '..SSS..',
+      '..SSS..',
+      '..SSS..',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ]),
+    // Y=13-14: Mast tops
+    ...[13, 14].map(() => [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '...L...',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '...L...',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ]),
+  ];
+  
+  return voxelToCommands({ palette, layers }, x, y, z, scale);
+}
+
+/**
+ * Statue on Pedestal - A heroic figure standing on a stone base
+ * Size: 5x12x5
+ */
+export function createStatue(x: number, y: number, z: number, scale: number = 1): string[] {
+  const palette: Record<string, string> = {
+    'S': 'smooth_stone',      // Pedestal
+    'Q': 'quartz_block',      // Statue body
+    'G': 'gold_block',        // Accents
+    'C': 'chiseled_stone_bricks',
+  };
+  
+  const layers: string[][] = [
+    // Y=0-1: Pedestal base
+    ...[0, 1].map(() => [
+      'SSSSS',
+      'SCSCS',
+      'SCSCS',
+      'SCSCS',
+      'SSSSS',
+    ]),
+    // Y=2: Pedestal top
     [
-      '..WWWWWWW.PP',
-      '.WWWWWWWWWPP',
-      '.WWWWWWWWW.P',
-      '.WWWWWWWWW..',
-      '..WWWWWWW...',
-      '............',
+      '.SSS.',
+      'SGGGS',
+      'SGSGS',
+      'SGGGS',
+      '.SSS.',
     ],
-    // Y=7: Neck and body
+    // Y=3-4: Feet/legs
+    ...[3, 4].map(() => [
+      '.....',
+      '.Q.Q.',
+      '.....',
+      '.Q.Q.',
+      '.....',
+    ]),
+    // Y=5-6: Lower body/robe
+    ...[5, 6].map(() => [
+      '.....',
+      '.QQQ.',
+      '.QQQ.',
+      '.QQQ.',
+      '.....',
+    ]),
+    // Y=7: Torso
     [
-      'WWW.......PP',
-      'WWWWWWWWW..P',
-      '.WWWWWWWW...',
-      '..WWWWWW....',
-      '............',
-      '............',
+      '.....',
+      '.QQQ.',
+      'QQQQQ',
+      '.QQQ.',
+      '.....',
     ],
-    // Y=8: Head and mane
+    // Y=8: Shoulders and arms
     [
-      'WWWW....PPPP',
-      'WWWW......PP',
-      'WBWW........',
-      '.WW.........',
-      '............',
-      '............',
+      '.....',
+      'QQQQQ',
+      'Q.Q.Q',
+      'QQQQQ',
+      '.....',
     ],
-    // Y=9: Head top and horn base
+    // Y=9: Neck
     [
-      '.WWW....PPP.',
-      'PWWWP....PP.',
-      '.WWW........',
-      '............',
-      '............',
-      '............',
+      '.....',
+      '..Q..',
+      '.QQQ.',
+      '..Q..',
+      '.....',
     ],
-    // Y=10: Horn
+    // Y=10: Head
     [
-      '..G.........',
-      'PPWPP.......',
-      '..W.........',
-      '............',
-      '............',
-      '............',
+      '.....',
+      '.QQQ.',
+      '.QQQ.',
+      '.QQQ.',
+      '.....',
     ],
-    // Y=11: Horn tip
+    // Y=11: Crown/top
     [
-      '..G.........',
-      '.P.P........',
-      '............',
-      '............',
-      '............',
-      '............',
-    ],
-    // Y=12: Horn tip
-    [
-      '..G.........',
-      '............',
-      '............',
-      '............',
-      '............',
-      '............',
+      '..G..',
+      '.GQG.',
+      'G.Q.G',
+      '.GQG.',
+      '..G..',
     ],
   ];
   
@@ -245,74 +617,108 @@ export function createUnicornLayers(x: number, y: number, z: number, scale: numb
 }
 
 /**
- * Create a dragon shape
+ * Lighthouse - A tall lighthouse with light at top
+ * Size: 7x18x7
  */
-export function createDragonLayers(x: number, y: number, z: number, scale: number = 1): string[] {
+export function createLighthouse(x: number, y: number, z: number, scale: number = 1): string[] {
   const palette: Record<string, string> = {
-    'R': 'red_concrete',      // Body
-    'O': 'orange_concrete',   // Belly/accents
-    'B': 'black_concrete',    // Eyes
-    'Y': 'yellow_concrete',   // Eyes glow
-    'G': 'gray_concrete',     // Claws
+    'W': 'white_concrete',
+    'R': 'red_concrete',
+    'S': 'stone_bricks',
+    'G': 'glass',
+    'L': 'glowstone',
+    'B': 'polished_blackstone',
   };
   
-  // Dragon - side view, 15 wide, 8 tall, 5 deep
   const layers: string[][] = [
-    // Y=0: Feet/claws
-    [
-      '..G.........G..',
-      '..G.........G..',
-      '..G.........G..',
-      '..G.........G..',
-      '..G.........G..',
-    ],
-    // Y=1: Legs
-    [
-      '..R.........R..',
-      '..R.........R..',
-      '..R.........R..',
-      '..R.........R..',
-      '..R.........R..',
-    ],
-    // Y=2-3: Body
-    ...[2, 3].map(() => [
-      '..RRRRRRRRRRR..',
-      '.RRRRRRRRRRRR..',
-      '.RROOOOOOOORRR.',
-      '.RRRRRRRRRRRR..',
-      '..RRRRRRRRRRR..',
+    // Y=0-1: Foundation
+    ...[0, 1].map(() => [
+      '.SSSSS.',
+      'SSSSSSS',
+      'SSSSSSS',
+      'SSSSSSS',
+      'SSSSSSS',
+      'SSSSSSS',
+      '.SSSSS.',
     ]),
-    // Y=4: Body with wings start
+    // Y=2-4: Base (white)
+    ...[2, 3, 4].map(() => [
+      '..WWW..',
+      '.WWWWW.',
+      'WWW.WWW',
+      'WW...WW',
+      'WWW.WWW',
+      '.WWWWW.',
+      '..WWW..',
+    ]),
+    // Y=5-7: Red stripe
+    ...[5, 6, 7].map(() => [
+      '..RRR..',
+      '.RRRRR.',
+      'RRR.RRR',
+      'RR...RR',
+      'RRR.RRR',
+      '.RRRRR.',
+      '..RRR..',
+    ]),
+    // Y=8-10: White section
+    ...[8, 9, 10].map(() => [
+      '..WWW..',
+      '.WWWWW.',
+      'WWW.WWW',
+      'WW...WW',
+      'WWW.WWW',
+      '.WWWWW.',
+      '..WWW..',
+    ]),
+    // Y=11-13: Red section
+    ...[11, 12, 13].map(() => [
+      '...R...',
+      '..RRR..',
+      '.RR.RR.',
+      'RR...RR',
+      '.RR.RR.',
+      '..RRR..',
+      '...R...',
+    ]),
+    // Y=14: Glass observation deck
     [
-      'RRRRRRRRRRRRRR.',
-      'RRRRRRRRRRRRRRR',
-      '.RRRRRRRRRRRR..',
-      'RRRRRRRRRRRRRRR',
-      'RRRRRRRRRRRRRR.',
+      '..BBB..',
+      '.BGGGB.',
+      'BGG.GGB',
+      'BG...GB',
+      'BGG.GGB',
+      '.BGGGB.',
+      '..BBB..',
     ],
-    // Y=5: Wings and neck
+    // Y=15: Light level
     [
-      'RRR..........RR',
-      'RRRRRRRRRRRR...',
-      '..RRRRRRRR.....',
-      'RRRRRRRRRRRR...',
-      'RRR..........RR',
+      '..BBB..',
+      '.BLLB.',
+      'BL.L.LB',
+      'B.LLL.B',
+      'BL.L.LB',
+      '.BLLB.',
+      '..BBB..',
     ],
-    // Y=6: Head
+    // Y=16-17: Roof
     [
-      '...............',
-      'RRRRR..........',
-      'RBYRRR.........',
-      'RRRRR..........',
-      '...............',
+      '...B...',
+      '..BBB..',
+      '.BBBBB.',
+      'BBBBBBB',
+      '.BBBBB.',
+      '..BBB..',
+      '...B...',
     ],
-    // Y=7: Head top and horns
     [
-      '...............',
-      '.RRR...........',
-      'R..R...........',
-      '.RRR...........',
-      '...............',
+      '.......',
+      '...B...',
+      '..BBB..',
+      '.BBBBB.',
+      '..BBB..',
+      '...B...',
+      '.......',
     ],
   ];
   
@@ -320,16 +726,268 @@ export function createDragonLayers(x: number, y: number, z: number, scale: numbe
 }
 
 /**
- * Map of special voxel objects that can be referenced by name
+ * Giant Mushroom House - A fantasy mushroom you can live inside
+ * Size: 11x12x11
  */
+export function createMushroomHouse(x: number, y: number, z: number, scale: number = 1): string[] {
+  const palette: Record<string, string> = {
+    'M': 'mushroom_stem',
+    'R': 'red_mushroom_block',
+    'W': 'white_concrete',   // Spots
+    'D': 'oak_door',
+    'G': 'glass_pane',
+    'L': 'lantern',
+  };
+  
+  const layers: string[][] = [
+    // Y=0-1: Stem base
+    ...[0, 1].map(() => [
+      '...........',
+      '...........',
+      '...........',
+      '....MMM....',
+      '...MMMMM...',
+      '...MMMMM...',
+      '...MMMMM...',
+      '....MMM....',
+      '...........',
+      '...........',
+      '...........',
+    ]),
+    // Y=2: Door level
+    [
+      '...........',
+      '...........',
+      '...........',
+      '....M.M....',
+      '...M...M...',
+      '........... ',  // Door
+      '...M...M...',
+      '....MMM....',
+      '...........',
+      '...........',
+      '...........',
+    ],
+    // Y=3-4: Inside stem
+    ...[3, 4].map(() => [
+      '...........',
+      '...........',
+      '...........',
+      '....M.M....',
+      '...M...M...',
+      '...M.L.M...',  // Lantern inside
+      '...M...M...',
+      '....M.M....',
+      '...........',
+      '...........',
+      '...........',
+    ]),
+    // Y=5: Cap start (wide)
+    [
+      '..RRRRRRR..',
+      '.RRRRRRRRR.',
+      'RRRRWRRWRRR',
+      'RRRR.M.RRRR',
+      'RRW..M..WRR',
+      'RRR..M..RRR',
+      'RRW..M..WRR',
+      'RRRR.M.RRRR',
+      'RRRRWRRWRRR',
+      '.RRRRRRRRR.',
+      '..RRRRRRR..',
+    ],
+    // Y=6-7: Cap middle
+    ...[6, 7].map(() => [
+      '.RRWRRRRWR.',
+      'RRRRRRRRRR.',
+      'RWRRRRRRRWR',
+      'RRRR...RRRR',
+      'RRR.....RRR',
+      'RRR.....RRR',
+      'RRR.....RRR',
+      'RRRR...RRRR',
+      'RWRRRRRRRWR',
+      '.RRRRRRRRR.',
+      '.RRWRRRRWR.',
+    ]),
+    // Y=8-9: Cap upper
+    ...[8, 9].map(() => [
+      '..RRWWWRR..',
+      '.RRRRRRRR..',
+      'RRRRRRRRRR.',
+      'RRRR...RRRR',
+      'WRR.....RRW',
+      'WRR.....RRW',
+      'WRR.....RRW',
+      'RRRR...RRRR',
+      'RRRRRRRRRR.',
+      '.RRRRRRRR..',
+      '..RRWWWRR..',
+    ]),
+    // Y=10: Cap top
+    [
+      '...RRRRR...',
+      '..RRRRRRR..',
+      '.RRRRWRRRR.',
+      'RRRRRRRRRR.',
+      'RRWRRRRRWRR',
+      'RRRRRRRRRR.',
+      'RRWRRRRRWRR',
+      'RRRRRRRRRR.',
+      '.RRRRWRRRR.',
+      '..RRRRRRR..',
+      '...RRRRR...',
+    ],
+    // Y=11: Cap peak
+    [
+      '...........',
+      '...RRRRR...',
+      '..RRWWWRR..',
+      '.RRRRRRRR..',
+      '.RWRRRRRW..',
+      '.RRRRRRRR..',
+      '.RWRRRRRW..',
+      '.RRRRRRRR..',
+      '..RRWWWRR..',
+      '...RRRRR...',
+      '...........',
+    ],
+  ];
+  
+  return voxelToCommands({ palette, layers }, x, y, z, scale);
+}
+
+/**
+ * Airplane - A simple airplane
+ * Size: 7x5x15
+ */
+export function createAirplane(x: number, y: number, z: number, scale: number = 1): string[] {
+  const palette: Record<string, string> = {
+    'W': 'white_concrete',
+    'B': 'blue_concrete',
+    'G': 'glass',
+    'R': 'red_concrete',
+    'I': 'iron_block',
+  };
+  
+  const layers: string[][] = [
+    // Y=0: Landing gear
+    [
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '..I.I..',
+      '..I.I..',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '..I.I..',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ],
+    // Y=1: Fuselage bottom
+    [
+      '.......',
+      '.......',
+      '...W...',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '...W...',
+      '.......',
+      '.......',
+    ],
+    // Y=2: Fuselage with wings
+    [
+      '.......',
+      '...R...',
+      '..WWW..',
+      '.WGGGW.',
+      'WWGGGWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWWWWWW',
+      'WWGGGWW',
+      '.WGGGW.',
+      '..WWW..',
+      '...W...',
+      '.......',
+    ],
+    // Y=3: Top with tail start
+    [
+      '...B...',
+      '...B...',
+      '...W...',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '..WWW..',
+      '...W...',
+      '.......',
+      '.......',
+    ],
+    // Y=4: Tail fin
+    [
+      '...B...',
+      '...B...',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+      '.......',
+    ],
+  ];
+  
+  return voxelToCommands({ palette, layers }, x, y, z, scale);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VOXEL OBJECT REGISTRY
+// ═══════════════════════════════════════════════════════════════
+
 export const VOXEL_OBJECTS: Record<string, (x: number, y: number, z: number, scale: number) => string[]> = {
-  unicorn: createUnicornLayers,
-  dragon: createDragonLayers,
+  castletower: createCastleTower,
+  castle_tower: createCastleTower,
+  tower: createCastleTower,
+  cottage: createCottage,
+  house: createCottage,
+  ship: createShip,
+  boat: createShip,
+  statue: createStatue,
+  lighthouse: createLighthouse,
+  mushroom: createMushroomHouse,
+  mushroomhouse: createMushroomHouse,
+  airplane: createAirplane,
+  plane: createAirplane,
 };
 
 /**
- * Process a voxelObject command
- * Format: voxelObject(name, x, y, z, scale)
+ * Process a voxel object command
  */
 export function processVoxelObjectCommand(
   name: string,
@@ -338,11 +996,10 @@ export function processVoxelObjectCommand(
   z: number,
   scale: number = 1
 ): string[] {
-  const generator = VOXEL_OBJECTS[name.toLowerCase()];
+  const generator = VOXEL_OBJECTS[name.toLowerCase().replace(/[_-]/g, '')];
   if (!generator) {
     console.warn(`Unknown voxel object: ${name}`);
     return [];
   }
   return generator(x, y, z, scale);
 }
-

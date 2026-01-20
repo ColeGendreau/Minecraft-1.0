@@ -106,15 +106,23 @@ Parameters:
 Example: heart(0, 80, 0, 4, 1, "south")  - Large heart wall
 
 ═══════════════════════════════════════════════════════════════
-## 4. VOXEL OBJECTS - Complex Organic Forms
+## 4. DETAILED VOXEL STRUCTURES - Architectural Masterpieces
 ═══════════════════════════════════════════════════════════════
 
-Detailed voxel art creatures:
+Pre-built detailed structures with proper proportions, varied materials, windows, and details:
 
-unicorn(x, y, z, scale)           - Magical unicorn
-dragon(x, y, z, scale)            - Fearsome dragon
+tower(x, y, z, scale)            - Medieval castle tower with battlements & windows
+cottage(x, y, z, scale)          - Cozy house with pitched roof & chimney
+house(x, y, z, scale)            - Same as cottage
+ship(x, y, z, scale)             - Sailing ship with masts & sails
+boat(x, y, z, scale)             - Same as ship
+statue(x, y, z, scale)           - Heroic figure on pedestal
+lighthouse(x, y, z, scale)       - Striped lighthouse with glowing top
+mushroom(x, y, z, scale)         - Giant fantasy mushroom house
+airplane(x, y, z, scale)         - Aircraft with wings & tail
 
-Example: unicorn(0, 65, 0, 5)     - 5x scale giant unicorn!
+Example: tower(0, 65, 0, 2)      - 2x scale medieval tower!
+Example: ship(0, 65, 0, 3)       - 3x scale sailing ship!
 
 ═══════════════════════════════════════════════════════════════
 ## 5. RAW FILL COMMANDS - Custom Details
@@ -139,42 +147,45 @@ NATURAL: grass_block, dirt, stone, oak_log, oak_leaves, water
 ## CREATIVE EXAMPLES
 ═══════════════════════════════════════════════════════════════
 
-### Royal Throne Room:
-throne(0, 65, 0, "default", 3)           // Giant gold throne
-fountain(15, 65, 0)                      // Royal fountain
-hollowDome(0, 65, 0, 30, quartz_block)   // Palace dome
-fill -25 64 -25 25 64 25 gold_block      // Golden floor
+### Medieval Castle:
+tower(0, 65, 0, 2)                       // Main tower (scaled 2x)
+tower(40, 65, 0, 1)                      // Corner tower
+tower(-40, 65, 0, 1)                     // Corner tower  
+tower(0, 65, 40, 1)                      // Corner tower
+fill -30 64 -30 30 70 30 stone_bricks hollow  // Castle walls
+fill -35 64 -35 35 64 35 cobblestone    // Courtyard floor
 
-### Unicorn Hotel:
-unicorn(0, 65, 0, 10)                    // MASSIVE unicorn
-hollowDome(-30, 65, -30, 20, pink_wool)  // Room inside
-hollowDome(30, 65, 30, 20, purple_wool)  // Another room
-fill -50 64 -50 50 64 50 white_concrete  // Platform
+### Seaside Harbor:
+ship(0, 65, -30, 2)                      // Large sailing ship
+lighthouse(50, 65, 0, 1)                 // Lighthouse
+cottage(-40, 65, 20, 1)                  // Fisherman's cottage
+cottage(-60, 65, 30, 1)                  // Another cottage
+fill -70 64 -50 70 64 50 oak_planks     // Wooden dock
 
-### Car Dealership:
-car(0, 65, 0, "red", 3)                  // Giant red car
-car(30, 65, 0, "blue", 3)                // Giant blue car
-car(-30, 65, 0, "yellow", 3)             // Giant yellow car
-box(0, 65, 40, 80, 15, 30, glass)        // Showroom
-fill -50 64 -50 50 64 50 gray_concrete   // Parking lot
+### Fantasy Village:
+mushroom(0, 65, 0, 2)                    // Giant mushroom house
+mushroom(40, 65, 20, 1)                  // Smaller mushroom
+cottage(-30, 65, -20, 1)                 // Cottage
+fountain(20, 65, -30)                    // Village fountain
+fill -50 64 -50 50 64 50 grass_block    // Village green
 
-### Fantasy Dragon Lair:
-dragon(0, 80, 0, 8)                      // Huge dragon
-hollowDome(0, 65, 0, 40, obsidian)       // Cave
-pyramid(60, 65, 0, 40, 30, gold_block)   // Treasure pile
-fountain(-30, 65, 0)                      // Water feature
-lamp(20, 65, 20)                          // Lighting
+### Aviation Museum:
+airplane(0, 75, 0, 3)                    // Display aircraft (elevated)
+airplane(-50, 75, 30, 2)                 // Second plane
+box(0, 65, 0, 100, 20, 60, glass)       // Glass hangar
+fill -60 64 -40 60 64 40 gray_concrete  // Tarmac
 
 ═══════════════════════════════════════════════════════════════
 ## CRITICAL RULES
 ═══════════════════════════════════════════════════════════════
 
-1. USE COMPONENTS for furniture, vehicles, creatures - they look detailed!
-2. USE VOXEL OBJECTS for unicorns, dragons - they're artistic!
-3. USE SHAPES for buildings, structures - spheres, domes, pyramids
-4. SCALE UP components (scale 3-10) to make them MASSIVE
-5. BUILD MULTIPLE things - create a complete themed area
-6. NEVER REJECT - find creative Minecraft equivalent for ANYTHING
+1. USE VOXEL STRUCTURES for detailed buildings - tower, cottage, ship, lighthouse, statue
+2. USE SHAPES for large geometric forms - domes, spheres, pyramids
+3. USE COMPONENTS for small details - fountain, car, rocket, throne, lamp
+4. SCALE things appropriately - towers 2-3x, ships 2-4x
+5. COMPOSE SCENES - multiple structures that make sense together
+6. VARY MATERIALS - use different blocks for visual interest
+7. NEVER REJECT - find creative Minecraft equivalent for ANYTHING
 
 Generate 15-30 commands mixing shapes, components, and voxels!
 
@@ -208,13 +219,13 @@ Generate 15-30 commands mixing shapes, components, and voxels!
   "server": { "maxPlayers": 20, "viewDistance": 16, "simulationDistance": 12, "motd": "Epic World Description" },
   "metadata": { "requestedBy": "user", "requestedAt": "2026-01-20T12:00:00.000Z", "userDescription": "original prompt", "aiModel": "gpt-4o", "version": "1.0.0" },
   "buildCommands": [
-    "unicorn(0, 65, 0, 5)",
-    "hollowDome(0, 65, 0, 30, pink_wool)",
-    "throne(50, 65, 50, emerald, 3)",
-    "fountain(-40, 65, 0)",
-    "car(-50, 65, -50, blue, 4)",
-    "pyramid(80, 65, 0, 50, 35, sandstone)",
-    "fill -60 64 -60 60 64 60 white_concrete"
+    "tower(0, 65, 0, 2)",
+    "tower(50, 65, 50, 1)",
+    "cottage(-40, 65, 0, 1)",
+    "fountain(20, 65, -20)",
+    "statue(-30, 65, 30, 1)",
+    "fill -60 64 -60 60 70 60 stone_bricks hollow",
+    "fill -65 64 -65 65 64 65 cobblestone"
   ]
 }
 
