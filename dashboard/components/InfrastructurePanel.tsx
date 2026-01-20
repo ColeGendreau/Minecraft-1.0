@@ -328,11 +328,15 @@ function StepIndicator({ step }: { step: WorkflowStep }) {
     <div className="flex items-center gap-2 text-sm">
       <span className={`w-2 h-2 rounded-full ${
         step.status === 'completed'
-          ? (step.conclusion === 'success' ? 'bg-green-500' : step.conclusion === 'skipped' ? 'bg-gray-500' : 'bg-red-500')
-          : step.status === 'in_progress' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-600'
+          ? (step.conclusion === 'success' ? 'bg-green-500' : step.conclusion === 'skipped' ? 'bg-gray-400' : 'bg-red-500')
+          : step.status === 'in_progress' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'
       }`} />
       <span className={`${
-        step.status === 'in_progress' ? 'text-yellow-300' : 'text-gray-400'
+        step.status === 'completed' && step.conclusion === 'success' ? 'text-green-300' :
+        step.status === 'completed' && step.conclusion === 'failure' ? 'text-red-300' :
+        step.status === 'completed' && step.conclusion === 'skipped' ? 'text-gray-300' :
+        step.status === 'in_progress' ? 'text-yellow-300 font-bold' : 
+        'text-gray-300'
       }`} style={{ fontFamily: "'VT323', monospace" }}>
         {step.name}
       </span>

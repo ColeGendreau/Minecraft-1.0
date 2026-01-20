@@ -168,10 +168,12 @@ export function WorkflowProgress() {
                       >
                         <StepStatusIcon status={step.status} conclusion={step.conclusion} />
                         <span className={`
-                          ${step.status === 'completed' && step.conclusion === 'success' ? 'text-text-muted' : ''}
-                          ${step.status === 'in_progress' ? 'text-accent-primary' : ''}
+                          ${step.status === 'completed' && step.conclusion === 'success' ? 'text-accent-success' : ''}
+                          ${step.status === 'completed' && step.conclusion === 'skipped' ? 'text-text-secondary' : ''}
+                          ${step.status === 'in_progress' ? 'text-accent-primary font-medium' : ''}
                           ${step.status === 'completed' && step.conclusion === 'failure' ? 'text-accent-error' : ''}
-                          ${step.status === 'queued' ? 'text-text-muted' : ''}
+                          ${step.status === 'queued' ? 'text-text-secondary' : ''}
+                          ${!step.status || (step.status === 'completed' && !step.conclusion) ? 'text-text-primary' : ''}
                         `}>
                           {step.name}
                         </span>
