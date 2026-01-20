@@ -317,11 +317,11 @@ export const LAMP: ComponentDefinition = {
   height: 5,
   depth: 1,
   layers: [
-    [['S']], // Base
-    [['F']], // Pole
-    [['F']], // Pole
-    [['F']], // Pole
-    [['G']], // Light
+    ['S'], // Base
+    ['F'], // Pole
+    ['F'], // Pole
+    ['F'], // Pole
+    ['G'], // Light
   ],
   palette: {
     'S': 'stone_slab',
