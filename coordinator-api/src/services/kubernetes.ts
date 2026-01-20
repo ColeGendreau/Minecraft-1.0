@@ -2,7 +2,7 @@
  * Kubernetes Service
  * 
  * Handles interactions with the AKS cluster for dynamic server configuration.
- * Uses kubectl commands for simplicity and compatibility.
+ * Uses Azure Managed Identity + kubectl for secure, IaC-native access.
  */
 
 import { exec } from 'child_process';
@@ -14,8 +14,58 @@ const execAsync = promisify(exec);
 const MINECRAFT_NAMESPACE = process.env.MINECRAFT_NAMESPACE || 'minecraft';
 const MINECRAFT_DEPLOYMENT = process.env.MINECRAFT_DEPLOYMENT || 'minecraft';
 
-// Check if kubectl is available
+// AKS configuration for managed identity auth
+const AKS_RESOURCE_GROUP = process.env.AKS_RESOURCE_GROUP;
+const AKS_CLUSTER_NAME = process.env.AKS_CLUSTER_NAME;
+const AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID;
+
+// Track authentication state
 let kubectlAvailable: boolean | null = null;
+let aksAuthenticated = false;
+
+/**
+ * Authenticate to Azure using Managed Identity and get AKS credentials
+ */
+async function authenticateToAKS(): Promise<boolean> {
+  if (aksAuthenticated) return true;
+  
+  // Check if we have the required config
+  if (!AKS_RESOURCE_GROUP || !AKS_CLUSTER_NAME) {
+    console.log('AKS config not set - kubectl features disabled');
+    return false;
+  }
+
+  try {
+    console.log('Authenticating to Azure with Managed Identity...');
+    
+    // Login with managed identity
+    const loginCmd = AZURE_CLIENT_ID 
+      ? `az login --identity --username ${AZURE_CLIENT_ID}`
+      : 'az login --identity';
+    
+    await execAsync(loginCmd, { timeout: 30000 });
+    console.log('✅ Azure login successful');
+
+    // Get AKS credentials
+    console.log(`Getting AKS credentials for ${AKS_CLUSTER_NAME}...`);
+    await execAsync(
+      `az aks get-credentials --resource-group ${AKS_RESOURCE_GROUP} --name ${AKS_CLUSTER_NAME} --overwrite-existing`,
+      { timeout: 30000 }
+    );
+    console.log('✅ AKS credentials obtained');
+
+    // Convert kubeconfig to use kubelogin for Azure AD auth
+    await execAsync('kubelogin convert-kubeconfig -l msi', { timeout: 10000 });
+    console.log('✅ Kubeconfig converted for managed identity auth');
+
+    aksAuthenticated = true;
+    return true;
+  } catch (error) {
+    const err = error as { message?: string; stderr?: string };
+    console.error('Failed to authenticate to AKS:', err.stderr || err.message);
+    return false;
+  }
+}
 
 async function isKubectlAvailable(): Promise<boolean> {
   if (kubectlAvailable !== null) return kubectlAvailable;
@@ -32,11 +82,16 @@ async function isKubectlAvailable(): Promise<boolean> {
 }
 
 /**
- * Execute a kubectl command
+ * Execute a kubectl command (authenticates on first use)
  */
 async function kubectl(command: string): Promise<{ stdout: string; stderr: string }> {
   if (!await isKubectlAvailable()) {
     throw new Error('kubectl not available');
+  }
+  
+  // Authenticate to AKS if not already done
+  if (!await authenticateToAKS()) {
+    throw new Error('Failed to authenticate to AKS');
   }
   
   try {

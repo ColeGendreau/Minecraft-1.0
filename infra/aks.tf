@@ -53,3 +53,25 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
+# Look up the coordinator managed identity from permanent infrastructure
+data "azurerm_user_assigned_identity" "coordinator" {
+  name                = "${var.project_name}-${var.environment}-coordinator-identity"
+  resource_group_name = "${var.project_name}-${var.environment}-dashboard-rg"
+}
+
+# Grant coordinator identity access to AKS cluster
+# "Azure Kubernetes Service Cluster User Role" allows getting credentials
+resource "azurerm_role_assignment" "coordinator_aks_user" {
+  scope                = azurerm_kubernetes_cluster.aks.id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = data.azurerm_user_assigned_identity.coordinator.principal_id
+}
+
+# Grant coordinator identity RBAC Admin on AKS for kubectl operations
+# This allows patching deployments in the minecraft namespace
+resource "azurerm_role_assignment" "coordinator_aks_rbac_writer" {
+  scope                = azurerm_kubernetes_cluster.aks.id
+  role_definition_name = "Azure Kubernetes Service RBAC Writer"
+  principal_id         = data.azurerm_user_assigned_identity.coordinator.principal_id
+}
+

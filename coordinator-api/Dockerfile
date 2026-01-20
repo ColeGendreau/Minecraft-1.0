@@ -20,11 +20,22 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install kubectl for Kubernetes API access
-RUN apk add --no-cache curl && \
+# Install kubectl, Azure CLI, and kubelogin for AKS authentication
+RUN apk add --no-cache curl python3 py3-pip bash && \
+    # Install kubectl
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && \
-    mv kubectl /usr/local/bin/
+    mv kubectl /usr/local/bin/ && \
+    # Install Azure CLI
+    pip3 install --break-system-packages azure-cli && \
+    # Install kubelogin for Azure AD auth
+    curl -LO "https://github.com/Azure/kubelogin/releases/download/v0.1.0/kubelogin-linux-amd64.zip" && \
+    unzip kubelogin-linux-amd64.zip -d /usr/local/bin/ && \
+    chmod +x /usr/local/bin/bin/linux_amd64/kubelogin && \
+    mv /usr/local/bin/bin/linux_amd64/kubelogin /usr/local/bin/kubelogin && \
+    rm -rf kubelogin-linux-amd64.zip /usr/local/bin/bin && \
+    # Cleanup
+    rm -rf /var/cache/apk/*
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
@@ -34,8 +45,9 @@ RUN adduser --system --uid 1001 coordinator
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Create kube config directory
-RUN mkdir -p /home/coordinator/.kube && chown -R coordinator:nodejs /home/coordinator/.kube
+# Create kube config directory and azure config directory
+RUN mkdir -p /home/coordinator/.kube /home/coordinator/.azure && \
+    chown -R coordinator:nodejs /home/coordinator/.kube /home/coordinator/.azure
 
 # Copy built files
 COPY --from=builder /app/dist ./dist

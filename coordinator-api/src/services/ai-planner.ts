@@ -141,7 +141,7 @@ Generate 30-60 fill commands for epic structures!
   "spawn": { "protection": true, "radius": 16, "forceGamemode": false },
   "datapacks": ["coordinates_hud"],
   "server": { "maxPlayers": 20, "viewDistance": 16, "simulationDistance": 12, "motd": "Epic World Description" },
-  "metadata": { "requestedBy": "user", "requestedAt": "ISO", "userDescription": "original", "aiModel": "gpt-4o", "version": "1.0.0" },
+  "metadata": { "requestedBy": "user", "requestedAt": "2026-01-20T12:00:00.000Z", "userDescription": "original prompt", "aiModel": "gpt-4o", "version": "1.0.0" },
   "buildCommands": [
     "forceload add -200 -200 200 200",
     "fill -30 64 -30 30 65 30 stone_bricks",
@@ -236,16 +236,15 @@ Think like a theme park designer or movie set builder. Make it MEMORABLE and FUN
     delete worldSpec.buildCommands;
     delete worldSpec.worldEditCommands;
 
-    // Ensure metadata is present
-    if (!worldSpec.metadata) {
-      worldSpec.metadata = {
-        requestedBy: input.requestedBy,
-        requestedAt: new Date().toISOString(),
-        userDescription: input.description,
-        aiModel: AZURE_OPENAI_DEPLOYMENT,
-        version: '1.0.0',
-      };
-    }
+    // Ensure metadata is present and valid
+    // Always override with correct values since AI may output placeholder text
+    worldSpec.metadata = {
+      requestedBy: input.requestedBy,
+      requestedAt: new Date().toISOString(),
+      userDescription: input.description,
+      aiModel: AZURE_OPENAI_DEPLOYMENT,
+      version: '1.0.0',
+    };
 
     // Validate against schema
     const validation = validateWorldSpecJson(worldSpec);

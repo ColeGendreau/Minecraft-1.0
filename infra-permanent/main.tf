@@ -94,6 +94,15 @@ resource "azurerm_container_app_environment" "dashboard" {
   tags                       = local.tags
 }
 
+# User-Assigned Managed Identity for Coordinator
+# This identity is used to authenticate to AKS for kubectl operations
+resource "azurerm_user_assigned_identity" "coordinator" {
+  name                = "${local.name_prefix}-coordinator-identity"
+  location            = azurerm_resource_group.dashboard.location
+  resource_group_name = azurerm_resource_group.dashboard.name
+  tags                = local.tags
+}
+
 # Coordinator API - Container App (scales to zero)
 resource "azurerm_container_app" "coordinator" {
   name                         = "${local.name_prefix}-coordinator"
@@ -101,6 +110,12 @@ resource "azurerm_container_app" "coordinator" {
   resource_group_name          = azurerm_resource_group.dashboard.name
   revision_mode                = "Single"
   tags                         = local.tags
+
+  # Managed Identity for AKS access
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.coordinator.id]
+  }
 
   registry {
     server               = azurerm_container_registry.dashboard.login_server
@@ -142,6 +157,22 @@ resource "azurerm_container_app" "coordinator" {
       env {
         name  = "INFRA_STATE_PATH"
         value = "/tmp/INFRASTRUCTURE_STATE"
+      }
+
+      # AKS config for kubectl MOTD updates
+      env {
+        name  = "AKS_RESOURCE_GROUP"
+        value = "${local.name_prefix}-rg"
+      }
+
+      env {
+        name  = "AKS_CLUSTER_NAME"
+        value = "${local.name_prefix}-aks"
+      }
+
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.coordinator.client_id
       }
 
       # Note: Azure OpenAI and RCON config are set by dashboard-deploy workflow
@@ -246,4 +277,14 @@ output "acr_password" {
   description = "ACR admin password"
   value       = azurerm_container_registry.dashboard.admin_password
   sensitive   = true
+}
+
+output "coordinator_identity_principal_id" {
+  description = "Principal ID of the coordinator managed identity (for AKS RBAC)"
+  value       = azurerm_user_assigned_identity.coordinator.principal_id
+}
+
+output "coordinator_identity_client_id" {
+  description = "Client ID of the coordinator managed identity"
+  value       = azurerm_user_assigned_identity.coordinator.client_id
 }
