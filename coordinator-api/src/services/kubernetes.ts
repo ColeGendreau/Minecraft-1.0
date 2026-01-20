@@ -14,16 +14,37 @@ const execAsync = promisify(exec);
 const MINECRAFT_NAMESPACE = process.env.MINECRAFT_NAMESPACE || 'minecraft';
 const MINECRAFT_DEPLOYMENT = process.env.MINECRAFT_DEPLOYMENT || 'minecraft';
 
+// Check if kubectl is available
+let kubectlAvailable: boolean | null = null;
+
+async function isKubectlAvailable(): Promise<boolean> {
+  if (kubectlAvailable !== null) return kubectlAvailable;
+  
+  try {
+    await execAsync('kubectl version --client', { timeout: 5000 });
+    kubectlAvailable = true;
+    console.log('kubectl is available');
+  } catch {
+    kubectlAvailable = false;
+    console.log('kubectl not available - Kubernetes features disabled');
+  }
+  return kubectlAvailable;
+}
+
 /**
  * Execute a kubectl command
  */
 async function kubectl(command: string): Promise<{ stdout: string; stderr: string }> {
+  if (!await isKubectlAvailable()) {
+    throw new Error('kubectl not available');
+  }
+  
   try {
     const result = await execAsync(`kubectl ${command}`, {
       timeout: 30000,
       env: {
         ...process.env,
-        KUBECONFIG: process.env.KUBECONFIG || '/root/.kube/config',
+        KUBECONFIG: process.env.KUBECONFIG || '/home/coordinator/.kube/config',
       },
     });
     return result;
