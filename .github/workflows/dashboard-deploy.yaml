@@ -108,26 +108,33 @@ jobs:
       - name: Get Minecraft RCON info
         id: get_rcon
         run: |
-          # Get the public IP for RCON
-          PUBLIC_IP=$(az network public-ip show \
-            --resource-group MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3 \
-            --name mc-demo-dev-ingress-ip \
-            --query ipAddress -o tsv 2>/dev/null || echo "")
+          # Get AKS credentials to query services
+          az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --overwrite-existing || true
           
-          if [ -n "$PUBLIC_IP" ]; then
-            echo "host=$PUBLIC_IP" >> $GITHUB_OUTPUT
-            echo "✅ Minecraft server IP: $PUBLIC_IP"
+          # Get RCON service IP (separate from game server IP)
+          RCON_IP=$(kubectl get svc -n minecraft minecraft-rcon -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          
+          if [ -n "$RCON_IP" ]; then
+            echo "host=$RCON_IP" >> $GITHUB_OUTPUT
+            echo "✅ Minecraft RCON IP: $RCON_IP"
           else
-            echo "⚠️ Minecraft server not deployed yet"
+            # Fallback to checking if the service exists with a different name
+            RCON_IP=$(kubectl get svc -n minecraft -o jsonpath='{.items[?(@.spec.ports[0].port==25575)].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+            if [ -n "$RCON_IP" ]; then
+              echo "host=$RCON_IP" >> $GITHUB_OUTPUT
+              echo "✅ Minecraft RCON IP (from port match): $RCON_IP"
+            else
+              echo "⚠️ Minecraft RCON service not found"
+            fi
           fi
 
       - name: Deploy to Container Apps
         run: |
-          # Build environment variables
-          ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_rcon.outputs.host }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=minecraft"
+          # Build environment variables - use correct RCON password from values.yaml
+          ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_rcon.outputs.host }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
           
           if [ "${{ steps.get_openai.outputs.configured }}" == "true" ]; then
-            ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=${{ steps.get_openai.outputs.endpoint }} AZURE_OPENAI_DEPLOYMENT=gpt-4o"
+            ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=${{ steps.get_openai.outputs.endpoint }} AZURE_OPENAI_API_KEY=${{ steps.get_openai.outputs.key }} AZURE_OPENAI_DEPLOYMENT=gpt-4o"
           fi
           
           # Update container app with new image and environment
