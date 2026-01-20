@@ -1,6 +1,5 @@
-import type { WorldSpec, Difficulty, GameMode, WorldSize, GeneratedStructure } from '../types/index.js';
+import type { WorldSpec, Difficulty, GameMode, WorldSize } from '../types/index.js';
 import { validateWorldSpecJson } from './validator.js';
-import { generateStructuresFromDescription } from './structure-generator.js';
 
 const MOCK_AI = process.env.MOCK_AI === 'true';
 
@@ -306,22 +305,7 @@ function mockPlan(input: PlannerInput): WorldSpec {
   const displayName = generateDisplayName(input.description);
   const interpretation = interpretDescription(input.description);
 
-  // Generate WorldEdit structures based on the description
-  const complexity = determineComplexity(input.size, input.description);
-  let structures: GeneratedStructure[] = [];
-  
-  try {
-    console.log(`Generating structures for "${displayName}" with complexity ${complexity}...`);
-    structures = generateStructuresFromDescription(
-      input.description,
-      worldName,
-      complexity
-    );
-    console.log(`Generated ${structures.length} unique structures with ${structures.reduce((sum, s) => sum + s.commands.length, 0)} WorldEdit commands`);
-  } catch (error) {
-    console.error('Structure generation failed, continuing without structures:', error);
-    structures = [];
-  }
+  console.log(`Mock planning world: "${displayName}" with ${interpretation.levelType} level type`);
 
   // Build the WorldSpec - NEVER reject, always approximate
   const worldSpec: WorldSpec = {
@@ -365,11 +349,7 @@ function mockPlan(input: PlannerInput): WorldSpec {
       userDescription: input.description,
       aiModel: 'worldforge-creative-v2',
       version: '2.0.0',
-      structureCount: structures.length,
-      totalWorldEditCommands: structures.reduce((sum, s) => sum + s.commands.length, 0),
     },
-    // Include the generated structures
-    structures: structures.length > 0 ? structures : undefined,
   };
 
   return worldSpec;
