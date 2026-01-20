@@ -12,6 +12,65 @@ import type { GeneratedStructure, StructureExecutionResult, WorldEditCommand } f
 
 const router = Router();
 
+// ============== SERVER CONTROL ==============
+
+/**
+ * POST /api/minecraft/restart
+ * Restart the Minecraft server (Kubernetes will auto-restart after stop)
+ * Used to apply new world configurations like MOTD
+ */
+router.post('/restart', async (req, res) => {
+  try {
+    const { reason, worldName } = req.body;
+    
+    console.log(`Server restart requested: ${reason || 'No reason provided'}`);
+    
+    const rcon = getRconClient();
+    if (!rcon.isConnected()) {
+      await rcon.connect();
+    }
+    
+    // Warn players
+    await rcon.send('say §c§l⚠ SERVER RESTARTING IN 10 SECONDS ⚠');
+    if (worldName) {
+      await rcon.send(`say §6New world being forged: §b${worldName}`);
+    }
+    await rcon.send('say §7Please reconnect in about 60 seconds...');
+    
+    // Wait 10 seconds
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    // Countdown
+    await rcon.send('say §c§lRestarting in 3...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await rcon.send('say §c§l2...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await rcon.send('say §c§l1...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Stop the server - Kubernetes will restart it automatically
+    try {
+      await rcon.send('stop');
+    } catch {
+      // Connection will close when server stops - this is expected
+    }
+    
+    res.json({
+      success: true,
+      message: 'Server restart initiated. It will be back online in ~60 seconds.',
+      reason,
+      worldName,
+      restartedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error restarting server:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Restart failed',
+    });
+  }
+});
+
 // ============== HEALTH & STATUS ==============
 
 /**

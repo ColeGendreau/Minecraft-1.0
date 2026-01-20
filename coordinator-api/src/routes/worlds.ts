@@ -395,6 +395,45 @@ async function processWorldRequest(
 
     console.log(`[${requestId}] World deployed: ${worldSpec.displayName || worldSpec.worldName}`);
 
+    // Step 4: Restart the server to apply changes (new world, fresh start)
+    console.log(`[${requestId}] Restarting server to apply new world configuration...`);
+    try {
+      const rcon = getRconClient();
+      if (!rcon.isConnected()) {
+        await rcon.connect();
+      }
+      
+      // Warn players
+      await executeRconCommands([
+        { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
+        { command: `say §6   🌍 NEW WORLD FORGED!`, delayMs: 100 },
+        { command: `say §b   ${worldSpec.displayName || worldSpec.worldName}`, delayMs: 100 },
+        { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
+        { command: `say §c§l⚠ SERVER RESTARTING IN 10 SECONDS ⚠`, delayMs: 100 },
+        { command: `say §7Reconnect in ~60 seconds to explore!`, delayMs: 100 },
+      ]);
+      
+      // Wait then restart
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      await executeRconCommands([
+        { command: 'say §c§l3...', delayMs: 1000 },
+        { command: 'say §c§l2...', delayMs: 1000 },
+        { command: 'say §c§l1...', delayMs: 1000 },
+      ]);
+      
+      // Stop the server - Kubernetes will restart it
+      try {
+        await rcon.send('stop');
+      } catch {
+        // Expected - connection closes when server stops
+      }
+      
+      console.log(`[${requestId}] Server restart triggered`);
+    } catch (restartError) {
+      console.warn(`[${requestId}] Could not restart server:`, restartError);
+      // Don't fail the deployment - the world was still created
+    }
+
   } catch (error) {
     console.error(`[${requestId}] Processing error:`, error);
     updateWorldRequestStatus(requestId, 'failed', {
