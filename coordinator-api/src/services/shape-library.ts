@@ -487,18 +487,72 @@ export function shapeToFillCommands(shapeCmd: ShapeCommand): string[] {
 }
 
 /**
- * Process an array of build commands - handles both shape commands and raw fill commands
+ * Process an array of build commands - handles shapes, components, images, voxels, and raw commands
  */
 export function processBuildCommands(commands: string[]): string[] {
+  // Dynamic imports to avoid circular dependencies
+  const { processComponentCommand, getComponent } = require('./component-library.js');
+  const { processImageCommand, PIXEL_ART_LIBRARY } = require('./image-to-voxel.js');
+  const { processVoxelObjectCommand, VOXEL_OBJECTS } = require('./voxel-generator.js');
+  
   const result: string[] = [];
   
   for (const cmd of commands) {
     const trimmed = cmd.trim();
     if (!trimmed || trimmed.startsWith('//')) continue;
     
-    // Check if it's a shape command
+    // Check if it's a shape command (sphere, dome, pyramid, etc.)
     const shapeCmd = parseShapeCommand(trimmed);
     if (shapeCmd) {
+      // Check if it's a component command
+      if (shapeCmd.shape === 'component' || getComponent(shapeCmd.shape)) {
+        const name = shapeCmd.shape === 'component' ? shapeCmd.params[0] as string : shapeCmd.shape;
+        const x = shapeCmd.shape === 'component' ? shapeCmd.params[1] as number : shapeCmd.params[0] as number;
+        const y = shapeCmd.shape === 'component' ? shapeCmd.params[2] as number : shapeCmd.params[1] as number;
+        const z = shapeCmd.shape === 'component' ? shapeCmd.params[3] as number : shapeCmd.params[2] as number;
+        const variant = shapeCmd.params[shapeCmd.shape === 'component' ? 4 : 3] as string | undefined;
+        const scale = (shapeCmd.params[shapeCmd.shape === 'component' ? 5 : 4] as number) || 1;
+        
+        const componentCmds = processComponentCommand(name, x, y, z, variant, scale);
+        result.push(...componentCmds);
+        continue;
+      }
+      
+      // Check if it's an image/pixelart command
+      if (shapeCmd.shape === 'image' || shapeCmd.shape === 'pixelart' || PIXEL_ART_LIBRARY[shapeCmd.shape]) {
+        const name = (shapeCmd.shape === 'image' || shapeCmd.shape === 'pixelart') 
+          ? shapeCmd.params[0] as string 
+          : shapeCmd.shape;
+        const idx = (shapeCmd.shape === 'image' || shapeCmd.shape === 'pixelart') ? 1 : 0;
+        const x = shapeCmd.params[idx] as number;
+        const y = shapeCmd.params[idx + 1] as number;
+        const z = shapeCmd.params[idx + 2] as number;
+        const scale = (shapeCmd.params[idx + 3] as number) || 2;
+        const depth = (shapeCmd.params[idx + 4] as number) || 1;
+        const facing = (shapeCmd.params[idx + 5] as 'north' | 'south' | 'east' | 'west') || 'south';
+        
+        const imageCmds = processImageCommand(name, x, y, z, scale, depth, facing);
+        result.push(...imageCmds);
+        continue;
+      }
+      
+      // Check if it's a voxel object command (unicorn, dragon, etc.)
+      if (shapeCmd.shape === 'voxelobject' || VOXEL_OBJECTS[shapeCmd.shape]) {
+        const name = shapeCmd.shape === 'voxelobject' 
+          ? shapeCmd.params[0] as string 
+          : shapeCmd.shape;
+        const idx = shapeCmd.shape === 'voxelobject' ? 1 : 0;
+        const x = shapeCmd.params[idx] as number;
+        const y = shapeCmd.params[idx + 1] as number;
+        const z = shapeCmd.params[idx + 2] as number;
+        const scale = (shapeCmd.params[idx + 3] as number) || 1;
+        
+        const voxelCmds = processVoxelObjectCommand(name, x, y, z, scale);
+        result.push(...voxelCmds);
+        continue;
+      }
+      
+      // Standard shape command
       const fillCommands = shapeToFillCommands(shapeCmd);
       result.push(...fillCommands);
     } else if (trimmed.startsWith('fill ') || trimmed.startsWith('setblock ') || trimmed.startsWith('forceload ')) {

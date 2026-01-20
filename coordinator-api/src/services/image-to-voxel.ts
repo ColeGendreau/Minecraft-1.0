@@ -1,0 +1,451 @@
+/**
+ * Image-to-Voxel Pipeline
+ * 
+ * Converts images (logos, pixel art, photos) into Minecraft builds.
+ * 
+ * Features:
+ * - Color quantization to Minecraft block palette
+ * - 2D wall builds (flat pixel art)
+ * - 3D extruded builds (pixel art with depth)
+ * - Support for transparency
+ */
+
+// Minecraft block colors - mapped to RGB values
+// These are the most commonly used colored blocks
+const MINECRAFT_PALETTE: { block: string; rgb: [number, number, number] }[] = [
+  // Concrete (most vibrant colors)
+  { block: 'white_concrete', rgb: [207, 213, 214] },
+  { block: 'orange_concrete', rgb: [224, 97, 1] },
+  { block: 'magenta_concrete', rgb: [169, 48, 159] },
+  { block: 'light_blue_concrete', rgb: [36, 137, 199] },
+  { block: 'yellow_concrete', rgb: [241, 175, 21] },
+  { block: 'lime_concrete', rgb: [94, 169, 24] },
+  { block: 'pink_concrete', rgb: [214, 101, 143] },
+  { block: 'gray_concrete', rgb: [55, 58, 62] },
+  { block: 'light_gray_concrete', rgb: [125, 125, 115] },
+  { block: 'cyan_concrete', rgb: [21, 119, 136] },
+  { block: 'purple_concrete', rgb: [100, 32, 156] },
+  { block: 'blue_concrete', rgb: [45, 47, 143] },
+  { block: 'brown_concrete', rgb: [96, 60, 32] },
+  { block: 'green_concrete', rgb: [73, 91, 36] },
+  { block: 'red_concrete', rgb: [142, 33, 33] },
+  { block: 'black_concrete', rgb: [8, 10, 15] },
+  
+  // Wool (softer colors)
+  { block: 'white_wool', rgb: [234, 236, 237] },
+  { block: 'orange_wool', rgb: [241, 118, 20] },
+  { block: 'magenta_wool', rgb: [189, 68, 179] },
+  { block: 'light_blue_wool', rgb: [58, 175, 217] },
+  { block: 'yellow_wool', rgb: [249, 198, 40] },
+  { block: 'lime_wool', rgb: [112, 185, 26] },
+  { block: 'pink_wool', rgb: [238, 141, 172] },
+  { block: 'cyan_wool', rgb: [21, 138, 145] },
+  { block: 'purple_wool', rgb: [122, 42, 173] },
+  { block: 'blue_wool', rgb: [53, 57, 157] },
+  { block: 'brown_wool', rgb: [114, 72, 41] },
+  { block: 'green_wool', rgb: [85, 110, 28] },
+  { block: 'red_wool', rgb: [161, 39, 35] },
+  { block: 'black_wool', rgb: [21, 21, 26] },
+  
+  // Terracotta (earthy tones)
+  { block: 'white_terracotta', rgb: [210, 178, 161] },
+  { block: 'orange_terracotta', rgb: [162, 84, 38] },
+  { block: 'yellow_terracotta', rgb: [186, 133, 35] },
+  { block: 'brown_terracotta', rgb: [77, 51, 36] },
+  { block: 'red_terracotta', rgb: [143, 61, 47] },
+  { block: 'black_terracotta', rgb: [37, 23, 16] },
+  
+  // Special blocks
+  { block: 'gold_block', rgb: [246, 208, 62] },
+  { block: 'iron_block', rgb: [220, 220, 220] },
+  { block: 'diamond_block', rgb: [98, 219, 214] },
+  { block: 'emerald_block', rgb: [42, 176, 66] },
+  { block: 'lapis_block', rgb: [31, 67, 140] },
+  { block: 'redstone_block', rgb: [170, 26, 6] },
+  { block: 'coal_block', rgb: [16, 16, 16] },
+  { block: 'netherite_block', rgb: [66, 61, 63] },
+  { block: 'copper_block', rgb: [192, 107, 79] },
+  
+  // Natural blocks
+  { block: 'oak_planks', rgb: [162, 130, 78] },
+  { block: 'spruce_planks', rgb: [115, 85, 49] },
+  { block: 'birch_planks', rgb: [196, 179, 123] },
+  { block: 'dark_oak_planks', rgb: [67, 43, 20] },
+  { block: 'stone', rgb: [126, 126, 126] },
+  { block: 'cobblestone', rgb: [128, 128, 128] },
+  { block: 'stone_bricks', rgb: [122, 122, 122] },
+  { block: 'bricks', rgb: [150, 97, 83] },
+  { block: 'sandstone', rgb: [223, 214, 170] },
+  { block: 'quartz_block', rgb: [235, 229, 222] },
+  { block: 'prismarine', rgb: [99, 156, 151] },
+  { block: 'sea_lantern', rgb: [172, 199, 190] },
+  { block: 'glowstone', rgb: [171, 131, 84] },
+  { block: 'obsidian', rgb: [15, 11, 25] },
+  
+  // Glass (for transparency effects)
+  { block: 'glass', rgb: [200, 220, 230] },
+  { block: 'white_stained_glass', rgb: [255, 255, 255] },
+  { block: 'light_blue_stained_glass', rgb: [102, 153, 216] },
+];
+
+/**
+ * Calculate color distance (Euclidean in RGB space)
+ */
+function colorDistance(c1: [number, number, number], c2: [number, number, number]): number {
+  return Math.sqrt(
+    Math.pow(c1[0] - c2[0], 2) +
+    Math.pow(c1[1] - c2[1], 2) +
+    Math.pow(c1[2] - c2[2], 2)
+  );
+}
+
+/**
+ * Find the closest Minecraft block to a given RGB color
+ */
+export function findClosestBlock(r: number, g: number, b: number): string {
+  let closest = MINECRAFT_PALETTE[0];
+  let minDistance = Infinity;
+  
+  for (const entry of MINECRAFT_PALETTE) {
+    const distance = colorDistance([r, g, b], entry.rgb);
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = entry;
+    }
+  }
+  
+  return closest.block;
+}
+
+/**
+ * Represents a voxel grid (3D array of blocks)
+ */
+export interface VoxelGrid {
+  width: number;
+  height: number;
+  depth: number;
+  blocks: (string | null)[][][]; // null = air
+}
+
+/**
+ * Convert a pixel grid to Minecraft fill commands
+ * Builds a 2D wall at the specified position
+ * 
+ * @param pixels - 2D array of {r, g, b, a} values
+ * @param x - X position of bottom-left corner
+ * @param y - Y position of bottom-left corner  
+ * @param z - Z position (flat wall)
+ * @param scale - How many blocks per pixel (1 = 1:1, 2 = 2x2 per pixel)
+ * @param facing - 'north', 'south', 'east', 'west' - which way the wall faces
+ */
+export function pixelsToWallCommands(
+  pixels: { r: number; g: number; b: number; a: number }[][],
+  x: number,
+  y: number,
+  z: number,
+  scale: number = 1,
+  facing: 'north' | 'south' | 'east' | 'west' = 'south'
+): string[] {
+  const commands: string[] = [];
+  const height = pixels.length;
+  const width = pixels[0]?.length || 0;
+  
+  // Group adjacent same-color pixels for efficiency
+  // For now, simple approach: one command per pixel (row optimization later)
+  
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const pixel = pixels[height - 1 - py][px]; // Flip Y (images are top-down)
+      
+      // Skip transparent pixels
+      if (pixel.a < 128) continue;
+      
+      const block = findClosestBlock(pixel.r, pixel.g, pixel.b);
+      
+      // Calculate world position based on facing
+      let x1, y1, z1, x2, y2, z2;
+      
+      if (facing === 'south' || facing === 'north') {
+        x1 = x + px * scale;
+        x2 = x + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z;
+        z2 = z;
+      } else {
+        z1 = z + px * scale;
+        z2 = z + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        x1 = x;
+        x2 = x;
+      }
+      
+      if (scale === 1) {
+        commands.push(`setblock ${x1} ${y1} ${z1} ${block}`);
+      } else {
+        commands.push(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${block}`);
+      }
+    }
+  }
+  
+  return commands;
+}
+
+/**
+ * Convert a pixel grid to an extruded 3D build
+ * Each pixel becomes a column of blocks with specified depth
+ */
+export function pixelsToExtrudedCommands(
+  pixels: { r: number; g: number; b: number; a: number }[][],
+  x: number,
+  y: number,
+  z: number,
+  scale: number = 1,
+  depth: number = 5,
+  facing: 'north' | 'south' | 'east' | 'west' = 'south'
+): string[] {
+  const commands: string[] = [];
+  const height = pixels.length;
+  const width = pixels[0]?.length || 0;
+  
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const pixel = pixels[height - 1 - py][px];
+      
+      if (pixel.a < 128) continue;
+      
+      const block = findClosestBlock(pixel.r, pixel.g, pixel.b);
+      
+      let x1, y1, z1, x2, y2, z2;
+      
+      if (facing === 'south') {
+        x1 = x + px * scale;
+        x2 = x + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z;
+        z2 = z + depth - 1;
+      } else if (facing === 'north') {
+        x1 = x + px * scale;
+        x2 = x + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z - depth + 1;
+        z2 = z;
+      } else if (facing === 'east') {
+        x1 = x;
+        x2 = x + depth - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z + px * scale;
+        z2 = z + (px + 1) * scale - 1;
+      } else {
+        x1 = x - depth + 1;
+        x2 = x;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z + px * scale;
+        z2 = z + (px + 1) * scale - 1;
+      }
+      
+      commands.push(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${block}`);
+    }
+  }
+  
+  return commands;
+}
+
+/**
+ * Optimize commands by merging adjacent same-block fills
+ * This dramatically reduces command count for large images
+ */
+export function optimizeCommands(commands: string[]): string[] {
+  // Group by Y level and block type, then merge horizontal runs
+  // For now, return as-is (optimization can be added later)
+  return commands;
+}
+
+/**
+ * Parse image data URL or fetch from URL
+ * Returns a 2D pixel array
+ * 
+ * Note: This is a placeholder - actual implementation needs
+ * either canvas (browser) or sharp/jimp (node) for image processing
+ */
+export interface ImageData {
+  width: number;
+  height: number;
+  pixels: { r: number; g: number; b: number; a: number }[][];
+}
+
+/**
+ * Create a simple test pattern (checkerboard)
+ */
+export function createTestPattern(width: number, height: number): ImageData {
+  const pixels: { r: number; g: number; b: number; a: number }[][] = [];
+  
+  for (let y = 0; y < height; y++) {
+    const row: { r: number; g: number; b: number; a: number }[] = [];
+    for (let x = 0; x < width; x++) {
+      const isWhite = (x + y) % 2 === 0;
+      row.push({
+        r: isWhite ? 255 : 0,
+        g: isWhite ? 255 : 0,
+        b: isWhite ? 255 : 0,
+        a: 255
+      });
+    }
+    pixels.push(row);
+  }
+  
+  return { width, height, pixels };
+}
+
+/**
+ * Create a gradient pattern for testing
+ */
+export function createGradientPattern(width: number, height: number): ImageData {
+  const pixels: { r: number; g: number; b: number; a: number }[][] = [];
+  
+  for (let y = 0; y < height; y++) {
+    const row: { r: number; g: number; b: number; a: number }[] = [];
+    for (let x = 0; x < width; x++) {
+      row.push({
+        r: Math.floor((x / width) * 255),
+        g: Math.floor((y / height) * 255),
+        b: 128,
+        a: 255
+      });
+    }
+    pixels.push(row);
+  }
+  
+  return { width, height, pixels };
+}
+
+/**
+ * Hardcoded pixel art patterns for common requests
+ * These are hand-crafted detailed builds
+ */
+export const PIXEL_ART_LIBRARY: Record<string, ImageData> = {
+  // Simple heart shape (16x14)
+  heart: (() => {
+    const pattern = [
+      '  RR  RR  ',
+      ' RRRRRRRR ',
+      'RRRRRRRRRR',
+      'RRRRRRRRRR',
+      'RRRRRRRRRR',
+      ' RRRRRRRR ',
+      '  RRRRRR  ',
+      '   RRRR   ',
+      '    RR    ',
+    ];
+    const colorMap: Record<string, [number, number, number]> = {
+      'R': [255, 0, 0],
+      ' ': [0, 0, 0], // transparent
+    };
+    return patternToImageData(pattern, colorMap);
+  })(),
+  
+  // Star shape
+  star: (() => {
+    const pattern = [
+      '    YY    ',
+      '    YY    ',
+      '   YYYY   ',
+      'YYYYYYYYYY',
+      ' YYYYYYYY ',
+      '  YYYYYY  ',
+      '  YY  YY  ',
+      ' YY    YY ',
+    ];
+    const colorMap: Record<string, [number, number, number]> = {
+      'Y': [255, 215, 0],
+      ' ': [0, 0, 0],
+    };
+    return patternToImageData(pattern, colorMap);
+  })(),
+  
+  // Smiley face
+  smiley: (() => {
+    const pattern = [
+      '  YYYY  ',
+      ' YYYYYY ',
+      'YYBYYBYY',
+      'YYYYYYYY',
+      'YYYYYYYY',
+      'YBYYBYYY',
+      ' YBBBYY ',
+      '  YYYY  ',
+    ];
+    const colorMap: Record<string, [number, number, number]> = {
+      'Y': [255, 215, 0],
+      'B': [0, 0, 0],
+      ' ': [0, 0, 0],
+    };
+    return patternToImageData(pattern, colorMap, true);
+  })(),
+};
+
+/**
+ * Convert a text pattern to ImageData
+ */
+function patternToImageData(
+  pattern: string[],
+  colorMap: Record<string, [number, number, number]>,
+  transparentSpace: boolean = true
+): ImageData {
+  const height = pattern.length;
+  const width = Math.max(...pattern.map(row => row.length));
+  const pixels: { r: number; g: number; b: number; a: number }[][] = [];
+  
+  for (let y = 0; y < height; y++) {
+    const row: { r: number; g: number; b: number; a: number }[] = [];
+    for (let x = 0; x < width; x++) {
+      const char = pattern[y][x] || ' ';
+      const color = colorMap[char] || [0, 0, 0];
+      const isTransparent = transparentSpace && char === ' ';
+      
+      row.push({
+        r: color[0],
+        g: color[1],
+        b: color[2],
+        a: isTransparent ? 0 : 255
+      });
+    }
+    pixels.push(row);
+  }
+  
+  return { width, height, pixels };
+}
+
+/**
+ * Process an image build command
+ * Format: image(name_or_url, x, y, z, scale, depth, facing)
+ */
+export function processImageCommand(
+  name: string,
+  x: number,
+  y: number,
+  z: number,
+  scale: number = 2,
+  depth: number = 1,
+  facing: 'north' | 'south' | 'east' | 'west' = 'south'
+): string[] {
+  // Check if it's a built-in pattern
+  const imageData = PIXEL_ART_LIBRARY[name.toLowerCase()];
+  
+  if (!imageData) {
+    console.warn(`Unknown image pattern: ${name}`);
+    return [];
+  }
+  
+  if (depth <= 1) {
+    return pixelsToWallCommands(imageData.pixels, x, y, z, scale, facing);
+  } else {
+    return pixelsToExtrudedCommands(imageData.pixels, x, y, z, scale, depth, facing);
+  }
+}
+
