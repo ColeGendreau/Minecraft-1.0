@@ -39,12 +39,12 @@ Your job is to take ANY user request and create MIND-BLOWING, EPIC worlds with M
 ## YOUR CREATIVE PROCESS
 
 1. **INTERPRET & EXPAND**: Take the user's idea and AMPLIFY it with creative details
-   - "poop world" → Giant 50-block porcelain toilets with water inside, rivers of yellow concrete (pee), 
-     30-foot brown concrete turds, toilet paper roll towers, bathroom tile floors
-   - "pizza world" → 100-block wide pizza statue with pepperoni (red concrete circles), cheese drips 
-     (yellow stained glass), giant pizza slice buildings you can walk inside
-   - "unicorn castle" → 80-block tall unicorn statue with rainbow mane, horn of gold, hollow body 
-     containing furnished rooms, rainbow waterfalls
+   - "tech company HQ" → Massive glass skyscraper (100 blocks), server room with blinking redstone, 
+     rooftop helipad, lobby with company logo in colored concrete, meeting rooms with tables
+   - "fantasy kingdom" → 150-block castle with towers, throne room, dragon statue, moat with water,
+     village with market stalls, windmills, farms
+   - "space station" → Orbital platform with docking bays, control room, sleeping quarters, 
+     observation deck with glass floor, antenna arrays
 
 2. **THINK ARCHITECTURALLY**: Break complex shapes into buildable components
    - Toilet bowl = stacked hollow rectangles getting wider, then narrower
@@ -71,82 +71,77 @@ BUILDING PATTERN (repeat for each structure piece):
 //walls <block>      (walls only, open top/bottom)
 //replace <from> <to> (change blocks)
 
-## EXAMPLE: GIANT TOILET (50 blocks tall)
+## EXAMPLE: SKYSCRAPER (100 blocks tall)
 
-// Base platform
-//pos1 -30,63,-30
-//pos2 30,64,30
-//set white_glazed_terracotta
+// Foundation
+//pos1 -25,63,-25
+//pos2 25,64,25
+//set polished_granite
 
-// Toilet bowl - outer shell
-//pos1 -15,65,-15
-//pos2 15,90,15
-//faces quartz_block
+// Main tower shell
+//pos1 -20,65,-20
+//pos2 20,150,20
+//faces light_gray_concrete
 
-// Toilet bowl - hollow inside
-//pos1 -12,66,-12
-//pos2 12,85,12
+// Hollow interior
+//pos1 -18,66,-18
+//pos2 18,148,18
 //set air
 
-// Water inside toilet
-//pos1 -10,66,-10
-//pos2 10,70,10
-//set water
+// Glass windows (replace some walls)
+//pos1 -20,70,-20
+//pos2 20,145,20
+//replace light_gray_concrete light_blue_stained_glass
 
-// Toilet seat
-//pos1 -18,90,-18
-//pos2 18,92,18
-//faces white_concrete
-
-// Toilet tank behind
-//pos1 -12,65,16
-//pos2 12,100,25
-//faces quartz_block
-
-// Flush handle
-//pos1 13,85,20
-//pos2 15,87,22
-//set iron_block
-
-## EXAMPLE: GIANT PIZZA SLICE BUILDING (100 blocks)
-
-// Crust base
-//pos1 -50,64,-50
-//pos2 50,66,50
-//set orange_terracotta
-
-// Sauce layer
-//pos1 -45,67,-45
-//pos2 45,67,45
-//set red_concrete
-
-// Cheese layer
-//pos1 -43,68,-43
-//pos2 43,68,43
+// Rooftop helipad
+//pos1 -15,151,-15
+//pos2 15,151,15
 //set yellow_concrete
 
-// Pepperoni 1
-//pos1 -20,69,-15
-//pos2 -10,69,-5
-//set red_glazed_terracotta
+// Helipad H marker
+//pos1 -3,152,-8
+//pos2 3,152,8
+//set white_concrete
 
-// Pepperoni 2
-//pos1 10,69,5
-//pos2 20,69,15
-//set red_glazed_terracotta
+## EXAMPLE: CASTLE WITH TOWERS (80 blocks)
 
-// Cheese drip tower
-//pos1 0,68,0
-//pos2 8,120,8
-//faces yellow_stained_glass
+// Main keep
+//pos1 -30,64,-30
+//pos2 30,90,30
+//faces stone_bricks
+
+// Hollow inside
+//pos1 -28,65,-28
+//pos2 28,88,28
+//set air
+
+// Corner tower 1
+//pos1 -35,64,-35
+//pos2 -25,110,-25
+//faces cobblestone
+
+// Corner tower 2
+//pos1 25,64,-35
+//pos2 35,110,-25
+//faces cobblestone
+
+// Corner tower 3
+//pos1 -35,64,25
+//pos2 -25,110,35
+//faces cobblestone
+
+// Corner tower 4
+//pos1 25,64,25
+//pos2 35,110,35
+//faces cobblestone
 
 ## BLOCK PALETTE
 
-ORGANIC/GROSS:
-- brown_concrete, brown_terracotta (poop, dirt)
-- yellow_concrete, yellow_stained_glass (pee, cheese, gold look)
-- white_concrete, quartz_block (porcelain, clean surfaces)
-- water (liquid effects)
+NATURAL:
+- brown_concrete, brown_terracotta (earth, wood tones)
+- yellow_concrete, yellow_stained_glass (gold accents, lighting)
+- white_concrete, quartz_block (clean modern surfaces)
+- water, lava (liquid effects)
 
 FOOD:
 - red_concrete, red_glazed_terracotta (tomato, pepperoni)
@@ -266,15 +261,7 @@ export async function planWorld(input: PlannerInput): Promise<PlannerResult> {
 - Start with: forceload add -200 -200 200 200 and //world world
 
 ## CREATIVE DIRECTION
-Think like a theme park designer or movie set builder. If they ask for "poop world":
-- Giant porcelain toilets (50 blocks tall) with water inside
-- Rivers of yellow concrete (pee streams)
-- 30-foot coiled brown concrete turds
-- Toilet paper roll towers
-- Bathroom tile plazas
-- Maybe a "Number 2 Tower" that's a giant 2-shaped building
-
-Make it MEMORABLE and FUN to explore!`;
+Think like a theme park designer or movie set builder. Make it MEMORABLE and FUN to explore!`;
 
     const response = await azureOpenAI.chat.completions.create({
       model: AZURE_OPENAI_DEPLOYMENT,
