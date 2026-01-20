@@ -1,228 +1,283 @@
 # ⛏️ World Forge
 
-**Create ANY Minecraft world you can imagine using natural language.**
+**Describe any Minecraft world in plain English. AI builds it.**
 
-Floating sky islands? Neon cyberpunk city? Giant basketball houses? Just describe it — AI interprets your vision and builds it in a live Minecraft server.
+Just type what you imagine — *"a golden castle with emerald towers surrounded by a moat"* — and watch GPT-4o interpret your vision, generate WorldEdit commands, and construct it on a live server.
 
-![World Forge Dashboard](https://img.shields.io/badge/Status-Live-brightgreen) ![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4) ![Kubernetes](https://img.shields.io/badge/Platform-Kubernetes-326CE5) ![TypeScript](https://img.shields.io/badge/Code-TypeScript-3178C6)
+[![Live](https://img.shields.io/badge/Status-Live-brightgreen)](/) [![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4)](/) [![Kubernetes](https://img.shields.io/badge/Platform-AKS-326CE5)](/) [![TypeScript](https://img.shields.io/badge/Code-TypeScript-3178C6)](/)
 
 ---
 
-## 📑 Table of Contents
+## 📑 Contents
 
-- [What is World Forge?](#-what-is-world-forge)
-- [Architecture](#-architecture)
+- [How It Works](#-how-it-works)
 - [Quick Start](#-quick-start)
-- [Example Worlds](#-example-worlds)
-- [Infrastructure Control](#-infrastructure-control)
+- [Architecture](#-architecture)
 - [Accessing Services](#-accessing-services)
+- [GitHub Workflows](#-github-workflows)
 - [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Self-Hosting Guide](#-self-hosting-guide)
-- [Monitoring & Observability](#-monitoring--observability)
-- [Cost](#-cost)
-- [Features](#-features)
-- [Roadmap](#-roadmap)
+- [Self-Hosting](#-self-hosting)
+- [Cost Breakdown](#-cost-breakdown)
+- [Monitoring](#-monitoring)
 
 ---
 
-## ✨ What is World Forge?
-
-World Forge is an AI-powered Minecraft world creation platform. You describe any world in plain English, and the system:
-
-1. **Interprets** your description using Azure OpenAI (GPT-4o)
-2. **Generates** a structured world configuration (biomes, structures, game rules)
-3. **Configures** a live Minecraft server via RCON
-4. **Builds** custom structures using WorldEdit commands
-
-No Minecraft knowledge required. No complex configuration. Just imagination.
-
-### How It Works
+## ✨ How It Works
 
 ```
-You: "Giant basketball-shaped houses with a court made of gold blocks"
-        ↓
-   GPT-4o interprets your vision creatively
-        ↓
-   Generates: flat world + WorldEdit commands for basketball structures
-        ↓
-   RCON executes commands to BUILD your world
-        ↓
-   You connect and explore your creation
+┌─────────────────────────────────────────────────────────────────┐
+│  "A massive golden pyramid with four emerald towers"            │
+└────────────────────────────┬────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🤖 GPT-4o interprets your description creatively               │
+│     → Generates world config (biomes, rules, structures)        │
+│     → Creates 50+ WorldEdit commands for epic builds            │
+└────────────────────────────┬────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🔧 Coordinator API executes via RCON                           │
+│     → Loads chunks with forceload                               │
+│     → Builds structures with //pos1, //pos2, //set, //faces     │
+│     → Announces world name, restarts server                     │
+└────────────────────────────┬────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  🎮 Connect and explore your creation!                          │
+│     → Creative mode, peaceful, always daytime                   │
+│     → Fly around massive AI-built structures                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Features:**
+- 🏰 **Massive structures** — Towers 50-150 blocks tall, platforms 100+ blocks wide
+- 🎨 **Creative interpretation** — AI generates evocative names, not just your words
+- ⚡ **Auto-restart** — Server restarts with new world after building completes
+- 🌅 **Always daytime** — Perfect lighting to admire your creations
+
+---
+
+## 🚀 Quick Start
+
+### 1. Deploy Control Plane
+```
+GitHub → Actions → "1. Control Plane (Dashboard)" → Run workflow → deploy
+```
+*Wait ~5 minutes for Dashboard + Coordinator to spin up*
+
+### 2. Deploy Minecraft Server
+```
+Open Dashboard URL → Click "Deploy" button
+```
+*Wait ~10 minutes for AKS + Minecraft + Monitoring*
+
+### 3. Forge a World
+```
+Dashboard → "Forge New World" → Describe anything → Submit
+```
+*AI generates and builds your world, server restarts*
+
+### 4. Play
+```
+Minecraft → Multiplayer → Add Server → <PUBLIC_IP>:25565
 ```
 
 ---
 
 ## 🏗️ Architecture
 
-World Forge uses a **two-tier infrastructure** model for cost efficiency:
+World Forge uses a **two-tier model** — cheap always-on control plane, expensive Minecraft infra only when needed.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  GITHUB ACTIONS                                                         │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  "Permanent Infrastructure" workflow                               │  │
-│  │  • Deploy  → creates Dashboard + Coordinator (~$20/month)          │  │
-│  │  • Destroy → tears down control plane                              │  │
-│  │  • Status  → shows current state                                   │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-└────────────────────────────────┬────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PERMANENT INFRA (Azure Container Apps)              ~$20/month         │
-│  ┌──────────────────┐    ┌────────────────────┐                        │
-│  │    Dashboard     │───▶│  Coordinator API   │                        │
-│  │    (Next.js)     │    │  (Node.js + RCON)  │                        │
-│  └──────────────────┘    └─────────┬──────────┘                        │
-│                                    │                                    │
-│                          ┌─────────┴─────────┐                         │
-│                          ▼                   ▼                         │
-│                   [Deploy Button]    [Destroy Button]                  │
-└──────────────────────────┬───────────────────┬──────────────────────────┘
-                           │                   │
-                           ▼                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  MAIN INFRA (Azure Kubernetes Service)               ~$150/month        │
-│  ┌───────────┐  ┌─────────────────┐  ┌──────────────┐                  │
-│  │    AKS    │  │  Azure OpenAI   │  │  Monitoring  │                  │
-│  │ (MC svr)  │  │    (GPT-4o)     │  │  (Grafana)   │                  │
-│  └───────────┘  └─────────────────┘  └──────────────┘                  │
-│         Deployed/Destroyed via Dashboard buttons                        │
-└─────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  CONTROL PLANE (Azure Container Apps)              ~$20/month      │
+│                                                                    │
+│    ┌─────────────┐         ┌──────────────────┐                   │
+│    │  Dashboard  │────────▶│  Coordinator API │                   │
+│    │  (Next.js)  │         │  (RCON + OpenAI) │                   │
+│    └─────────────┘         └────────┬─────────┘                   │
+│          │                          │                              │
+│    [Deploy] [Destroy]        [Forge Worlds]                       │
+└──────────┬──────────────────────────┼──────────────────────────────┘
+           │                          │
+           ▼                          ▼
+┌────────────────────────────────────────────────────────────────────┐
+│  MINECRAFT INFRA (Azure Kubernetes Service)       ~$150/month      │
+│                                                                    │
+│    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
+│    │  Minecraft  │   │  Azure OpenAI │   │   Prometheus   │       │
+│    │   (Paper)   │   │   (GPT-4o)    │   │   + Grafana    │       │
+│    │  WorldEdit  │   │               │   │                │       │
+│    └─────────────┘   └───────────────┘   └────────────────┘       │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### Why Two Tiers?
-
-| Tier | Cost | Purpose | Controlled By |
-|------|------|---------|---------------|
-| **Permanent** | ~$20/month | Dashboard + Coordinator (always on) | GitHub Actions |
-| **Main** | ~$150/month | Minecraft + AI + Monitoring | Dashboard buttons |
-
-**Result:** Pay ~$20/month to have the dashboard always available. Only pay ~$150/month when actually playing Minecraft.
-
----
-
-## 🚀 Quick Start
-
-### 1. Deploy Permanent Infrastructure (from GitHub)
-
-1. Go to **Actions** → **"Permanent Infrastructure"**
-2. Click **"Run workflow"** → Select **"deploy"**
-3. Wait ~5 minutes
-
-### 2. Deploy Minecraft (from Dashboard)
-
-1. Open the Dashboard URL (shown in workflow output)
-2. Click **"Deploy"** button
-3. Wait ~10 minutes for Minecraft to start
-
-### 3. Create a World
-
-1. Click **"Forge New World"**
-2. Describe your world: *"A medieval castle on a floating island with waterfalls"*
-3. Watch GPT-4o interpret and build it!
-
-### 4. Connect to Minecraft
-
-```
-Server Address: <PUBLIC_IP>:25565
-```
-
----
-
-## 🌍 Example Worlds
-
-Just describe what you want — the AI figures out the rest:
-
-| Your Description | What Gets Built |
-|-----------------|-----------------|
-| *"Floating sky islands connected by rope bridges with waterfalls"* | Void world with custom island structures, water features |
-| *"Neon cyberpunk cityscape with towering skyscrapers"* | Flat urban terrain, beacon-lit towers, dark atmosphere |
-| *"Giant basketball-shaped houses with gold block courts"* | Creative structures using spheres and colored blocks |
-| *"A Fullscript-inspired wellness city with tech buildings"* | Green-themed metropolis with emerald and quartz towers |
-| *"Viking village with longhouses and fjord coastlines"* | Snowy taiga, custom Nordic buildings, coastal terrain |
-| *"Haunted gothic castle with graveyards"* | Dark forest, castle structure, crypts, cobwebs, bats |
-| *"Japanese cherry blossom temple gardens"* | Cherry grove biome, torii gates, koi ponds, pagodas |
-
-The AI generates **creative names** (not just your prompt words) and **WorldEdit commands** to actually build the structures!
-
----
-
-## 🎮 Infrastructure Control
-
-### From GitHub Actions
-
-| Workflow | Action | What It Does |
-|----------|--------|--------------|
-| **Permanent Infrastructure** | `deploy` | Creates Dashboard + Coordinator |
-| **Permanent Infrastructure** | `destroy` | Removes control plane |
-| **Permanent Infrastructure** | `status` | Shows current state |
-
-### From Dashboard
-
-| Button | What It Does |
-|--------|--------------|
-| **Deploy** | Starts AKS + Minecraft + Monitoring |
-| **Destroy** | Stops everything (saves money) |
-
-### Current World View
-
-The **Worlds** page shows:
-- **Current World** — The active deployed world
-- **Building** — Shows when a new world is being forged
-- **History** — Past worlds with "Rebuild" button
+**Why?** Pay $20/month for the dashboard. Only pay $150/month when actually playing.
 
 ---
 
 ## 🌐 Accessing Services
 
-### Dashboard
-```
-https://mc-demo-dev-dashboard.salmonground-cc71667a.westus3.azurecontainerapps.io
-```
+| Service | URL |
+|---------|-----|
+| **Dashboard** | Shown in GitHub Actions output after deploy |
+| **Minecraft** | `<PUBLIC_IP>:25565` — shown on Dashboard |
+| **Grafana** | `https://grafana.<PUBLIC_IP>.nip.io` |
+| **Coordinator API** | `https://mc-demo-dev-coordinator.<region>.azurecontainerapps.io` |
 
-### Minecraft Server
-```
-<PUBLIC_IP>:25565
-```
-Get the IP from Dashboard or:
+### Get Minecraft IP
 ```bash
+# From Azure CLI
 az network public-ip show \
   --resource-group MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3 \
   --name mc-demo-dev-ingress-ip \
   --query ipAddress -o tsv
 ```
 
-### Grafana (Monitoring)
-```
-https://grafana.<PUBLIC_IP>.nip.io
-```
-- **Username:** `admin`
-- **Password:** Check `apps/monitoring/values.yaml`
+---
 
-### Coordinator API
-```
-https://mc-demo-dev-coordinator.salmonground-cc71667a.westus3.azurecontainerapps.io
+## ⚙️ GitHub Workflows
+
+| Workflow | Purpose |
+|----------|---------|
+| **1. Control Plane (Dashboard)** | Deploy/destroy the Dashboard + Coordinator |
+| **2. Minecraft Server** | Provision/destroy AKS + OpenAI (triggered by INFRASTRUCTURE_STATE) |
+| **3. Deploy Minecraft Apps** | Install Minecraft + monitoring on AKS |
+| **Auto: Build Containers** | Rebuild containers when code changes |
+
+### Typical Usage
+
+```bash
+# First time setup
+1. Run "1. Control Plane (Dashboard)" → deploy
+
+# Start playing  
+2. Dashboard → Deploy button
+
+# Stop paying for Minecraft
+3. Dashboard → Destroy button
+
+# Completely shut down ($0/month)
+4. Run "1. Control Plane (Dashboard)" → destroy
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | Next.js 14, Tailwind CSS | Dashboard UI |
-| **API** | Node.js, Express, TypeScript | Backend coordination |
-| **AI** | Azure OpenAI (GPT-4o) | Natural language → world config |
-| **Game Server** | Paper MC 1.21+ | Minecraft server |
-| **Plugins** | WorldEdit 7.4 | Structure building via RCON |
-| **Permanent Infra** | Azure Container Apps | Dashboard + Coordinator |
-| **Main Infra** | Azure Kubernetes Service | Minecraft + Monitoring |
-| **IaC** | Terraform | Infrastructure as Code |
-| **CI/CD** | GitHub Actions | Automated deployments |
-| **Auth** | OIDC (OpenID Connect) | Passwordless Azure auth |
-| **Monitoring** | Prometheus + Grafana | Metrics & dashboards |
+| Component | Technology |
+|-----------|------------|
+| **Frontend** | Next.js 14, Tailwind CSS, TypeScript |
+| **Backend** | Node.js, Express, TypeScript |
+| **AI** | Azure OpenAI GPT-4o |
+| **Game Server** | Paper MC 1.21 + WorldEdit 7.4 |
+| **Control Plane** | Azure Container Apps |
+| **Minecraft Infra** | Azure Kubernetes Service (AKS) |
+| **IaC** | Terraform |
+| **CI/CD** | GitHub Actions + OIDC |
+| **Monitoring** | Prometheus + Grafana |
+
+---
+
+## 🏠 Self-Hosting
+
+### Prerequisites
+- Azure subscription with Contributor access
+- GitHub repository (fork this)
+- Azure CLI + Terraform installed
+
+### Setup
+
+**1. Bootstrap Terraform state storage**
+```bash
+cd bootstrap && terraform init && terraform apply
+```
+
+**2. Create Azure OIDC credentials**
+```bash
+# Create app registration
+az ad app create --display-name "world-forge-github"
+
+# Add federated credential for GitHub Actions
+az ad app federated-credential create \
+  --id <APP_ID> \
+  --parameters '{
+    "name": "github-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:<YOUR_ORG>/<YOUR_REPO>:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+```
+
+**3. Set GitHub secrets**
+
+| Secret | Value |
+|--------|-------|
+| `AZURE_CLIENT_ID` | App registration client ID |
+| `AZURE_TENANT_ID` | Your Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+
+*No AI keys needed — Azure OpenAI credentials are pulled dynamically.*
+
+**4. Deploy**
+```
+GitHub Actions → "1. Control Plane (Dashboard)" → deploy
+```
+
+---
+
+## 💰 Cost Breakdown
+
+### Control Plane (always on)
+| Resource | Cost |
+|----------|------|
+| Dashboard (Container App) | ~$2/month |
+| Coordinator (Container App) | ~$12/month |
+| Container Registry | ~$5/month |
+| **Total** | **~$20/month** |
+
+### Minecraft Infrastructure (when deployed)
+| Resource | Cost |
+|----------|------|
+| AKS (2x Standard_D2ds_v5) | ~$140/month |
+| Azure OpenAI (GPT-4o) | ~$5-20/month |
+| Public IP | ~$3/month |
+| **Total** | **~$150/month** |
+
+### Cost Tips
+- **Destroy when not playing** — Main infra costs $0 when destroyed
+- **Use spot instances** — ~60% cheaper AKS nodes
+- **Scale coordinator to 0** — Save ~$10/month (adds cold start delay)
+
+---
+
+## 📊 Monitoring
+
+### Grafana Dashboards
+Access at `https://grafana.<PUBLIC_IP>.nip.io`
+- **Username:** `admin`
+- **Password:** See `apps/monitoring/values.yaml`
+
+| Dashboard | Shows |
+|-----------|-------|
+| Kubernetes / Cluster | Overall cluster health |
+| Kubernetes / Node | Per-node CPU/memory |
+| Kubernetes / Pod | Minecraft server metrics |
+
+### Prometheus Queries
+```promql
+# Minecraft CPU usage
+rate(container_cpu_usage_seconds_total{namespace="minecraft"}[5m])
+
+# Minecraft memory
+container_memory_usage_bytes{namespace="minecraft"}
+
+# Pod restarts
+kube_pod_container_status_restarts_total{namespace="minecraft"}
+```
+
+### Azure Portal
+**AKS Cluster → Insights** for live logs and performance metrics.
 
 ---
 
@@ -230,195 +285,23 @@ https://mc-demo-dev-coordinator.salmonground-cc71667a.westus3.azurecontainerapps
 
 ```
 world-forge/
-├── .github/workflows/
-│   ├── permanent-infra.yaml  # Deploy/destroy Dashboard + Coordinator
-│   ├── terraform.yaml        # Main infrastructure provisioning
-│   ├── deploy.yaml           # Minecraft + apps deployment
-│   └── dashboard-deploy.yaml # Build & push containers
-│
-├── dashboard/                 # Next.js frontend
-│   ├── app/
-│   │   ├── page.tsx          # Home page
-│   │   ├── create/           # World creation
-│   │   └── worlds/           # World list & details
-│   └── components/
-│
-├── coordinator-api/           # Backend API
-│   └── src/
-│       ├── routes/worlds.ts  # World creation endpoints
-│       ├── services/
-│       │   ├── ai-planner.ts # Azure OpenAI integration
-│       │   └── rcon-client.ts# Minecraft RCON
-│       └── types/
-│
-├── infra/                     # Main infrastructure (Terraform)
-│   ├── aks.tf                # Kubernetes cluster
-│   ├── openai.tf             # Azure OpenAI service
-│   ├── acr.tf                # Container registry
-│   └── publicip.tf           # Static IP
-│
-├── infra-permanent/           # Permanent infrastructure (Terraform)
-│   └── main.tf               # Dashboard + Coordinator Container Apps
-│
-├── apps/                      # Helm values
-│   ├── minecraft/values.yaml
-│   └── monitoring/values.yaml
-│
-└── INFRASTRUCTURE_STATE       # ON/OFF toggle for main infra
+├── .github/workflows/       # CI/CD pipelines
+├── dashboard/               # Next.js frontend
+├── coordinator-api/         # Node.js backend (RCON + AI)
+├── infra/                   # Main infrastructure (Terraform)
+├── infra-permanent/         # Control plane (Terraform)
+├── apps/                    # Helm values (minecraft, monitoring)
+└── INFRASTRUCTURE_STATE     # ON/OFF toggle for main infra
 ```
-
----
-
-## 🚀 Self-Hosting Guide
-
-### Prerequisites
-
-- **Azure subscription** with Contributor access
-- **GitHub repository** (fork this repo)
-- **Azure CLI** installed locally
-- **Terraform** installed locally
-
-### Step 1: Bootstrap Terraform State
-
-```bash
-cd bootstrap
-terraform init
-terraform apply
-```
-
-### Step 2: Configure GitHub OIDC
-
-1. Create Azure App Registration
-2. Add Federated Credential for GitHub Actions
-3. Set subject: `repo:<owner>/<repo>:ref:refs/heads/main`
-
-### Step 3: Set GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `AZURE_CLIENT_ID` | App registration client ID |
-| `AZURE_TENANT_ID` | Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-
-**Note:** No AI API keys needed! Azure OpenAI credentials are pulled dynamically from the infrastructure.
-
-### Step 4: Deploy
-
-1. **GitHub Actions** → **Permanent Infrastructure** → **Run workflow** → `deploy`
-2. Wait for Dashboard URL
-3. Click **Deploy** button on Dashboard
-
----
-
-## 📊 Monitoring & Observability
-
-### Grafana Dashboards
-
-| Dashboard | Description |
-|-----------|-------------|
-| **Kubernetes / Compute Resources / Cluster** | Overall cluster metrics |
-| **Kubernetes / Compute Resources / Node** | Per-node usage |
-| **Kubernetes / Compute Resources / Pod** | Per-pod metrics |
-
-### Prometheus Metrics
-
-```promql
-# Minecraft server CPU
-container_cpu_usage_seconds_total{namespace="minecraft"}
-
-# Minecraft memory usage
-container_memory_usage_bytes{namespace="minecraft"}
-
-# Pod restart count
-kube_pod_container_status_restarts_total{namespace="minecraft"}
-```
-
-### Azure Log Analytics
-
-- **Azure Portal** → **AKS Cluster** → **Insights**
-- Live container logs
-- Performance metrics
-
----
-
-## 💰 Cost
-
-### Permanent Infrastructure (always on)
-
-| Resource | Monthly Cost |
-|----------|--------------|
-| Dashboard (Container App) | ~$1.50 |
-| Coordinator (Container App) | ~$12 |
-| Container Registry (Basic) | $5 |
-| Log Analytics | ~$1 |
-| **Total** | **~$20/month** |
-
-### Main Infrastructure (when deployed)
-
-| Resource | Monthly Cost |
-|----------|--------------|
-| AKS (2 nodes, D2ds_v6) | ~$140 |
-| Azure OpenAI (GPT-4o) | ~$5-20 (usage) |
-| Public IP | ~$3 |
-| **Total** | **~$150/month** |
-
-### Cost Optimization
-
-- **Destroy main infra when not playing** — $0/day when OFF
-- **Set coordinator minReplicas=0** — Save ~$10/month (adds cold start)
-- **Use spot instances** — ~60% cheaper AKS nodes
-
----
-
-## 🎯 Features
-
-### Core Features
-- ✅ **Natural Language Input** — Describe worlds in plain English
-- ✅ **AI Interpretation** — GPT-4o translates vision to Minecraft
-- ✅ **Live Building** — WorldEdit constructs structures via RCON
-- ✅ **Creative Naming** — AI generates evocative world names
-- ✅ **World History** — View and rebuild past worlds
-
-### Infrastructure Features
-- ✅ **Two-Tier Architecture** — Pay only for what you use
-- ✅ **GitHub Actions Control** — Deploy/destroy permanent infra
-- ✅ **Dashboard Control** — Deploy/destroy Minecraft infra
-- ✅ **Zero Stored Credentials** — OIDC + dynamic secrets
-- ✅ **Full Monitoring** — Prometheus + Grafana included
-
-### Developer Features
-- ✅ **TypeScript Throughout** — Frontend, backend, types
-- ✅ **100% IaC** — Everything in Terraform
-- ✅ **Modular Architecture** — Easy to extend
-- ✅ **Docker Support** — Containerized services
-
----
-
-## 🔮 Roadmap
-
-### Planned Features
-- [ ] **Multi-world support** — Switch between saved worlds
-- [ ] **Structure templates** — Pre-built structures library
-- [ ] **World export** — Download world as zip
-- [ ] **Build progress** — Real-time building status
-- [ ] **Live preview** — 3D preview before building
-
-### Infrastructure Roadmap
-- [ ] **Multi-region support** — Deploy closer to players
-- [ ] **Auto-scaling** — Scale based on player count
-- [ ] **Backup/restore** — Automated world backups
-- [ ] **Custom domains** — Use your own domain
 
 ---
 
 ## 📄 License
 
-MIT License — build whatever you want.
+MIT — Build whatever you want.
 
 ---
 
 <p align="center">
-  <strong>Built with ☕ and ⛏️</strong>
-  <br><br>
-  <a href="#-world-forge">Back to top ↑</a>
+  <b>Built with ☕ and ⛏️</b>
 </p>
