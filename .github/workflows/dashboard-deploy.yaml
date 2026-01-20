@@ -1,7 +1,7 @@
-# Deploy Dashboard and Coordinator API to Azure Container Apps
-# This workflow deploys the "permanent" infrastructure that controls the main environment
+# Build and deploy Dashboard + Coordinator containers when code changes
+# This runs automatically - you don't need to trigger it manually
 
-name: Deploy Dashboard
+name: "Auto: Build Containers"
 
 on:
   push:

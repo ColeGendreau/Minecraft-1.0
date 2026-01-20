@@ -1,7 +1,7 @@
-# Manage Permanent Infrastructure (Dashboard + Coordinator)
-# This is the "control plane" that allows managing the main Minecraft infrastructure
+# Manage Control Plane (Dashboard + Coordinator)
+# This must be deployed first - it's what lets you control the Minecraft infrastructure
 
-name: Permanent Infrastructure
+name: "1. Control Plane (Dashboard)"
 
 on:
   workflow_dispatch:

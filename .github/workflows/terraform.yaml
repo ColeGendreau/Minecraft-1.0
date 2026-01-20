@@ -1,4 +1,4 @@
-name: terraform
+name: "2. Minecraft Server"
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: deploy
+name: "3. Deploy Minecraft Apps"
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - "apps/**"
       - "environments/**"
   workflow_run:
-    workflows: ["terraform"]
+    workflows: ["2. Minecraft Server"]
     types:
       - completed
     branches: [ main ]
