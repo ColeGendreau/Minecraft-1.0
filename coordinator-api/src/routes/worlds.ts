@@ -10,6 +10,7 @@ import {
 } from '../db/client.js';
 import { planWorld } from '../services/ai-planner.js';
 import { executeRconCommands, getRconClient } from '../services/rcon-client.js';
+import { updateMinecraftMOTD } from '../services/kubernetes.js';
 import { createWorldLimiter } from '../middleware/ratelimit.js';
 import { validateCreateWorldRequest, validateRequestId } from '../middleware/validation.js';
 import type {
@@ -395,8 +396,24 @@ async function processWorldRequest(
 
     console.log(`[${requestId}] World deployed: ${worldSpec.displayName || worldSpec.worldName}`);
 
-    // Step 4: Restart the server to apply changes (new world, fresh start)
-    console.log(`[${requestId}] Restarting server to apply new world configuration...`);
+    // Step 4: Update MOTD and restart the server
+    const worldTitle = worldSpec.displayName || worldSpec.worldName;
+    console.log(`[${requestId}] Updating MOTD and restarting server...`);
+    
+    // First, update the MOTD via Kubernetes API (so it shows in server list after restart)
+    try {
+      const motdResult = await updateMinecraftMOTD(worldTitle, worldSpec.theme);
+      if (motdResult.success) {
+        console.log(`[${requestId}] ✅ MOTD updated to: ${worldTitle}`);
+      } else {
+        console.warn(`[${requestId}] MOTD update skipped: ${motdResult.error}`);
+      }
+    } catch (motdError) {
+      console.warn(`[${requestId}] Could not update MOTD:`, motdError);
+      // Continue anyway - MOTD is nice-to-have
+    }
+    
+    // Now restart via RCON
     try {
       const rcon = getRconClient();
       if (!rcon.isConnected()) {
@@ -407,7 +424,7 @@ async function processWorldRequest(
       await executeRconCommands([
         { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
         { command: `say §6   🌍 NEW WORLD FORGED!`, delayMs: 100 },
-        { command: `say §b   ${worldSpec.displayName || worldSpec.worldName}`, delayMs: 100 },
+        { command: `say §b   ${worldTitle}`, delayMs: 100 },
         { command: `say §6═══════════════════════════════════════`, delayMs: 100 },
         { command: `say §c§l⚠ SERVER RESTARTING IN 10 SECONDS ⚠`, delayMs: 100 },
         { command: `say §7Reconnect in ~60 seconds to explore!`, delayMs: 100 },
@@ -421,14 +438,14 @@ async function processWorldRequest(
         { command: 'say §c§l1...', delayMs: 1000 },
       ]);
       
-      // Stop the server - Kubernetes will restart it
+      // Stop the server - Kubernetes will restart it with new MOTD
       try {
         await rcon.send('stop');
       } catch {
         // Expected - connection closes when server stops
       }
       
-      console.log(`[${requestId}] Server restart triggered`);
+      console.log(`[${requestId}] Server restart triggered - MOTD will show: ${worldTitle}`);
     } catch (restartError) {
       console.warn(`[${requestId}] Could not restart server:`, restartError);
       // Don't fail the deployment - the world was still created
