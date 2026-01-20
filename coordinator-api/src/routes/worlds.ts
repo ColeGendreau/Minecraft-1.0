@@ -323,41 +323,82 @@ async function processWorldRequest(
       
       console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
 
-      // Execute build commands if present (WorldEdit + vanilla commands)
-      // WorldEdit commands: //world, //pos1, //pos2, //set, //faces, //walls, etc.
-      // Vanilla commands: forceload, fill, setblock, summon
+      // Execute build commands if present (vanilla /fill and /setblock commands)
+      // IMPORTANT: Chunks must be loaded for fill commands to work!
       const buildCmds = (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands;
       if (buildCmds && buildCmds.length > 0) {
-        console.log(`[${requestId}] Executing ${buildCmds.length} build commands (WorldEdit + vanilla)...`);
+        console.log(`[${requestId}] Executing ${buildCmds.length} build commands...`);
         
-        // Filter out comment lines (starting with "// " with space, NOT WorldEdit commands like "//set")
-        // WorldEdit commands start with "//" followed immediately by a command name (no space)
-        const preparedCommands = buildCmds
-          .filter(cmd => {
-            if (!cmd) return false;
-            const trimmed = cmd.trim();
-            if (trimmed.length === 0) return false;
-            // Keep WorldEdit commands (//pos1, //set, //faces, etc.) - they have no space after //
-            if (trimmed.startsWith('//') && trimmed.length > 2 && trimmed[2] !== ' ' && trimmed[2] !== '=') {
-              return true; // This is a WorldEdit command
-            }
-            // Remove comment lines (start with // followed by space or =)
-            if (trimmed.startsWith('//')) {
-              return false; // This is a comment
-            }
-            return true; // Keep vanilla commands
-          })
-          .map(cmd => {
-            const trimmed = cmd.trim();
-            return { 
-              command: trimmed, // Send as-is, WorldEdit commands need their // prefix
-              delayMs: 200, // Give WorldEdit time to process large operations
-              optional: true
-            };
-          });
+        // Filter out comment lines and empty lines
+        const filteredCommands = buildCmds.filter(cmd => {
+          if (!cmd) return false;
+          const trimmed = cmd.trim();
+          if (trimmed.length === 0) return false;
+          // Skip comment lines (start with // followed by space)
+          if (trimmed.startsWith('// ')) return false;
+          return true;
+        });
+
+        // Extract coordinates from fill commands to determine forceload area
+        // /fill x1 y1 z1 x2 y2 z2 block
+        const coords: { x: number; z: number }[] = [];
+        for (const cmd of filteredCommands) {
+          const match = cmd.match(/fill\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)/i);
+          if (match) {
+            coords.push(
+              { x: parseInt(match[1]), z: parseInt(match[3]) },
+              { x: parseInt(match[4]), z: parseInt(match[6]) }
+            );
+          }
+          const setblockMatch = cmd.match(/setblock\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)/i);
+          if (setblockMatch) {
+            coords.push({ x: parseInt(setblockMatch[1]), z: parseInt(setblockMatch[3]) });
+          }
+        }
+
+        // Calculate bounding box in chunk coordinates (divide by 16)
+        if (coords.length > 0) {
+          const minX = Math.min(...coords.map(c => c.x));
+          const maxX = Math.max(...coords.map(c => c.x));
+          const minZ = Math.min(...coords.map(c => c.z));
+          const maxZ = Math.max(...coords.map(c => c.z));
+          
+          const minChunkX = Math.floor(minX / 16);
+          const maxChunkX = Math.floor(maxX / 16);
+          const minChunkZ = Math.floor(minZ / 16);
+          const maxChunkZ = Math.floor(maxZ / 16);
+          
+          console.log(`[${requestId}] Forceloading chunks from (${minChunkX},${minChunkZ}) to (${maxChunkX},${maxChunkZ})`);
+          
+          // Forceload all necessary chunks FIRST
+          // Using chunk coordinates: forceload add <fromChunkX> <fromChunkZ> [<toChunkX> <toChunkZ>]
+          const forceloadCmd = {
+            command: `forceload add ${minChunkX * 16} ${minChunkZ * 16} ${maxChunkX * 16} ${maxChunkZ * 16}`,
+            delayMs: 500  // Give time for chunks to load
+          };
+          
+          console.log(`[${requestId}] Forceload command: ${forceloadCmd.command}`);
+          const { results: forceloadResults, errors: forceloadErrors } = await executeRconCommands([forceloadCmd]);
+          
+          if (forceloadErrors.length > 0) {
+            console.warn(`[${requestId}] Forceload errors:`, forceloadErrors);
+          } else {
+            console.log(`[${requestId}] Forceload result:`, forceloadResults);
+          }
+          
+          // Wait a moment for chunks to fully load
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+        // Now execute the build commands
+        const preparedCommands = filteredCommands.map(cmd => ({
+          command: cmd.trim(),
+          delayMs: 100, // Small delay between commands
+          optional: true
+        }));
         
         if (preparedCommands.length > 0) {
-          console.log(`[${requestId}] Filtered to ${preparedCommands.length} actual commands`);
+          console.log(`[${requestId}] Executing ${preparedCommands.length} build commands...`);
           const { results: buildResults, errors: buildErrors } = await executeRconCommands(preparedCommands);
           console.log(`[${requestId}] Build commands: ${buildResults.length} succeeded, ${buildErrors.length} failed`);
           
@@ -366,6 +407,16 @@ async function processWorldRequest(
           }
           
           if (buildResults.length > 0) {
+            // Set world spawn to center of build area if we have coordinates
+            if (coords.length > 0) {
+              const centerX = Math.round((Math.min(...coords.map(c => c.x)) + Math.max(...coords.map(c => c.x))) / 2);
+              const centerZ = Math.round((Math.min(...coords.map(c => c.z)) + Math.max(...coords.map(c => c.z))) / 2);
+              await executeRconCommands([
+                { command: `setworldspawn ${centerX} 80 ${centerZ}`, delayMs: 100 }
+              ]);
+              console.log(`[${requestId}] Set world spawn to ${centerX}, 80, ${centerZ}`);
+            }
+            
             // Announce the build
             await executeRconCommands([{
               command: `say §6[World Forge] §a✨ Built ${buildResults.length} epic structures for ${worldSpec.displayName}!`,
