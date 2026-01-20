@@ -58,6 +58,7 @@ const worldSpecSchema = {
               'plains', 'forest', 'mountains', 'desert', 'taiga',
               'ocean', 'jungle', 'savanna', 'swamp', 'ice_spikes',
               'mushroom_fields', 'badlands', 'dark_forest', 'birch_forest',
+              'cherry_grove', 'snowy_plains', 'beach', 'river',
             ],
           },
           uniqueItems: true,

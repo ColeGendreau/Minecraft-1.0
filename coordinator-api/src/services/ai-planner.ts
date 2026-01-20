@@ -154,7 +154,7 @@ THINK BIG:
 
 Keep commands under 60 for performance. Build EPIC structures!
 
-Available biomes: plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove
+VALID BIOMES (use ONLY these exact names): plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove, snowy_plains, beach, river
 
 Output ONLY the JSON, no markdown, no explanation, no code blocks.`;
 
