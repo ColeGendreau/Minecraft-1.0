@@ -23,8 +23,8 @@ resource "azurerm_cognitive_deployment" "gpt4o" {
     version = "2024-08-06"
   }
   
-  sku {
-    name     = "Standard"
+  scale {
+    type     = "Standard"
     capacity = 10  # 10K tokens per minute - adjust as needed
   }
 }
