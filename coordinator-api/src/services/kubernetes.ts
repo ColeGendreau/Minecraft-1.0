@@ -55,14 +55,21 @@ async function kubectl(command: string): Promise<{ stdout: string; stderr: strin
 }
 
 /**
- * Update the Minecraft server by patching the deployment
- * This triggers a rolling restart with the new annotation.
+ * Update the Minecraft server MOTD by patching the deployment's environment variables.
+ * The itzg/minecraft image reads MOTD from the MOTD env var at startup.
+ * This triggers a rolling restart with the new MOTD.
  */
-export async function updateMinecraftMOTD(worldName: string, _theme?: string): Promise<{ success: boolean; error?: string }> {
+export async function updateMinecraftMOTD(worldName: string, theme?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`Updating Minecraft deployment with world: ${worldName}`);
+    console.log(`Updating Minecraft MOTD to: ${worldName}`);
 
-    // Patch the deployment's pod template annotations to trigger a restart
+    // Build the MOTD string with Minecraft color codes
+    // §6 = gold, §b = aqua, §l = bold, §r = reset
+    const shortTheme = theme ? (theme.length > 30 ? theme.substring(0, 30) + '...' : theme) : 'AI-Crafted World';
+    const motd = `§6§l${worldName} §r§7- §b${shortTheme}`;
+
+    // Patch the deployment to update the MOTD environment variable
+    // This will trigger a rolling restart with the new MOTD
     const timestamp = new Date().toISOString();
     const patchJson = JSON.stringify({
       spec: {
@@ -73,6 +80,15 @@ export async function updateMinecraftMOTD(worldName: string, _theme?: string): P
               'worldforge.io/updated-at': timestamp,
             },
           },
+          spec: {
+            containers: [{
+              name: 'minecraft',
+              env: [{
+                name: 'MOTD',
+                value: motd,
+              }],
+            }],
+          },
         },
       },
     });
@@ -82,16 +98,17 @@ export async function updateMinecraftMOTD(worldName: string, _theme?: string): P
       `--type=strategic -p '${patchJson}'`
     );
 
-    console.log(`✅ Deployment patched - server will restart with world: ${worldName}`);
+    console.log(`✅ MOTD updated to: ${motd}`);
+    console.log(`✅ Deployment will restart with new MOTD`);
     return { success: true };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Failed to patch deployment:', errorMessage);
+    console.error('Failed to update MOTD:', errorMessage);
     
     return { 
       success: false, 
-      error: `kubectl error: ${errorMessage}. Restart will proceed via RCON stop.`
+      error: `kubectl error: ${errorMessage}. MOTD update failed.`
     };
   }
 }

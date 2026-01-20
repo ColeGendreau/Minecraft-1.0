@@ -475,14 +475,12 @@ function buildRconCommands(spec: WorldSpec): Array<{ command: string; delayMs?: 
     commands.push({ command: `defaultgamemode ${spec.rules.gameMode}` });
   }
 
-  // === SET DAYTIME AND CLEAR WEATHER ===
-  // Note: gamerule commands don't work via RCON in Paper 1.21
-  // So we just set the time and weather - they'll need to be reset periodically
+  // === GAMERULES - Lock time to day, disable weather, no mobs ===
+  commands.push({ command: 'gamerule doDaylightCycle false', delayMs: 100 });
+  commands.push({ command: 'gamerule doWeatherCycle false', delayMs: 100 });
+  commands.push({ command: 'gamerule doMobSpawning false', delayMs: 100 });
   commands.push({ command: 'time set day', delayMs: 100 });
-  commands.push({ command: 'weather clear 1000000', delayMs: 100 }); // Clear for ~11 days
-
-  // Note: Gamerule commands don't work via RCON in Paper 1.21
-  // Gamerules are set in server config instead (values.yaml)
+  commands.push({ command: 'weather clear', delayMs: 100 });
 
   // === WORLD NAME ANNOUNCEMENT ===
   // Since MOTD in server.properties can't be changed at runtime,
