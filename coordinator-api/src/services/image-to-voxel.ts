@@ -196,6 +196,13 @@ export function pixelsToWallCommands(
 }
 
 /**
+ * Calculate pixel brightness (0-1)
+ */
+function getBrightness(pixel: { r: number; g: number; b: number }): number {
+  return (pixel.r * 0.299 + pixel.g * 0.587 + pixel.b * 0.114) / 255;
+}
+
+/**
  * Convert a pixel grid to an extruded 3D build
  * Each pixel becomes a column of blocks with specified depth
  */
@@ -253,6 +260,129 @@ export function pixelsToExtrudedCommands(
       }
       
       commands.push(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${block}`);
+    }
+  }
+  
+  return commands;
+}
+
+/**
+ * Convert a pixel grid to a 3D relief sculpture
+ * Brightness determines depth - lighter colors protrude more
+ * Creates a carved/embossed effect like a stone relief
+ */
+export function pixelsTo3DRelief(
+  pixels: { r: number; g: number; b: number; a: number }[][],
+  x: number,
+  y: number,
+  z: number,
+  scale: number = 1,
+  maxDepth: number = 10,
+  facing: 'north' | 'south' | 'east' | 'west' = 'south',
+  invertDepth: boolean = false // If true, darker = more depth (carved look)
+): string[] {
+  const commands: string[] = [];
+  const height = pixels.length;
+  const width = pixels[0]?.length || 0;
+  
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const pixel = pixels[height - 1 - py][px];
+      
+      if (pixel.a < 128) continue;
+      
+      const block = findClosestBlock(pixel.r, pixel.g, pixel.b);
+      const brightness = getBrightness(pixel);
+      
+      // Calculate depth based on brightness
+      let pixelDepth = Math.round(brightness * maxDepth);
+      if (invertDepth) {
+        pixelDepth = maxDepth - pixelDepth;
+      }
+      pixelDepth = Math.max(1, pixelDepth); // At least 1 block deep
+      
+      let x1, y1, z1, x2, y2, z2;
+      
+      if (facing === 'south') {
+        x1 = x + px * scale;
+        x2 = x + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z;
+        z2 = z + pixelDepth - 1;
+      } else if (facing === 'north') {
+        x1 = x + px * scale;
+        x2 = x + (px + 1) * scale - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z - pixelDepth + 1;
+        z2 = z;
+      } else if (facing === 'east') {
+        x1 = x;
+        x2 = x + pixelDepth - 1;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z + px * scale;
+        z2 = z + (px + 1) * scale - 1;
+      } else {
+        x1 = x - pixelDepth + 1;
+        x2 = x;
+        y1 = y + py * scale;
+        y2 = y + (py + 1) * scale - 1;
+        z1 = z + px * scale;
+        z2 = z + (px + 1) * scale - 1;
+      }
+      
+      commands.push(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${block}`);
+    }
+  }
+  
+  return commands;
+}
+
+/**
+ * Build a 3D statue from front and side silhouettes
+ * Takes two images: front view and side view
+ * Carves a 3D shape by intersecting the two projections
+ */
+export async function buildStatueFromSilhouettes(
+  frontImageUrl: string,
+  sideImageUrl: string,
+  centerX: number,
+  baseY: number,
+  centerZ: number,
+  maxSize: number = 64,
+  block: string = 'stone'
+): Promise<string[]> {
+  // Fetch both images
+  const frontImage = await fetchImagePixels(frontImageUrl, maxSize, maxSize);
+  const sideImage = await fetchImagePixels(sideImageUrl, maxSize, maxSize);
+  
+  const commands: string[] = [];
+  const height = Math.min(frontImage.height, sideImage.height);
+  const widthX = frontImage.width;
+  const widthZ = sideImage.width;
+  
+  // Calculate starting position (centered)
+  const startX = centerX - Math.floor(widthX / 2);
+  const startZ = centerZ - Math.floor(widthZ / 2);
+  
+  // For each potential voxel position, check if it's "inside" both silhouettes
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < widthX; x++) {
+      for (let z = 0; z < widthZ; z++) {
+        // Get pixel from front view (looking at Z axis, seeing X and Y)
+        const frontPixel = frontImage.pixels[height - 1 - y]?.[x];
+        // Get pixel from side view (looking at X axis, seeing Z and Y)
+        const sidePixel = sideImage.pixels[height - 1 - y]?.[z];
+        
+        // Both pixels must be non-transparent for a voxel to exist
+        if (frontPixel && sidePixel && frontPixel.a >= 128 && sidePixel.a >= 128) {
+          // Use front image color for the block
+          const voxelBlock = findClosestBlock(frontPixel.r, frontPixel.g, frontPixel.b);
+          commands.push(`setblock ${startX + x} ${baseY + y} ${startZ + z} ${voxelBlock}`);
+        }
+      }
     }
   }
   

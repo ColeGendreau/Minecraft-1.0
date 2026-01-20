@@ -545,7 +545,7 @@ router.get('/worldedit/patterns', (req, res) => {
 
 // ============== IMAGE TO MINECRAFT ==============
 
-import { buildLogo, buildImageFromUrl } from '../services/image-to-voxel.js';
+import { buildLogo, buildImageFromUrl, fetchImagePixels, pixelsTo3DRelief, buildStatueFromSilhouettes, optimizeCommands } from '../services/image-to-voxel.js';
 
 /**
  * POST /api/minecraft/build-image
@@ -657,6 +657,239 @@ router.post('/build-image', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to build image'
+    });
+  }
+});
+
+/**
+ * POST /api/minecraft/build-3d-relief
+ * Build a 3D relief sculpture from an image
+ * Brightness determines depth - creates embossed/carved effect
+ * 
+ * Body: {
+ *   imageUrl: string,
+ *   x?: number,
+ *   y?: number,
+ *   z?: number,
+ *   maxSize?: number,
+ *   scale?: number,
+ *   maxDepth?: number,      // Maximum depth in blocks (default: 10)
+ *   invertDepth?: boolean,  // If true, dark = more depth (carved)
+ *   facing?: string
+ * }
+ */
+router.post('/build-3d-relief', async (req, res) => {
+  try {
+    const {
+      imageUrl,
+      x = 0,
+      y = 65,
+      z = 50,
+      maxSize = 64,
+      scale = 1,
+      maxDepth = 10,
+      invertDepth = false,
+      facing = 'south'
+    } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'imageUrl is required'
+      });
+    }
+    
+    console.log(`Building 3D relief from: ${imageUrl}`);
+    
+    // Fetch image
+    const { pixels, width, height } = await fetchImagePixels(imageUrl, maxSize, maxSize);
+    
+    // Calculate starting position (centered)
+    const blockWidth = width * scale;
+    const blockHeight = height * scale;
+    const startX = x - Math.floor(blockWidth / 2);
+    
+    // Generate relief commands
+    let commands = pixelsTo3DRelief(
+      pixels, 
+      startX, 
+      y, 
+      z, 
+      scale, 
+      maxDepth, 
+      facing as 'north' | 'south' | 'east' | 'west',
+      invertDepth
+    );
+    
+    commands = optimizeCommands(commands);
+    console.log(`Generated ${commands.length} commands for 3D relief`);
+    
+    // Connect and execute
+    const rcon = getRconClient();
+    if (!rcon.isConnected()) {
+      await rcon.connect();
+    }
+    
+    // Forceload area
+    const forceloadCmd = `forceload add ${startX - 16} ${z - 16} ${startX + blockWidth + 16} ${z + maxDepth + 16}`;
+    await rcon.send(forceloadCmd);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await rcon.send('time set 6000');
+    
+    // Execute commands
+    let successCount = 0;
+    let errorCount = 0;
+    const batchSize = 50;
+    
+    for (let i = 0; i < commands.length; i += batchSize) {
+      const batch = commands.slice(i, i + batchSize);
+      for (const cmd of batch) {
+        try {
+          await rcon.send(cmd);
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+      if (i + batchSize < commands.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    // Teleport to view
+    await rcon.send(`tp @a ${x} ${y + blockHeight / 2} ${z - 30}`);
+    
+    res.json({
+      success: true,
+      message: `Built 3D relief: ${blockWidth}x${blockHeight} blocks, ${maxDepth} max depth`,
+      buildInfo: {
+        width: blockWidth,
+        height: blockHeight,
+        maxDepth,
+        position: { x: startX, y, z }
+      },
+      stats: {
+        totalCommands: commands.length,
+        successful: successCount,
+        failed: errorCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('Build 3D relief error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to build 3D relief'
+    });
+  }
+});
+
+/**
+ * POST /api/minecraft/build-statue
+ * Build a 3D statue from front and side silhouette images
+ * The statue is carved by intersecting both views
+ * 
+ * Body: {
+ *   frontImageUrl: string,  // Front view silhouette
+ *   sideImageUrl: string,   // Side view silhouette  
+ *   x?: number,
+ *   y?: number,
+ *   z?: number,
+ *   maxSize?: number,
+ *   baseBlock?: string      // Default block for the statue
+ * }
+ */
+router.post('/build-statue', async (req, res) => {
+  try {
+    const {
+      frontImageUrl,
+      sideImageUrl,
+      x = 0,
+      y = 65,
+      z = 0,
+      maxSize = 48,
+      baseBlock = 'stone'
+    } = req.body;
+    
+    if (!frontImageUrl || !sideImageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both frontImageUrl and sideImageUrl are required'
+      });
+    }
+    
+    console.log(`Building 3D statue from silhouettes`);
+    console.log(`Front: ${frontImageUrl}`);
+    console.log(`Side: ${sideImageUrl}`);
+    
+    // Generate statue commands
+    let commands = await buildStatueFromSilhouettes(
+      frontImageUrl,
+      sideImageUrl,
+      x,
+      y,
+      z,
+      maxSize,
+      baseBlock
+    );
+    
+    console.log(`Generated ${commands.length} voxels for statue`);
+    
+    // Connect and execute
+    const rcon = getRconClient();
+    if (!rcon.isConnected()) {
+      await rcon.connect();
+    }
+    
+    // Forceload area
+    const forceloadCmd = `forceload add ${x - maxSize} ${z - maxSize} ${x + maxSize} ${z + maxSize}`;
+    await rcon.send(forceloadCmd);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await rcon.send('time set 6000');
+    
+    // Execute commands
+    let successCount = 0;
+    let errorCount = 0;
+    const batchSize = 100;
+    
+    for (let i = 0; i < commands.length; i += batchSize) {
+      const batch = commands.slice(i, i + batchSize);
+      for (const cmd of batch) {
+        try {
+          await rcon.send(cmd);
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }
+      if (i + batchSize < commands.length) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    
+    // Teleport to view
+    await rcon.send(`tp @a ${x + maxSize + 20} ${y + maxSize / 2} ${z}`);
+    
+    res.json({
+      success: true,
+      message: `Built 3D statue: ${commands.length} voxels`,
+      buildInfo: {
+        voxelCount: commands.length,
+        maxSize,
+        position: { x, y, z }
+      },
+      stats: {
+        totalCommands: commands.length,
+        successful: successCount,
+        failed: errorCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('Build statue error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to build statue'
     });
   }
 });
