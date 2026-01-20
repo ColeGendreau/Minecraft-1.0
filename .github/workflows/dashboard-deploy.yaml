@@ -82,12 +82,73 @@ jobs:
           docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }}
           docker push ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:latest
 
+      - name: Get Azure OpenAI credentials from main infra
+        id: get_openai
+        run: |
+          # Get Azure OpenAI endpoint and key from the main infrastructure
+          OPENAI_ENDPOINT=$(az cognitiveservices account show \
+            --name mc-demo-dev-openai \
+            --resource-group mc-demo-dev-rg \
+            --query "properties.endpoint" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$OPENAI_ENDPOINT" ]; then
+            OPENAI_KEY=$(az cognitiveservices account keys list \
+              --name mc-demo-dev-openai \
+              --resource-group mc-demo-dev-rg \
+              --query "key1" -o tsv)
+            echo "endpoint=$OPENAI_ENDPOINT" >> $GITHUB_OUTPUT
+            echo "key=$OPENAI_KEY" >> $GITHUB_OUTPUT
+            echo "configured=true" >> $GITHUB_OUTPUT
+            echo "✅ Azure OpenAI found: $OPENAI_ENDPOINT"
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Azure OpenAI not deployed yet - coordinator will not be able to generate worlds"
+          fi
+
+      - name: Get Minecraft RCON info
+        id: get_rcon
+        run: |
+          # Get the public IP for RCON
+          PUBLIC_IP=$(az network public-ip show \
+            --resource-group MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3 \
+            --name mc-demo-dev-ingress-ip \
+            --query ipAddress -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$PUBLIC_IP" ]; then
+            echo "host=$PUBLIC_IP" >> $GITHUB_OUTPUT
+            echo "✅ Minecraft server IP: $PUBLIC_IP"
+          else
+            echo "⚠️ Minecraft server not deployed yet"
+          fi
+
       - name: Deploy to Container Apps
         run: |
+          # Build environment variables
+          ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_rcon.outputs.host }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=minecraft"
+          
+          if [ "${{ steps.get_openai.outputs.configured }}" == "true" ]; then
+            ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=${{ steps.get_openai.outputs.endpoint }} AZURE_OPENAI_DEPLOYMENT=gpt-4o"
+          fi
+          
+          # Update container app with new image and environment
           az containerapp update \
             --name ${{ env.COORDINATOR_APP }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }}
+            --image ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }} \
+            --set-env-vars $ENV_VARS
+          
+          # Set the API key as a secret if OpenAI is configured
+          if [ "${{ steps.get_openai.outputs.configured }}" == "true" ]; then
+            az containerapp secret set \
+              --name ${{ env.COORDINATOR_APP }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --secrets openai-key="${{ steps.get_openai.outputs.key }}"
+            
+            az containerapp update \
+              --name ${{ env.COORDINATOR_APP }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --set-env-vars "AZURE_OPENAI_API_KEY=secretref:openai-key"
+          fi
 
   # Build and deploy Dashboard
   deploy-dashboard:

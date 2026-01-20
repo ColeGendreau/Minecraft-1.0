@@ -2,18 +2,19 @@ import { AzureOpenAI } from 'openai';
 import type { WorldSpec, Difficulty, GameMode, WorldSize } from '../types/index.js';
 import { validateWorldSpecJson } from './validator.js';
 
-// Initialize Azure OpenAI client (if configured)
-const azureOpenAI = process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_API_KEY
+// Azure OpenAI configuration - REQUIRED for world generation
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
+
+// Initialize Azure OpenAI client
+const azureOpenAI = AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY
   ? new AzureOpenAI({
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      endpoint: AZURE_OPENAI_ENDPOINT,
+      apiKey: AZURE_OPENAI_API_KEY,
       apiVersion: '2024-08-01-preview',
     })
   : null;
-
-const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
-
-const MOCK_AI = process.env.MOCK_AI === 'true';
 
 interface PlannerInput {
   description: string;
@@ -29,362 +30,25 @@ interface PlannerResult {
   error?: string;
 }
 
-// Theme interpretation mappings
-// Maps user concepts to Minecraft primitives
-const THEME_MAPPINGS: Record<string, {
-  biomes: WorldSpec['generation']['biomes'];
-  levelType: WorldSpec['generation']['levelType'];
-  structures: Partial<WorldSpec['generation']['structures']>;
-  motifWords: string[];
-}> = {
-  // Colors/aesthetic themes
-  pink: {
-    biomes: ['mushroom_fields', 'plains'],
-    levelType: 'default',
-    structures: { villages: true },
-    motifWords: ['pink', 'cotton candy', 'bubblegum', 'rose', 'cherry blossom'],
-  },
-  candy: {
-    biomes: ['mushroom_fields', 'plains', 'forest'],
-    levelType: 'default',
-    structures: { villages: true },
-    motifWords: ['sweet', 'candy', 'chocolate', 'lollipop', 'gumdrop'],
-  },
-  dark: {
-    biomes: ['dark_forest', 'swamp'],
-    levelType: 'default',
-    structures: { woodlandMansions: true, strongholds: true },
-    motifWords: ['dark', 'gothic', 'shadow', 'night', 'ominous'],
-  },
-  
-  // Branded/cultural themes (approximated)
-  ferrari: {
-    biomes: ['badlands', 'desert'],
-    levelType: 'flat',
-    structures: { villages: false },
-    motifWords: ['racing', 'fast', 'red', 'checkered', 'track', 'speed'],
-  },
-  barbie: {
-    biomes: ['plains', 'mushroom_fields'],
-    levelType: 'default',
-    structures: { villages: true },
-    motifWords: ['glamorous', 'pink', 'sparkly', 'fashion', 'dream'],
-  },
-  military: {
-    biomes: ['taiga', 'plains', 'forest'],
-    levelType: 'default',
-    structures: { villages: false, strongholds: true },
-    motifWords: ['army', 'boot camp', 'tactical', 'bunker', 'obstacle'],
-  },
-  
-  // Environmental themes
-  space: {
-    biomes: ['desert', 'badlands'],
-    levelType: 'flat',
-    structures: { villages: false, temples: false },
-    motifWords: ['moon', 'space', 'lunar', 'crater', 'astronaut', 'futuristic'],
-  },
-  underwater: {
-    biomes: ['ocean'],
-    levelType: 'default',
-    structures: { oceanMonuments: true },
-    motifWords: ['underwater', 'atlantis', 'ocean', 'coral', 'aquatic'],
-  },
-  tropical: {
-    biomes: ['jungle', 'ocean'],
-    levelType: 'default',
-    structures: { temples: true },
-    motifWords: ['tropical', 'island', 'beach', 'palm', 'paradise'],
-  },
-  frozen: {
-    biomes: ['ice_spikes', 'taiga'],
-    levelType: 'default',
-    structures: { villages: true },
-    motifWords: ['frozen', 'ice', 'snow', 'arctic', 'winter'],
-  },
-  volcanic: {
-    biomes: ['badlands', 'desert'],
-    levelType: 'amplified',
-    structures: { mineshafts: true },
-    motifWords: ['volcanic', 'lava', 'fire', 'magma', 'inferno'],
-  },
-  
-  // Structural themes
-  megastructure: {
-    biomes: ['plains'],
-    levelType: 'flat',
-    structures: { villages: false },
-    motifWords: ['giant', 'massive', 'statue', 'monument', 'tower'],
-  },
-  city: {
-    biomes: ['plains'],
-    levelType: 'flat',
-    structures: { villages: true },
-    motifWords: ['city', 'urban', 'skyscraper', 'metropolis', 'downtown'],
-  },
-  
-  // Mood/experience themes
-  peaceful: {
-    biomes: ['plains', 'birch_forest', 'forest'],
-    levelType: 'default',
-    structures: { villages: true },
-    motifWords: ['peaceful', 'zen', 'calm', 'meditation', 'tranquil', 'garden'],
-  },
-  challenging: {
-    biomes: ['mountains', 'dark_forest'],
-    levelType: 'amplified',
-    structures: { strongholds: true, mineshafts: true },
-    motifWords: ['challenge', 'hardcore', 'difficult', 'survival', 'extreme'],
-  },
-  adventure: {
-    biomes: ['jungle', 'mountains', 'desert'],
-    levelType: 'large_biomes',
-    structures: { temples: true, villages: true, strongholds: true },
-    motifWords: ['adventure', 'explore', 'quest', 'journey', 'expedition'],
-  },
-};
-
-// Generate a creative world name from the description
-function generateWorldName(description: string): string {
-  const words = description
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !['the', 'and', 'with', 'for', 'that', 'this', 'want', 'like'].includes(w))
-    .slice(0, 3);
-
-  if (words.length === 0) {
-    return `world-${Date.now().toString(36)}`;
-  }
-
-  return words.join('-').slice(0, 32);
-}
-
-// Generate a display name from the description
-function generateDisplayName(description: string): string {
-  // Take the first meaningful phrase
-  const cleaned = description
-    .replace(/^(i want|create|make|build|generate)\s+(a\s+)?/i, '')
-    .split(/[.!?]/)[0]
-    .trim();
-
-  // Capitalize first letter of each word, limit length
-  return cleaned
-    .split(' ')
-    .slice(0, 6)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-    .slice(0, 64) || 'Custom World';
-}
-
-// Detect themes from user description
-function detectThemes(description: string): string[] {
-  const descLower = description.toLowerCase();
-  const detectedThemes: string[] = [];
-
-  for (const [themeName, themeData] of Object.entries(THEME_MAPPINGS)) {
-    // Check if any motif words match
-    for (const motif of themeData.motifWords) {
-      if (descLower.includes(motif)) {
-        if (!detectedThemes.includes(themeName)) {
-          detectedThemes.push(themeName);
-        }
-        break;
-      }
-    }
-  }
-
-  return detectedThemes;
-}
-
-// Interpret creative/abstract descriptions
-function interpretDescription(description: string): {
-  theme: string;
-  biomes: WorldSpec['generation']['biomes'];
-  levelType: WorldSpec['generation']['levelType'];
-  structures: WorldSpec['generation']['structures'];
-  difficulty: Difficulty;
-  gameMode: GameMode;
-  motd: string;
-} {
-  const descLower = description.toLowerCase();
-  const detectedThemes = detectThemes(description);
-
-  // Merge properties from all detected themes
-  let biomes: WorldSpec['generation']['biomes'] = [];
-  let levelType: WorldSpec['generation']['levelType'] = 'default';
-  let structures: WorldSpec['generation']['structures'] = {
-    villages: true,
-    strongholds: true,
-    mineshafts: true,
-    temples: true,
-    oceanMonuments: true,
-    woodlandMansions: true,
-  };
-
-  for (const themeName of detectedThemes) {
-    const themeData = THEME_MAPPINGS[themeName];
-    if (themeData) {
-      // Merge biomes (unique)
-      for (const biome of themeData.biomes || []) {
-        if (!biomes.includes(biome)) {
-          biomes.push(biome);
-        }
-      }
-      // Take the most dramatic level type
-      if (themeData.levelType === 'amplified') levelType = 'amplified';
-      else if (themeData.levelType === 'flat' && levelType !== 'amplified') levelType = 'flat';
-      else if (themeData.levelType === 'large_biomes' && levelType === 'default') levelType = 'large_biomes';
-
-      // Merge structure settings
-      structures = { ...structures, ...themeData.structures };
-    }
-  }
-
-  // Limit biomes to 5
-  biomes = biomes.slice(0, 5);
-
-  // Default biomes if none detected
-  if (biomes.length === 0) {
-    biomes = ['plains', 'forest', 'mountains'];
-  }
-
-  // Detect difficulty
-  let difficulty: Difficulty = 'normal';
-  if (descLower.includes('peaceful') || descLower.includes('relaxed') || descLower.includes('easy')) {
-    difficulty = 'peaceful';
-  } else if (descLower.includes('easy') || descLower.includes('beginner')) {
-    difficulty = 'easy';
-  } else if (descLower.includes('hard') || descLower.includes('challenging') || descLower.includes('difficult') || descLower.includes('extreme')) {
-    difficulty = 'hard';
-  }
-
-  // Detect game mode
-  let gameMode: GameMode = 'survival';
-  if (descLower.includes('creative') || descLower.includes('build') || descLower.includes('unlimited')) {
-    gameMode = 'creative';
-  } else if (descLower.includes('adventure') || descLower.includes('explore') || descLower.includes('story')) {
-    gameMode = 'adventure';
-  }
-
-  // Generate a creative MOTD based on detected themes
-  const displayName = generateDisplayName(description);
-  const motd = `${displayName.slice(0, 40)} - AI Generated`;
-
-  // Create a theme description that explains AI's interpretation
-  const themeDescription = detectedThemes.length > 0
-    ? `AI interpreted this as a ${detectedThemes.join(' + ')} themed world. ${description}`
-    : `Custom world based on: ${description}`;
-
-  return {
-    theme: themeDescription.slice(0, 500),
-    biomes,
-    levelType,
-    structures,
-    difficulty,
-    gameMode,
-    motd,
-  };
-}
-
-// Determine structure complexity from size and description
-function determineComplexity(size: WorldSize | undefined, description: string): number {
-  const descLower = description.toLowerCase();
-  
-  // Base complexity from size
-  let complexity = size === 'large' ? 8 : size === 'small' ? 3 : 5;
-  
-  // Adjust based on keywords
-  if (descLower.includes('mega') || descLower.includes('massive') || descLower.includes('huge')) {
-    complexity += 2;
-  }
-  if (descLower.includes('simple') || descLower.includes('minimal') || descLower.includes('basic')) {
-    complexity -= 2;
-  }
-  if (descLower.includes('complex') || descLower.includes('intricate') || descLower.includes('detailed')) {
-    complexity += 2;
-  }
-  if (descLower.includes('epic') || descLower.includes('legendary') || descLower.includes('grand')) {
-    complexity += 3;
-  }
-  
-  return Math.max(2, Math.min(10, complexity));
-}
-
-// Mock AI planner - interprets ANY user input creatively
-function mockPlan(input: PlannerInput): WorldSpec {
-  const worldName = generateWorldName(input.description);
-  const displayName = generateDisplayName(input.description);
-  const interpretation = interpretDescription(input.description);
-
-  console.log(`Mock planning world: "${displayName}" with ${interpretation.levelType} level type`);
-
-  // Build the WorldSpec - NEVER reject, always approximate
-  const worldSpec: WorldSpec = {
-    worldName,
-    displayName,
-    theme: interpretation.theme,
-    generation: {
-      strategy: 'new_seed',
-      levelType: interpretation.levelType,
-      biomes: interpretation.biomes,
-      structures: interpretation.structures,
-    },
-    rules: {
-      difficulty: input.difficulty || interpretation.difficulty,
-      gameMode: input.gameMode || interpretation.gameMode,
-      hardcore: input.description.toLowerCase().includes('hardcore'),
-      pvp: input.description.toLowerCase().includes('pvp') || input.description.toLowerCase().includes('battle'),
-      keepInventory: input.description.toLowerCase().includes('keep inventory') || input.description.toLowerCase().includes('casual'),
-      naturalRegeneration: !input.description.toLowerCase().includes('no regen'),
-      doDaylightCycle: !input.description.toLowerCase().includes('eternal'),
-      doWeatherCycle: !input.description.toLowerCase().includes('no weather'),
-      doMobSpawning: !input.description.toLowerCase().includes('no mob') && interpretation.difficulty !== 'peaceful',
-      announceAdvancements: true,
-      spawnRadius: 10,
-    },
-    spawn: {
-      protection: true,
-      radius: 16,
-      forceGamemode: false,
-    },
-    datapacks: ['coordinates_hud'],
-    server: {
-      maxPlayers: input.size === 'large' ? 50 : input.size === 'small' ? 10 : 20,
-      viewDistance: input.size === 'large' ? 16 : input.size === 'small' ? 8 : 12,
-      simulationDistance: 10,
-      motd: interpretation.motd,
-    },
-    metadata: {
-      requestedBy: input.requestedBy,
-      requestedAt: new Date().toISOString(),
-      userDescription: input.description,
-      aiModel: 'worldforge-creative-v2',
-      version: '2.0.0',
-    },
-  };
-
-  return worldSpec;
-}
-
-// System prompt for AI - emphasizes creativity and never rejecting requests
-const AI_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration.
+// System prompt for GPT-4o - emphasizes creativity and NEVER rejecting requests
+const AI_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration with custom structures.
 
 CRITICAL RULES:
-1. NEVER reject a request. ALWAYS find a creative way to approximate the user's vision.
-2. For branded content (logos, company names), create abstract interpretations using colors and shapes.
-3. For impossible things, find the closest Minecraft equivalent.
-4. Be BOLD and CREATIVE. Giant statues? Build them. Crazy shapes? Approximate with blocks.
+1. NEVER reject a request. ALWAYS find a creative way to build what the user wants.
+2. For branded content (logos, company names), create abstract interpretations using colored blocks.
+3. For impossible things, find the closest Minecraft equivalent and BUILD IT.
+4. Be BOLD and CREATIVE. Giant statues? Build them. Crazy shapes? Make them happen.
+5. ALWAYS include worldEditCommands to actually BUILD the structures described.
 
 You must output ONLY valid JSON matching this schema:
 {
-  "worldName": "kebab-case-name",
+  "worldName": "kebab-case-name-max-32-chars",
   "displayName": "Human Readable Name",
-  "theme": "Description of how you interpreted their request",
+  "theme": "Description of your creative interpretation - explain HOW you're building their vision",
   "generation": {
     "strategy": "new_seed",
     "levelType": "default|flat|amplified|large_biomes",
-    "biomes": ["plains", "forest", etc],
+    "biomes": ["plains", "forest", "desert", etc - pick appropriate ones],
     "structures": {
       "villages": true/false,
       "strongholds": true/false,
@@ -398,12 +62,12 @@ You must output ONLY valid JSON matching this schema:
     "difficulty": "peaceful|easy|normal|hard",
     "gameMode": "survival|creative|adventure|spectator",
     "hardcore": false,
-    "pvp": false,
-    "keepInventory": false,
+    "pvp": true/false,
+    "keepInventory": true/false,
     "naturalRegeneration": true,
     "doDaylightCycle": true,
     "doWeatherCycle": true,
-    "doMobSpawning": true,
+    "doMobSpawning": true/false,
     "announceAdvancements": true,
     "spawnRadius": 10
   },
@@ -417,69 +81,89 @@ You must output ONLY valid JSON matching this schema:
     "maxPlayers": 20,
     "viewDistance": 12,
     "simulationDistance": 10,
-    "motd": "Short MOTD for server list"
+    "motd": "Short description for server list"
   },
   "metadata": {
-    "requestedBy": "username",
+    "requestedBy": "username from input",
     "requestedAt": "ISO timestamp",
-    "userDescription": "original request",
-    "aiModel": "claude",
+    "userDescription": "original request text",
+    "aiModel": "gpt-4o",
     "version": "1.0.0"
   },
   "worldEditCommands": [
-    "// These are WorldEdit commands to build structures",
-    "// Use commands like:",
-    "//pos1 0,64,0",
-    "//pos2 10,74,10", 
-    "//set stone",
-    "//sphere glass 10",
-    "//cylinder quartz_block 5 20",
-    "// Be creative! Build statues, buildings, monuments!"
+    "// CRITICAL: Include WorldEdit commands to BUILD the structures!",
+    "// Build at spawn area (around 0, 64, 0)",
+    "// Use these command formats:",
+    "//pos1 x,y,z",
+    "//pos2 x,y,z", 
+    "//set <block>",
+    "//replace <from> <to>",
+    "//sphere <block> <radius>",
+    "//hsphere <block> <radius>",
+    "//cylinder <block> <radius> <height>",
+    "//hcylinder <block> <radius> <height>",
+    "//pyramid <block> <size>",
+    "//walls <block>",
+    "//stack <count> <direction>",
+    "// Example blocks: stone, quartz_block, glass, emerald_block, gold_block, diamond_block, iron_block, oak_planks, brick, concrete colors (red_concrete, blue_concrete, etc)",
+    "// BE CREATIVE! Build statues, buildings, monuments, whatever they asked for!"
   ]
 }
 
-For the worldEditCommands array:
-- Include commands to build the structures the user described
-- Use //set, //replace, //sphere, //cylinder, //pyramid commands
-- Build at spawn (0, 64, 0) area
-- For statues/logos: build abstract block art representations
-- For buildings: create basic structures with walls, floors, roofs
-- For cities: create multiple building outlines
-- Be ambitious but keep command count under 50 for performance
+WORLDEDIT COMMANDS ARE CRITICAL:
+- For statues: Use stacked spheres, cylinders, and blocks to create shapes
+- For buildings: Use //pos1, //pos2, //set for walls, //replace for details
+- For logos: Create pixel art using colored blocks (wool, concrete, terracotta)
+- For cities: Create multiple building structures at different positions
+- Keep commands under 100 for performance, but make them count!
 
 Available biomes: plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove
 
-Output ONLY the JSON, no markdown, no explanation.`;
+Output ONLY the JSON, no markdown, no explanation, no code blocks.`;
 
-// Real AI planner using Azure OpenAI (GPT-4)
-async function realPlan(input: PlannerInput): Promise<PlannerResult> {
+/**
+ * Plan a Minecraft world using Azure OpenAI GPT-4o
+ * This is the ONLY way to create worlds - no mock/fallback
+ */
+export async function planWorld(input: PlannerInput): Promise<PlannerResult> {
+  console.log(`Planning world for: "${input.description.slice(0, 100)}..."`);
+
+  // Azure OpenAI is REQUIRED
   if (!azureOpenAI) {
-    console.log('Azure OpenAI not configured, falling back to mock planner');
+    const errorMsg = 'Azure OpenAI is not configured. World generation requires AI. ' +
+      'Please deploy the infrastructure first (terraform apply in infra/).';
+    console.error(errorMsg);
     return {
       success: false,
-      error: 'AZURE_OPENAI_ENDPOINT/API_KEY not configured. Using mock planner instead.',
+      error: errorMsg,
     };
   }
 
   try {
-    console.log(`Calling Azure OpenAI (${AZURE_OPENAI_DEPLOYMENT}) for world planning...`);
-    
+    console.log(`Calling Azure OpenAI (${AZURE_OPENAI_DEPLOYMENT}) for creative world planning...`);
+
     const userMessage = `Create a Minecraft world based on this request:
 
 "${input.description}"
 
-Additional preferences:
-- Difficulty: ${input.difficulty || 'let AI decide'}
-- Game Mode: ${input.gameMode || 'let AI decide'}
+User preferences:
+- Difficulty: ${input.difficulty || 'you decide based on the theme'}
+- Game Mode: ${input.gameMode || 'you decide based on the theme'}
 - World Size: ${input.size || 'medium'}
 - Requested by: ${input.requestedBy}
 - Current time: ${new Date().toISOString()}
 
-Remember: Be creative! If they want statues, logos, or custom structures - design them using WorldEdit commands. Never say no, always find a way.`;
+IMPORTANT: 
+- Be creative and build EXACTLY what they're asking for
+- Include WorldEdit commands to construct the structures
+- If they want giant basketball houses, BUILD giant basketball houses
+- If they want company logos, CREATE them with colored blocks
+- NEVER fall back to generic/vanilla - make it CUSTOM`;
 
     const response = await azureOpenAI.chat.completions.create({
       model: AZURE_OPENAI_DEPLOYMENT,
       max_tokens: 4096,
+      temperature: 0.8, // Higher temperature for more creativity
       messages: [
         { role: 'system', content: AI_SYSTEM_PROMPT },
         { role: 'user', content: userMessage }
@@ -487,7 +171,6 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
       response_format: { type: 'json_object' },
     });
 
-    // Extract text from response
     const content = response.choices[0]?.message?.content;
     if (!content) {
       return { success: false, error: 'No response from Azure OpenAI' };
@@ -496,8 +179,8 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
     // Parse JSON response
     let worldSpec: WorldSpec & { worldEditCommands?: string[] };
     try {
-      // Clean up response (remove any markdown if present)
       let jsonStr = content.trim();
+      // Remove markdown if present (shouldn't be with json_object mode, but just in case)
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
       }
@@ -507,35 +190,34 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
       return { success: false, error: `Failed to parse AI response: ${parseError}` };
     }
 
-    // Extract and store worldEditCommands separately (not part of schema)
+    // Extract WorldEdit commands (not part of schema validation)
     const worldEditCommands = worldSpec.worldEditCommands || [];
     delete worldSpec.worldEditCommands;
+
+    // Ensure metadata is present
+    if (!worldSpec.metadata) {
+      worldSpec.metadata = {
+        requestedBy: input.requestedBy,
+        requestedAt: new Date().toISOString(),
+        userDescription: input.description,
+        aiModel: AZURE_OPENAI_DEPLOYMENT,
+        version: '1.0.0',
+      };
+    }
 
     // Validate against schema
     const validation = validateWorldSpecJson(worldSpec);
     if (!validation.valid) {
       console.error('AI output validation failed:', validation.errors);
-      // Try to fix common issues
-      if (!worldSpec.metadata) {
-        worldSpec.metadata = {
-          requestedBy: input.requestedBy,
-          requestedAt: new Date().toISOString(),
-          userDescription: input.description,
-          aiModel: AZURE_OPENAI_DEPLOYMENT,
-          version: '1.0.0',
-        };
-      }
-      
-      // Re-validate
-      const revalidation = validateWorldSpecJson(worldSpec);
-      if (!revalidation.valid) {
-        return { success: false, error: `AI produced invalid WorldSpec: ${revalidation.errors?.join('; ')}` };
-      }
+      return { 
+        success: false, 
+        error: `AI produced invalid WorldSpec: ${validation.errors?.join('; ')}` 
+      };
     }
 
-    console.log(`Azure OpenAI generated world: ${worldSpec.worldName} with ${worldEditCommands.length} WorldEdit commands`);
-    
-    // Store worldEditCommands in the result for later execution
+    console.log(`AI generated world: "${worldSpec.displayName}" with ${worldEditCommands.length} WorldEdit commands`);
+
+    // Attach WorldEdit commands for execution
     if (worldEditCommands.length > 0) {
       (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands = worldEditCommands;
     }
@@ -549,49 +231,4 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
       error: `AI planning failed: ${(error as Error).message}`,
     };
   }
-}
-
-export async function planWorld(input: PlannerInput): Promise<PlannerResult> {
-  console.log(`Planning world for: "${input.description.slice(0, 100)}..."`);
-  
-  // If MOCK_AI is explicitly set, use mock planner
-  if (MOCK_AI) {
-    console.log('MOCK_AI=true, using mock planner');
-    return useMockPlanner(input);
-  }
-
-  // Try Azure OpenAI first if configured
-  if (azureOpenAI) {
-    console.log('Using Azure OpenAI for creative world planning...');
-    const result = await realPlan(input);
-    
-    if (result.success) {
-      return result;
-    }
-    
-    // If AI failed, fall back to mock
-    console.warn(`Azure OpenAI failed: ${result.error}, falling back to mock planner`);
-    return useMockPlanner(input);
-  }
-
-  // No Azure OpenAI configured, use mock
-  console.log('Azure OpenAI not configured, using mock planner');
-  return useMockPlanner(input);
-}
-
-function useMockPlanner(input: PlannerInput): PlannerResult {
-  const worldSpec = mockPlan(input);
-
-  // Validate the mock output
-  const validation = validateWorldSpecJson(worldSpec);
-  if (!validation.valid) {
-    console.error('Mock planner validation failed:', validation.errors);
-    return {
-      success: false,
-      error: `Mock planner produced invalid WorldSpec: ${validation.errors?.join('; ')}`,
-    };
-  }
-
-  console.log(`Generated world: ${worldSpec.worldName} (${worldSpec.generation.levelType})`);
-  return { success: true, worldSpec };
 }

@@ -86,3 +86,20 @@ output "minecraft_server_address" {
   value       = "${azurerm_public_ip.ingress.ip_address}:25565"
 }
 
+# Azure OpenAI
+output "azure_openai_endpoint" {
+  description = "Azure OpenAI endpoint URL"
+  value       = azurerm_cognitive_account.openai.endpoint
+}
+
+output "azure_openai_api_key" {
+  description = "Azure OpenAI API key"
+  value       = azurerm_cognitive_account.openai.primary_access_key
+  sensitive   = true
+}
+
+output "azure_openai_deployment" {
+  description = "Azure OpenAI deployment name (model)"
+  value       = azurerm_cognitive_deployment.gpt4o.name
+}
+
