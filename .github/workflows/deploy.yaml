@@ -212,3 +212,76 @@ jobs:
           echo "=== Services ==="
           kubectl get svc -A | grep LoadBalancer
 
+      - name: Update Coordinator with new credentials
+        if: steps.check_state.outputs.state == 'ON'
+        run: |
+          echo "🔄 Updating Coordinator API with infrastructure credentials..."
+          
+          # Get Minecraft game server IP
+          GAME_IP=$(kubectl get svc -n minecraft minecraft -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          echo "✅ Minecraft Game IP: $GAME_IP"
+          
+          # Get RCON IP
+          RCON_IP=$(kubectl get svc -n minecraft minecraft-rcon -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          echo "✅ RCON IP: $RCON_IP"
+          
+          # Get Azure OpenAI credentials
+          OPENAI_ENDPOINT=$(az cognitiveservices account show \
+            --name mc-demo-dev-openai \
+            --resource-group mc-demo-dev-rg \
+            --query "properties.endpoint" -o tsv 2>/dev/null || echo "")
+          
+          OPENAI_KEY=$(az cognitiveservices account keys list \
+            --name mc-demo-dev-openai \
+            --resource-group mc-demo-dev-rg \
+            --query "key1" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$OPENAI_ENDPOINT" ]; then
+            echo "✅ Azure OpenAI Endpoint: $OPENAI_ENDPOINT"
+          fi
+          
+          # Get coordinator identity client ID
+          CLIENT_ID=$(az identity show \
+            --name mc-demo-dev-coordinator-identity \
+            --resource-group mc-demo-dev-dashboard-rg \
+            --query clientId -o tsv 2>/dev/null || echo "")
+          
+          # Build env vars
+          ENV_VARS=""
+          [ -n "$GAME_IP" ] && ENV_VARS="$ENV_VARS PUBLIC_IP=$GAME_IP"
+          [ -n "$RCON_IP" ] && ENV_VARS="$ENV_VARS MINECRAFT_RCON_HOST=$RCON_IP MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
+          [ -n "$OPENAI_ENDPOINT" ] && ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=$OPENAI_ENDPOINT AZURE_OPENAI_DEPLOYMENT=gpt-4o"
+          [ -n "$CLIENT_ID" ] && ENV_VARS="$ENV_VARS AZURE_CLIENT_ID=$CLIENT_ID AKS_RESOURCE_GROUP=mc-demo-dev-rg AKS_CLUSTER_NAME=mc-demo-dev-aks"
+          
+          # Update coordinator env vars
+          if [ -n "$ENV_VARS" ]; then
+            az containerapp update \
+              --name mc-demo-dev-coordinator \
+              --resource-group mc-demo-dev-dashboard-rg \
+              --set-env-vars $ENV_VARS
+            echo "✅ Coordinator env vars updated"
+          fi
+          
+          # Update OpenAI secret if key exists
+          if [ -n "$OPENAI_KEY" ]; then
+            az containerapp secret set \
+              --name mc-demo-dev-coordinator \
+              --resource-group mc-demo-dev-dashboard-rg \
+              --secrets "openai-key=$OPENAI_KEY"
+            
+            # Restart to pick up secret
+            REVISION=$(az containerapp show \
+              --name mc-demo-dev-coordinator \
+              --resource-group mc-demo-dev-dashboard-rg \
+              --query "properties.latestRevisionName" -o tsv)
+            
+            az containerapp revision restart \
+              --name mc-demo-dev-coordinator \
+              --resource-group mc-demo-dev-dashboard-rg \
+              --revision $REVISION
+            
+            echo "✅ OpenAI secret updated and coordinator restarted"
+          fi
+          
+          echo "🎉 Coordinator fully configured!"
+
