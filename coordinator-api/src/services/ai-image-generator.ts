@@ -90,12 +90,19 @@ Style requirements:
       response_format: 'url', // Get URL instead of base64
     });
     
+    if (!response.data || response.data.length === 0) {
+      return {
+        success: false,
+        error: 'DALL-E returned no data',
+      };
+    }
+    
     const image = response.data[0];
     
     if (!image?.url) {
       return {
         success: false,
-        error: 'DALL-E returned no image',
+        error: 'DALL-E returned no image URL',
       };
     }
     
