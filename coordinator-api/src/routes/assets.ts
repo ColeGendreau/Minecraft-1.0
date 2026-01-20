@@ -17,7 +17,7 @@ import {
 } from '../db/client.js';
 import { getRconClient } from '../services/rcon-client.js';
 import { buildLogo } from '../services/image-to-voxel.js';
-import { generateAssetImage, isDalleAvailable, getDalleStatus } from '../services/ai-image-generator.js';
+import { lookupImageUrl, isImageLookupAvailable, getImageLookupStatus } from '../services/ai-image-lookup.js';
 import type { AssetStatus } from '../types/index.js';
 
 const router = Router();
@@ -28,24 +28,24 @@ const router = Router();
 
 /**
  * GET /api/assets/status
- * Get asset system status including DALL-E availability
+ * Get asset system status including AI image lookup availability
  */
 router.get('/status', (_req, res) => {
   const assets = getActiveAssets();
-  const dalleStatus = getDalleStatus();
+  const lookupStatus = getImageLookupStatus();
   
   res.json({
     totalAssets: assets.length,
     aiImageGeneration: {
-      available: dalleStatus.available,
-      deployment: dalleStatus.deployment,
-      note: dalleStatus.available 
-        ? 'AI prompt-to-image is enabled! You can create assets from text descriptions.'
-        : 'AI prompt-to-image is not configured. You can still create assets from image URLs.',
+      available: lookupStatus.available,
+      deployment: lookupStatus.deployment,
+      note: lookupStatus.available 
+        ? 'AI Image Lookup is enabled! Describe what you want and AI will find a real image URL.'
+        : 'AI Image Lookup is not configured. You can still create assets from image URLs.',
     },
     capabilities: [
       'Image URL to pixel art',
-      dalleStatus.available ? 'AI prompt to image to pixel art' : null,
+      lookupStatus.available ? 'AI text → image lookup → pixel art' : null,
       'Delete assets',
       'Duplicate assets',
       'Nuke all assets',
@@ -146,7 +146,7 @@ router.get('/:id', (req, res) => {
  * Body: {
  *   name?: string,           // Optional name (auto-generated if not provided)
  *   imageUrl?: string,       // Direct image URL
- *   prompt?: string,         // AI prompt (generates image via DALL-E)
+ *   prompt?: string,         // AI prompt (looks up a real image URL via GPT-4o)
  *   position?: { x, y, z },  // Optional position (auto-positioned if not provided)
  *   scale?: number,          // Blocks per pixel (default: 2)
  *   depth?: number,          // 1 = flat, >1 = 3D relief (default: 1)
@@ -177,43 +177,45 @@ router.post('/', async (req, res) => {
 
     // Determine image URL to use
     let finalImageUrl = imageUrl;
-    let generatedImageUrl: string | null = null;
+    let foundImageUrl: string | null = null;
+    
+    // Track if this is an AI lookup (for positioning)
+    const isAiLookup = !!(prompt && !imageUrl);
 
-    // If prompt provided but no image, generate with DALL-E
+    // If prompt provided but no image, use AI to look up a real image URL
     if (prompt && !imageUrl) {
-      console.log(`[Asset] Generating image from prompt: "${prompt}"`);
+      console.log(`[Asset] AI lookup for: "${prompt}"`);
       
-      if (!isDalleAvailable()) {
+      if (!isImageLookupAvailable()) {
         return res.status(400).json({
-          error: 'AI image generation is not configured. Please provide an imageUrl instead.',
-          hint: 'DALL-E requires Azure OpenAI credentials.',
-          dalleStatus: getDalleStatus(),
+          error: 'AI image lookup is not configured. Please provide an imageUrl instead.',
+          hint: 'AI lookup requires Azure OpenAI credentials.',
+          lookupStatus: getImageLookupStatus(),
         });
       }
       
-      const aiResult = await generateAssetImage(prompt);
+      const lookupResult = await lookupImageUrl(prompt);
       
-      if (!aiResult.success || !aiResult.imageUrl) {
+      if (!lookupResult.success || !lookupResult.imageUrl) {
         return res.status(400).json({
-          error: aiResult.error || 'Failed to generate image from prompt',
-          hint: 'Try a different prompt or provide an imageUrl directly.',
+          error: lookupResult.error || 'Failed to find image from prompt',
+          hint: 'Try being more specific (e.g., "Apple logo" or "Nike swoosh") or provide an imageUrl directly.',
         });
       }
       
-      finalImageUrl = aiResult.imageUrl;
-      generatedImageUrl = aiResult.imageUrl;
+      finalImageUrl = lookupResult.imageUrl;
+      foundImageUrl = lookupResult.imageUrl;
       
-      console.log(`[Asset] AI generated image: ${generatedImageUrl.substring(0, 80)}...`);
-      if (aiResult.revisedPrompt) {
-        console.log(`[Asset] Revised prompt: "${aiResult.revisedPrompt}"`);
-      }
+      console.log(`[Asset] AI found image: ${foundImageUrl.substring(0, 80)}...`);
     }
 
     // Get position (auto or manual)
-    const pos = position || getNextAssetPosition();
+    // AI lookup assets go to Z=-50 (back zone), URL assets go to Z=50 (front zone)
+    const zone = isAiLookup ? 'back' : 'front';
+    const pos = position || getNextAssetPosition(zone);
     const posX = pos.x ?? 0;
     const posY = pos.y ?? 65;
-    const posZ = pos.z ?? 50;
+    const posZ = pos.z ?? (isAiLookup ? -50 : 50);
 
     console.log(`[Asset] Creating from URL: ${finalImageUrl}`);
     console.log(`[Asset] Position: (${posX}, ${posY}, ${posZ}), Scale: ${scale}x, Depth: ${depth}`);
@@ -272,7 +274,7 @@ router.post('/', async (req, res) => {
       name: assetName,
       imageUrl: finalImageUrl,
       prompt: prompt || undefined,
-      generatedImageUrl: generatedImageUrl || undefined,
+      generatedImageUrl: foundImageUrl || undefined,
       positionX: result.buildInfo.position.x,
       positionY: result.buildInfo.position.y,
       positionZ: result.buildInfo.position.z,

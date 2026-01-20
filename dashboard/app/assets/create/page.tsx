@@ -46,7 +46,7 @@ export default function CreateAssetPage() {
       }
 
       setBuildProgress(mode === 'prompt' 
-        ? '🤖 Generating image with AI...'
+        ? '🔍 AI is finding the best image...'
         : '📥 Fetching image...');
 
       const result = await createAsset({
@@ -124,7 +124,7 @@ export default function CreateAssetPage() {
             }`}
             style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}
           >
-            🤖 AI Prompt {!aiAvailable && '(not configured)'}
+            🔍 AI Lookup {!aiAvailable && '(not configured)'}
           </button>
         </div>
       </div>
@@ -164,6 +164,9 @@ export default function CreateAssetPage() {
             <p className="text-amber-600 text-sm mt-2" style={{ fontFamily: "'VT323', monospace" }}>
               PNG or JPG images work best. Transparent backgrounds are supported!
             </p>
+            <p className="text-amber-500 text-xs mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+              📍 Built in the front zone (Z=50)
+            </p>
             
             {/* Image Preview */}
             {imageUrl && (
@@ -185,19 +188,22 @@ export default function CreateAssetPage() {
         ) : (
           <div className="mc-card p-4 border-purple-300">
             <label className="block text-purple-800 mb-2" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-              🤖 AI Prompt *
+              🔍 AI Image Lookup *
             </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="A majestic dragon breathing fire..."
+              placeholder="Apple logo, Nike swoosh, Mario sprite..."
               required
               rows={3}
               className="w-full px-4 py-3 rounded border-2 border-purple-300 bg-purple-50 text-purple-900 placeholder-purple-400 focus:outline-none focus:border-purple-500"
               style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}
             />
             <p className="text-purple-600 text-sm mt-2" style={{ fontFamily: "'VT323', monospace" }}>
-              Describe what you want. The AI will generate an image and build it as pixel art!
+              Describe what you want (e.g., &quot;Microsoft logo&quot;, &quot;Pikachu sprite&quot;). AI will find a real image URL and build it!
+            </p>
+            <p className="text-purple-500 text-xs mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+              💡 Tip: Be specific! &quot;Apple logo&quot; works better than &quot;apple&quot;. Built in the back zone (Z=-50).
             </p>
           </div>
         )}
@@ -310,10 +316,12 @@ export default function CreateAssetPage() {
           💡 Tips for great assets:
         </h3>
         <ul className="text-blue-700 space-y-1" style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
-          <li>• Use images with clear, distinct shapes and colors</li>
-          <li>• Logos and icons work great!</li>
+          <li>• <strong>Image URL mode:</strong> Use images with clear, distinct shapes</li>
+          <li>• <strong>AI Lookup mode:</strong> Be specific! &quot;Nintendo logo&quot; works better than &quot;game company&quot;</li>
+          <li>• Logos, icons, and sprites work great for pixel art!</li>
           <li>• Transparent backgrounds are preserved</li>
           <li>• Larger scale = more detail but bigger build</li>
+          <li>• <strong>Zones:</strong> URL assets → Front (Z=50) | AI Lookup → Back (Z=-50)</li>
           <li>• Watch the build happen live in Minecraft! 👀</li>
         </ul>
       </div>

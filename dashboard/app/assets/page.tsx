@@ -154,12 +154,12 @@ export default function AssetsPage() {
         <div className={`mc-card p-4 mb-6 ${status.aiImageGeneration.available ? 'border-green-400' : 'border-amber-400'}`}>
           <div className="flex items-center gap-3">
             <span className="text-2xl">
-              {status.aiImageGeneration.available ? '🤖' : '📷'}
+              {status.aiImageGeneration.available ? '🔍' : '📷'}
             </span>
             <div>
               <p className="text-amber-800 font-medium" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
                 {status.aiImageGeneration.available 
-                  ? '✨ AI Image Generation ENABLED'
+                  ? '✨ AI Image Lookup ENABLED'
                   : '📷 Image URL Mode Only'}
               </p>
               <p className="text-amber-600 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
@@ -314,7 +314,7 @@ function AssetCard({
       {/* Badge */}
       {isAiGenerated && (
         <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-600 text-white text-xs rounded">
-          AI
+          🔍 AI
         </div>
       )}
     </div>

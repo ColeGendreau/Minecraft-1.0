@@ -424,18 +424,27 @@ export function nukeAllAssets(): number {
 }
 
 // Get the next available position for a new asset (to avoid overlap)
-export function getNextAssetPosition(): { x: number; y: number; z: number } {
+// Assets are organized into zones:
+//   - Z = 50 (front zone): URL-based assets
+//   - Z = -50 (back zone): AI lookup assets
+export function getNextAssetPosition(zone: 'front' | 'back' = 'front'): { x: number; y: number; z: number } {
+  const targetZ = zone === 'front' ? 50 : -50;
   const activeAssets = getActiveAssets();
   
-  if (activeAssets.length === 0) {
-    return { x: 0, y: 65, z: 50 };
+  // Filter to assets in this zone (within 30 blocks of target Z)
+  const zoneAssets = activeAssets.filter(a => 
+    Math.abs(a.position_z - targetZ) < 30
+  );
+  
+  if (zoneAssets.length === 0) {
+    return { x: 0, y: 65, z: targetZ };
   }
   
-  // Find the rightmost asset and place new one to its right
+  // Find the rightmost asset in this zone and place new one to its right
   let maxX = 0;
   let maxWidth = 0;
   
-  for (const asset of activeAssets) {
+  for (const asset of zoneAssets) {
     if (asset.position_x + asset.width > maxX + maxWidth) {
       maxX = asset.position_x;
       maxWidth = asset.width;
@@ -446,6 +455,6 @@ export function getNextAssetPosition(): { x: number; y: number; z: number } {
   return {
     x: maxX + maxWidth + 20,
     y: 65,
-    z: 50
+    z: targetZ
   };
 }
