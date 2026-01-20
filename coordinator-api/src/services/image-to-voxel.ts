@@ -8,7 +8,10 @@
  * - 2D wall builds (flat pixel art)
  * - 3D extruded builds (pixel art with depth)
  * - Support for transparency
+ * - URL image fetching and processing
  */
+
+import sharp from 'sharp';
 
 // Minecraft block colors - mapped to RGB values
 // These are the most commonly used colored blocks
@@ -447,5 +450,201 @@ export function processImageCommand(
   } else {
     return pixelsToExtrudedCommands(imageData.pixels, x, y, z, scale, depth, facing);
   }
+}
+
+// ============================================================
+// IMAGE URL PROCESSING
+// ============================================================
+
+export interface ImageBuildOptions {
+  url: string;
+  x?: number;
+  y?: number;
+  z?: number;
+  maxWidth?: number;      // Max width in blocks (pixels will be scaled)
+  maxHeight?: number;     // Max height in blocks
+  scale?: number;         // Blocks per pixel (1, 2, 3, etc.)
+  depth?: number;         // Extrusion depth (1 = flat wall)
+  facing?: 'north' | 'south' | 'east' | 'west';
+}
+
+/**
+ * Fetch an image from a URL and convert to pixel array
+ */
+export async function fetchImagePixels(
+  url: string,
+  maxWidth: number = 128,
+  maxHeight: number = 128
+): Promise<{ pixels: { r: number; g: number; b: number; a: number }[][]; width: number; height: number }> {
+  // Fetch the image
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+  }
+  
+  const imageBuffer = Buffer.from(await response.arrayBuffer());
+  
+  // Process with sharp
+  const image = sharp(imageBuffer);
+  const metadata = await image.metadata();
+  
+  if (!metadata.width || !metadata.height) {
+    throw new Error('Could not read image dimensions');
+  }
+  
+  // Calculate scaled dimensions while maintaining aspect ratio
+  let targetWidth = metadata.width;
+  let targetHeight = metadata.height;
+  
+  if (targetWidth > maxWidth) {
+    const ratio = maxWidth / targetWidth;
+    targetWidth = maxWidth;
+    targetHeight = Math.round(targetHeight * ratio);
+  }
+  
+  if (targetHeight > maxHeight) {
+    const ratio = maxHeight / targetHeight;
+    targetHeight = maxHeight;
+    targetWidth = Math.round(targetWidth * ratio);
+  }
+  
+  // Resize and get raw pixel data
+  const { data, info } = await image
+    .resize(targetWidth, targetHeight, { fit: 'inside' })
+    .ensureAlpha() // Ensure we have RGBA
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  
+  // Convert to pixel array
+  const pixels: { r: number; g: number; b: number; a: number }[][] = [];
+  
+  for (let y = 0; y < info.height; y++) {
+    const row: { r: number; g: number; b: number; a: number }[] = [];
+    for (let x = 0; x < info.width; x++) {
+      const idx = (y * info.width + x) * 4;
+      row.push({
+        r: data[idx],
+        g: data[idx + 1],
+        b: data[idx + 2],
+        a: data[idx + 3]
+      });
+    }
+    pixels.push(row);
+  }
+  
+  return { pixels, width: info.width, height: info.height };
+}
+
+/**
+ * Build an image from URL in Minecraft
+ * Returns the fill commands to execute
+ */
+export async function buildImageFromUrl(options: ImageBuildOptions): Promise<{
+  commands: string[];
+  width: number;
+  height: number;
+  blockCount: number;
+}> {
+  const {
+    url,
+    x = 0,
+    y = 65,
+    z = 0,
+    maxWidth = 100,
+    maxHeight = 100,
+    scale = 1,
+    depth = 1,
+    facing = 'south'
+  } = options;
+  
+  console.log(`Fetching image from: ${url}`);
+  const { pixels, width, height } = await fetchImagePixels(url, maxWidth, maxHeight);
+  console.log(`Image loaded: ${width}x${height} pixels`);
+  
+  let commands: string[];
+  
+  if (depth <= 1) {
+    commands = pixelsToWallCommands(pixels, x, y, z, scale, facing);
+  } else {
+    commands = pixelsToExtrudedCommands(pixels, x, y, z, scale, depth, facing);
+  }
+  
+  // Optimize commands by merging adjacent same-block fills
+  const optimized = optimizeCommands(commands);
+  
+  console.log(`Generated ${optimized.length} commands for ${width}x${height} image (scale: ${scale}x)`);
+  
+  return {
+    commands: optimized,
+    width: width * scale,
+    height: height * scale,
+    blockCount: optimized.length
+  };
+}
+
+/**
+ * Build a logo/image and return info about the build
+ */
+export async function buildLogo(
+  imageUrl: string,
+  centerX: number = 0,
+  baseY: number = 65,
+  centerZ: number = 50,
+  options: {
+    maxSize?: number;
+    scale?: number;
+    depth?: number;
+    facing?: 'north' | 'south' | 'east' | 'west';
+  } = {}
+): Promise<{
+  commands: string[];
+  forceloadCommand: string;
+  buildInfo: {
+    width: number;
+    height: number;
+    blocks: number;
+    position: { x: number; y: number; z: number };
+  };
+}> {
+  const maxSize = options.maxSize || 64;
+  const scale = options.scale || 1;
+  const depth = options.depth || 1;
+  const facing = options.facing || 'south';
+  
+  // Fetch and process image
+  const { pixels, width, height } = await fetchImagePixels(imageUrl, maxSize, maxSize);
+  
+  // Calculate actual block dimensions
+  const blockWidth = width * scale;
+  const blockHeight = height * scale;
+  
+  // Calculate starting position (centered)
+  const startX = centerX - Math.floor(blockWidth / 2);
+  const startZ = centerZ;
+  
+  // Generate build commands
+  let commands: string[];
+  if (depth <= 1) {
+    commands = pixelsToWallCommands(pixels, startX, baseY, startZ, scale, facing);
+  } else {
+    commands = pixelsToExtrudedCommands(pixels, startX, baseY, startZ, scale, depth, facing);
+  }
+  
+  // Optimize
+  commands = optimizeCommands(commands);
+  
+  // Generate forceload command for the build area
+  const forceloadCommand = `forceload add ${startX - 16} ${startZ - 16} ${startX + blockWidth + 16} ${startZ + depth + 16}`;
+  
+  return {
+    commands,
+    forceloadCommand,
+    buildInfo: {
+      width: blockWidth,
+      height: blockHeight,
+      blocks: commands.length,
+      position: { x: startX, y: baseY, z: startZ }
+    }
+  };
 }
 

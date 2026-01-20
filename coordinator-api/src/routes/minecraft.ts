@@ -543,5 +543,123 @@ router.get('/worldedit/patterns', (req, res) => {
   });
 });
 
+// ============== IMAGE TO MINECRAFT ==============
+
+import { buildLogo, buildImageFromUrl } from '../services/image-to-voxel.js';
+
+/**
+ * POST /api/minecraft/build-image
+ * Build a pixel art image in Minecraft from a URL
+ * 
+ * Body: {
+ *   imageUrl: string,       // URL of image to build
+ *   x?: number,             // Center X position (default: 0)
+ *   y?: number,             // Base Y position (default: 65)
+ *   z?: number,             // Z position (default: 50)
+ *   maxSize?: number,       // Max width/height in pixels (default: 64)
+ *   scale?: number,         // Blocks per pixel (default: 1)
+ *   depth?: number,         // Extrusion depth (default: 1 for flat)
+ *   facing?: string         // 'north'|'south'|'east'|'west' (default: 'south')
+ * }
+ */
+router.post('/build-image', async (req, res) => {
+  try {
+    const { 
+      imageUrl, 
+      x = 0, 
+      y = 65, 
+      z = 50, 
+      maxSize = 64, 
+      scale = 1, 
+      depth = 1,
+      facing = 'south' 
+    } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'imageUrl is required'
+      });
+    }
+    
+    console.log(`Building image from URL: ${imageUrl}`);
+    console.log(`Position: (${x}, ${y}, ${z}), maxSize: ${maxSize}, scale: ${scale}x, depth: ${depth}`);
+    
+    // Build the logo
+    const result = await buildLogo(imageUrl, x, y, z, {
+      maxSize,
+      scale,
+      depth,
+      facing: facing as 'north' | 'south' | 'east' | 'west'
+    });
+    
+    console.log(`Generated ${result.commands.length} commands for image`);
+    
+    // Connect to RCON and execute
+    const rcon = getRconClient();
+    if (!rcon.isConnected()) {
+      await rcon.connect();
+    }
+    
+    // First, forceload the area
+    console.log(`Forceloading: ${result.forceloadCommand}`);
+    await rcon.send(result.forceloadCommand);
+    
+    // Wait for chunks to load
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Set time to day
+    await rcon.send('time set 6000');
+    
+    // Execute build commands in batches
+    const batchSize = 50;
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (let i = 0; i < result.commands.length; i += batchSize) {
+      const batch = result.commands.slice(i, i + batchSize);
+      
+      for (const cmd of batch) {
+        try {
+          await rcon.send(cmd);
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          console.error(`Command failed: ${cmd}`);
+        }
+      }
+      
+      // Small delay between batches
+      if (i + batchSize < result.commands.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    // Teleport player to see the build
+    const viewX = result.buildInfo.position.x + result.buildInfo.width / 2;
+    const viewY = result.buildInfo.position.y + result.buildInfo.height / 2;
+    const viewZ = result.buildInfo.position.z - 20; // Stand back to see it
+    await rcon.send(`tp @a ${Math.round(viewX)} ${Math.round(viewY)} ${Math.round(viewZ)}`);
+    
+    res.json({
+      success: true,
+      message: `Built image: ${result.buildInfo.width}x${result.buildInfo.height} blocks`,
+      buildInfo: result.buildInfo,
+      stats: {
+        totalCommands: result.commands.length,
+        successful: successCount,
+        failed: errorCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('Build image error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to build image'
+    });
+  }
+});
+
 export default router;
 
