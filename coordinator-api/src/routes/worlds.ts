@@ -11,6 +11,7 @@ import {
 import { planWorld } from '../services/ai-planner.js';
 import { executeRconCommands, getRconClient } from '../services/rcon-client.js';
 import { updateMinecraftMOTD } from '../services/kubernetes.js';
+import { processBuildCommands } from '../services/shape-library.js';
 import { createWorldLimiter } from '../middleware/ratelimit.js';
 import { validateCreateWorldRequest, validateRequestId } from '../middleware/validation.js';
 import type {
@@ -323,26 +324,21 @@ async function processWorldRequest(
       
       console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
 
-      // Execute build commands if present (vanilla /fill and /setblock commands)
+      // Execute build commands if present
+      // Supports both shape library commands (sphere, dome, etc.) and raw fill commands
       // IMPORTANT: Chunks must be loaded for fill commands to work!
       const buildCmds = (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands;
       if (buildCmds && buildCmds.length > 0) {
-        console.log(`[${requestId}] Executing ${buildCmds.length} build commands...`);
+        console.log(`[${requestId}] Processing ${buildCmds.length} build commands through shape library...`);
         
-        // Filter out comment lines and empty lines
-        const filteredCommands = buildCmds.filter(cmd => {
-          if (!cmd) return false;
-          const trimmed = cmd.trim();
-          if (trimmed.length === 0) return false;
-          // Skip comment lines (start with // followed by space)
-          if (trimmed.startsWith('// ')) return false;
-          return true;
-        });
+        // Process through shape library - converts shape commands to fill commands
+        // e.g., "sphere(0, 80, 0, 20, gold_block)" -> multiple "fill ..." commands
+        const processedCommands = processBuildCommands(buildCmds);
+        console.log(`[${requestId}] Shape library expanded to ${processedCommands.length} fill commands`);
 
-        // Extract coordinates from fill commands to determine forceload area
-        // /fill x1 y1 z1 x2 y2 z2 block
+        // Extract coordinates from all fill commands to determine forceload area
         const coords: { x: number; z: number }[] = [];
-        for (const cmd of filteredCommands) {
+        for (const cmd of processedCommands) {
           const match = cmd.match(/fill\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)/i);
           if (match) {
             coords.push(
@@ -356,44 +352,54 @@ async function processWorldRequest(
           }
         }
 
-        // Calculate bounding box in chunk coordinates (divide by 16)
+        // Calculate bounding box and forceload chunks
         if (coords.length > 0) {
           const minX = Math.min(...coords.map(c => c.x));
           const maxX = Math.max(...coords.map(c => c.x));
           const minZ = Math.min(...coords.map(c => c.z));
           const maxZ = Math.max(...coords.map(c => c.z));
           
-          const minChunkX = Math.floor(minX / 16);
-          const maxChunkX = Math.floor(maxX / 16);
-          const minChunkZ = Math.floor(minZ / 16);
-          const maxChunkZ = Math.floor(maxZ / 16);
+          console.log(`[${requestId}] Build area: X(${minX} to ${maxX}), Z(${minZ} to ${maxZ})`);
           
-          console.log(`[${requestId}] Forceloading chunks from (${minChunkX},${minChunkZ}) to (${maxChunkX},${maxChunkZ})`);
-          
-          // Forceload all necessary chunks FIRST
-          // Using chunk coordinates: forceload add <fromChunkX> <fromChunkZ> [<toChunkX> <toChunkZ>]
+          // Forceload all necessary chunks FIRST (with padding)
           const forceloadCmd = {
-            command: `forceload add ${minChunkX * 16} ${minChunkZ * 16} ${maxChunkX * 16} ${maxChunkZ * 16}`,
-            delayMs: 500  // Give time for chunks to load
+            command: `forceload add ${minX - 16} ${minZ - 16} ${maxX + 16} ${maxZ + 16}`,
+            delayMs: 500
           };
           
-          console.log(`[${requestId}] Forceload command: ${forceloadCmd.command}`);
-          const { results: forceloadResults, errors: forceloadErrors } = await executeRconCommands([forceloadCmd]);
+          console.log(`[${requestId}] Forceload: ${forceloadCmd.command}`);
+          const { errors: forceloadErrors } = await executeRconCommands([forceloadCmd]);
           
           if (forceloadErrors.length > 0) {
             console.warn(`[${requestId}] Forceload errors:`, forceloadErrors);
-          } else {
-            console.log(`[${requestId}] Forceload result:`, forceloadResults);
           }
           
-          // Wait a moment for chunks to fully load
+          // Wait for chunks to load
           await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // CLEAR THE BUILD AREA - gives fresh canvas for each world
+          // Fill with air from Y=65 to Y=200, then reset ground at Y=64
+          console.log(`[${requestId}] Clearing build area for fresh world...`);
+          const clearCommands = [
+            // Clear everything above ground (in chunks to avoid command size limits)
+            { command: `fill ${minX - 10} 65 ${minZ - 10} ${maxX + 10} 150 ${maxZ + 10} air`, delayMs: 200 },
+            { command: `fill ${minX - 10} 151 ${minZ - 10} ${maxX + 10} 220 ${maxZ + 10} air`, delayMs: 200 },
+            // Reset ground to flat grass
+            { command: `fill ${minX - 10} 64 ${minZ - 10} ${maxX + 10} 64 ${maxZ + 10} grass_block`, delayMs: 200 },
+            { command: `fill ${minX - 10} 60 ${minZ - 10} ${maxX + 10} 63 ${maxZ + 10} dirt`, delayMs: 200 },
+          ];
+          
+          const { errors: clearErrors } = await executeRconCommands(clearCommands);
+          if (clearErrors.length > 0) {
+            console.warn(`[${requestId}] Clear area had some errors (may be expected):`, clearErrors.slice(0, 2));
+          }
+          console.log(`[${requestId}] Build area cleared`);
         }
         
-        // Now execute the build commands
-        const preparedCommands = filteredCommands.map(cmd => ({
-          command: cmd.trim(),
-          delayMs: 100, // Small delay between commands
+        // Execute all build commands
+        const preparedCommands = processedCommands.map(cmd => ({
+          command: cmd,
+          delayMs: 50, // Fast execution for many commands
           optional: true
         }));
         
