@@ -68,8 +68,8 @@ ring(x, y, z, innerRadius, outerRadius, block)  - Flat ring
 
 Pre-built detailed objects you can place anywhere:
 
-toilet(x, y, z)                    - Porcelain toilet with water
-toilet(x, y, z, "gold")           - Gold variant!
+throne(x, y, z)                    - Royal throne with gold and velvet
+throne(x, y, z, "emerald")        - Emerald variant!
 bathtub(x, y, z)                  - Clawfoot bathtub with water
 chair(x, y, z)                    - Wooden chair
 chair(x, y, z, "dark_oak")        - Dark oak variant
@@ -85,7 +85,7 @@ rocket(x, y, z)                   - Space rocket
 windmill(x, y, z)                 - Classic windmill
 
 ### Scale Components Up:
-toilet(x, y, z, "default", 3)     - 3x scale giant toilet!
+throne(x, y, z, "default", 3)     - 3x scale giant throne!
 car(x, y, z, "yellow", 5)         - 5x scale huge car!
 
 ═══════════════════════════════════════════════════════════════
@@ -139,11 +139,11 @@ NATURAL: grass_block, dirt, stone, oak_log, oak_leaves, water
 ## CREATIVE EXAMPLES
 ═══════════════════════════════════════════════════════════════
 
-### Magical Bathroom:
-toilet(0, 65, 0, "gold", 3)              // Giant gold toilet
-bathtub(10, 65, 0)                       // Normal bathtub
-hollowDome(0, 65, 0, 25, quartz_block)   // Dome room
-fill -20 64 -20 20 64 20 polished_granite // Floor
+### Royal Throne Room:
+throne(0, 65, 0, "default", 3)           // Giant gold throne
+fountain(15, 65, 0)                      // Royal fountain
+hollowDome(0, 65, 0, 30, quartz_block)   // Palace dome
+fill -25 64 -25 25 64 25 gold_block      // Golden floor
 
 ### Unicorn Hotel:
 unicorn(0, 65, 0, 10)                    // MASSIVE unicorn
@@ -210,7 +210,7 @@ Generate 15-30 commands mixing shapes, components, and voxels!
   "buildCommands": [
     "unicorn(0, 65, 0, 5)",
     "hollowDome(0, 65, 0, 30, pink_wool)",
-    "toilet(50, 65, 50, gold, 3)",
+    "throne(50, 65, 50, emerald, 3)",
     "fountain(-40, 65, 0)",
     "car(-50, 65, -50, blue, 4)",
     "pyramid(80, 65, 0, 50, 35, sandstone)",

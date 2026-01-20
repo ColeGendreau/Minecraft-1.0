@@ -113,48 +113,52 @@ export function optimizeSetblocks(commands: string[]): string[] {
 // ============================================================
 
 /**
- * Toilet - A detailed toilet with bowl, seat, tank, and water
- * Size: 3x4x2 (width x height x depth)
+ * Throne - A royal throne fit for a king
+ * Size: 3x5x2 (width x height x depth)
  */
-export const TOILET: ComponentDefinition = {
-  name: 'toilet',
-  description: 'A porcelain toilet with water in the bowl',
+export const THRONE: ComponentDefinition = {
+  name: 'throne',
+  description: 'A royal throne with armrests and high back',
   width: 3,
-  height: 4,
+  height: 5,
   depth: 2,
-  // Layers from bottom (Y=0) to top (Y=3)
-  // Each layer is rows in Z direction, each row is X direction
   layers: [
-    // Y=0: Base
+    // Y=0: Base/feet
     [
-      'QQQ',  // Z=0
-      'QQQ',  // Z=1
+      'G.G',
+      'GGG',
     ],
-    // Y=1: Bowl with water
+    // Y=1: Seat
     [
-      'QWQ',  // Z=0 - water in middle
-      'QQQ',  // Z=1 - back of bowl
+      'RRR',
+      'RRR',
     ],
-    // Y=2: Seat and tank base
+    // Y=2: Armrests and back start
     [
-      'Q.Q',  // Z=0 - seat opening
-      'QQQ',  // Z=1 - tank
+      'G.G',
+      'RRR',
     ],
-    // Y=3: Tank top and handle
+    // Y=3: Back
     [
-      '...',  // Z=0
-      'QHQ',  // Z=1 - tank with handle
+      '...',
+      'RGR',
+    ],
+    // Y=4: Back top with jewel
+    [
+      '...',
+      'GDG',
     ],
   ],
   palette: {
-    'Q': 'quartz_block',      // Porcelain white
-    'W': 'water',             // Water in bowl
-    'H': 'lever',             // Flush handle
+    'G': 'gold_block',
+    'R': 'red_wool',
+    'D': 'diamond_block',
     '.': 'air',
   },
   variants: {
-    gold: { 'Q': 'gold_block' },
-    diamond: { 'Q': 'diamond_block' },
+    iron: { 'G': 'iron_block', 'R': 'blue_wool' },
+    emerald: { 'G': 'emerald_block', 'R': 'green_wool' },
+    obsidian: { 'G': 'obsidian', 'R': 'purple_wool', 'D': 'amethyst_block' },
   }
 };
 
@@ -640,7 +644,7 @@ export const WINDMILL: ComponentDefinition = {
 // ============================================================
 
 export const COMPONENTS: Record<string, ComponentDefinition> = {
-  toilet: TOILET,
+  throne: THRONE,
   bathtub: BATHTUB,
   chair: CHAIR,
   table: TABLE,
