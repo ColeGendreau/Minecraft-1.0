@@ -105,27 +105,28 @@ jobs:
             echo "⚠️ Azure OpenAI not deployed yet - coordinator will not be able to generate worlds"
           fi
 
-      - name: Get Minecraft RCON info
-        id: get_rcon
+      - name: Get Minecraft server IPs
+        id: get_minecraft
         run: |
           # Get AKS credentials to query services
           az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --admin --overwrite-existing || true
           
-          # Get RCON service IP (separate from game server IP)
-          RCON_IP=$(kubectl get svc -n minecraft minecraft-rcon -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          # Get game server IP (for players to connect)
+          GAME_IP=$(kubectl get svc -n minecraft minecraft -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          if [ -n "$GAME_IP" ]; then
+            echo "game_ip=$GAME_IP" >> $GITHUB_OUTPUT
+            echo "✅ Minecraft Game IP: $GAME_IP"
+          else
+            echo "⚠️ Minecraft game service not found"
+          fi
           
+          # Get RCON service IP (for coordinator to send commands)
+          RCON_IP=$(kubectl get svc -n minecraft minecraft-rcon -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
           if [ -n "$RCON_IP" ]; then
-            echo "host=$RCON_IP" >> $GITHUB_OUTPUT
+            echo "rcon_ip=$RCON_IP" >> $GITHUB_OUTPUT
             echo "✅ Minecraft RCON IP: $RCON_IP"
           else
-            # Fallback to checking if the service exists with a different name
-            RCON_IP=$(kubectl get svc -n minecraft -o jsonpath='{.items[?(@.spec.ports[0].port==25575)].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-            if [ -n "$RCON_IP" ]; then
-              echo "host=$RCON_IP" >> $GITHUB_OUTPUT
-              echo "✅ Minecraft RCON IP (from port match): $RCON_IP"
-            else
-              echo "⚠️ Minecraft RCON service not found"
-            fi
+            echo "⚠️ Minecraft RCON service not found"
           fi
 
       - name: Get coordinator identity for AKS auth
@@ -146,8 +147,13 @@ jobs:
 
       - name: Deploy to Container Apps
         run: |
-          # Build environment variables - use correct RCON password from values.yaml
-          ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_rcon.outputs.host }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
+          # Build environment variables
+          ENV_VARS="MINECRAFT_RCON_HOST=${{ steps.get_minecraft.outputs.rcon_ip }} MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
+          
+          # Add game server IP for dashboard display
+          if [ -n "${{ steps.get_minecraft.outputs.game_ip }}" ]; then
+            ENV_VARS="$ENV_VARS PUBLIC_IP=${{ steps.get_minecraft.outputs.game_ip }}"
+          fi
           
           # Add AKS config for kubectl MOTD updates
           ENV_VARS="$ENV_VARS AKS_RESOURCE_GROUP=mc-demo-dev-rg AKS_CLUSTER_NAME=mc-demo-dev-aks"
