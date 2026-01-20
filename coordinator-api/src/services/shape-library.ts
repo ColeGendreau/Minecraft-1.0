@@ -22,6 +22,11 @@
  * - ring(x, y, z, innerRadius, outerRadius, block) - flat ring/donut
  */
 
+// Import other libraries for the unified command processor
+import { processComponentCommand, getComponent } from './component-library.js';
+import { processImageCommand, PIXEL_ART_LIBRARY } from './image-to-voxel.js';
+import { processVoxelObjectCommand, VOXEL_OBJECTS, voxelToCommands, VoxelDefinition } from './voxel-generator.js';
+
 export interface ShapeCommand {
   shape: string;
   params: (number | string | boolean)[];
@@ -504,11 +509,6 @@ export function processBuildCommands(
   commands: string[], 
   customVoxels?: Record<string, CustomVoxelDef>
 ): string[] {
-  // Dynamic imports to avoid circular dependencies
-  const { processComponentCommand, getComponent } = require('./component-library.js');
-  const { processImageCommand, PIXEL_ART_LIBRARY } = require('./image-to-voxel.js');
-  const { processVoxelObjectCommand, VOXEL_OBJECTS, voxelToCommands } = require('./voxel-generator.js');
-  
   const result: string[] = [];
   
   for (const cmd of commands) {
