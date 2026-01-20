@@ -322,29 +322,40 @@ async function processWorldRequest(
       
       console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
 
-      // Execute WorldEdit commands if present (for building structures)
-      const worldEditCommands = (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands;
-      if (worldEditCommands && worldEditCommands.length > 0) {
-        console.log(`[${requestId}] Executing ${worldEditCommands.length} WorldEdit build commands...`);
+      // Execute build commands if present (for building structures)
+      // These are vanilla Minecraft commands like fill, setblock, forceload
+      const buildCmds = (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands;
+      if (buildCmds && buildCmds.length > 0) {
+        console.log(`[${requestId}] Executing ${buildCmds.length} build commands...`);
         
         // Filter out comments and prepare commands
-        const buildCommands = worldEditCommands
-          .filter(cmd => cmd && !cmd.startsWith('//') || cmd.startsWith('// ') === false)
+        const preparedCommands = buildCmds
+          .filter(cmd => cmd && !cmd.trim().startsWith('//'))  // Remove comment lines
           .filter(cmd => cmd.trim().length > 0)
-          .map(cmd => ({ 
-            command: cmd.startsWith('/') ? cmd : `/${cmd}`, 
-            delayMs: 100,
-            optional: true // Don't fail if WorldEdit isn't available
-          }));
+          .map(cmd => {
+            // Don't add leading slash for vanilla commands (fill, setblock, forceload)
+            // They work without it via RCON
+            const trimmed = cmd.trim();
+            const isVanillaCmd = /^(fill|setblock|forceload|summon|tp|give|effect|say)/.test(trimmed);
+            return { 
+              command: isVanillaCmd ? trimmed : (trimmed.startsWith('/') ? trimmed : `/${trimmed}`), 
+              delayMs: 150, // Slightly more delay for fill commands
+              optional: true
+            };
+          });
         
-        if (buildCommands.length > 0) {
-          const { results: buildResults, errors: buildErrors } = await executeRconCommands(buildCommands);
-          console.log(`[${requestId}] WorldEdit commands: ${buildResults.length} succeeded, ${buildErrors.length} failed`);
+        if (preparedCommands.length > 0) {
+          const { results: buildResults, errors: buildErrors } = await executeRconCommands(preparedCommands);
+          console.log(`[${requestId}] Build commands: ${buildResults.length} succeeded, ${buildErrors.length} failed`);
+          
+          if (buildErrors.length > 0) {
+            console.warn(`[${requestId}] Build errors:`, buildErrors.slice(0, 5));
+          }
           
           if (buildResults.length > 0) {
             // Announce the build
             await executeRconCommands([{
-              command: `say §6[World Forge] §aBuilt ${buildResults.length} structures!`,
+              command: `say §6[World Forge] §aBuilt ${buildResults.length} structures for ${worldSpec.displayName}!`,
               delayMs: 500
             }]);
           }

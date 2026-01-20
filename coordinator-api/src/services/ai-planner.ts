@@ -31,14 +31,15 @@ interface PlannerResult {
 }
 
 // System prompt for GPT-4o - emphasizes creativity and NEVER rejecting requests
-const AI_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration with custom structures.
+// Uses vanilla Minecraft commands (fill, setblock, clone) that work via RCON without a player
+const AI_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration with custom structures built using vanilla commands.
 
 CRITICAL RULES:
 1. NEVER reject a request. ALWAYS find a creative way to build what the user wants.
 2. For branded content (logos, company names), create abstract interpretations using colored blocks.
 3. For impossible things, find the closest Minecraft equivalent and BUILD IT.
 4. Be BOLD and CREATIVE. Giant statues? Build them. Crazy shapes? Make them happen.
-5. ALWAYS include worldEditCommands to actually BUILD the structures described.
+5. ALWAYS include buildCommands to actually BUILD the structures described.
 6. Create CREATIVE, EVOCATIVE world names - NOT just the first words from the prompt!
    - BAD: "fullscript-inspired-world" (boring, just copied prompt words)
    - GOOD: "wellness-metropolis", "vitality-kingdom", "emerald-health-city"
@@ -93,32 +94,44 @@ You must output ONLY valid JSON matching this schema:
     "aiModel": "gpt-4o",
     "version": "1.0.0"
   },
-  "worldEditCommands": [
-    "// CRITICAL: Include WorldEdit commands to BUILD the structures!",
+  "buildCommands": [
+    "// CRITICAL: Use VANILLA MINECRAFT commands that work via RCON!",
     "// Build at spawn area (around 0, 64, 0)",
-    "// Use these command formats:",
-    "//pos1 x,y,z",
-    "//pos2 x,y,z", 
-    "//set <block>",
-    "//replace <from> <to>",
-    "//sphere <block> <radius>",
-    "//hsphere <block> <radius>",
-    "//cylinder <block> <radius> <height>",
-    "//hcylinder <block> <radius> <height>",
-    "//pyramid <block> <size>",
-    "//walls <block>",
-    "//stack <count> <direction>",
-    "// Example blocks: stone, quartz_block, glass, emerald_block, gold_block, diamond_block, iron_block, oak_planks, brick, concrete colors (red_concrete, blue_concrete, etc)",
-    "// BE CREATIVE! Build statues, buildings, monuments, whatever they asked for!"
+    "// IMPORTANT: First forceload chunks, then build!",
+    "// ",
+    "// COMMAND FORMATS (use these exact syntaxes):",
+    "// forceload add <x1> <z1> <x2> <z2>  - Load chunks before building",
+    "// fill <x1> <y1> <z1> <x2> <y2> <z2> <block> [replace <filter>]",
+    "// setblock <x> <y> <z> <block>",
+    "// summon <entity> <x> <y> <z>",
+    "// ",
+    "// EXAMPLE STRUCTURES:",
+    "// Tower: fill 0 64 0 5 100 5 stone_bricks hollow",
+    "// Platform: fill -20 63 -20 20 63 20 polished_andesite",
+    "// Sphere approximation: Multiple fill commands at different y-levels",
+    "// Pyramid: Stacked fills decreasing in size",
+    "// ",
+    "// BLOCKS: stone, stone_bricks, quartz_block, glass, emerald_block, gold_block,",
+    "//   diamond_block, iron_block, oak_planks, brick, red_concrete, blue_concrete,",
+    "//   white_concrete, black_concrete, green_concrete, orange_concrete, etc.",
+    "// ",
+    "// BE CREATIVE! Build statues, buildings, monuments - whatever they asked for!"
   ]
 }
 
-WORLDEDIT COMMANDS ARE CRITICAL:
-- For statues: Use stacked spheres, cylinders, and blocks to create shapes
-- For buildings: Use //pos1, //pos2, //set for walls, //replace for details
-- For logos: Create pixel art using colored blocks (wool, concrete, terracotta)
-- For cities: Create multiple building structures at different positions
-- Keep commands under 100 for performance, but make them count!
+BUILD COMMANDS ARE CRITICAL - VANILLA MINECRAFT ONLY:
+- ALWAYS start with: forceload add <minX> <minZ> <maxX> <maxZ>
+- For buildings: Use nested fill commands (hollow for shells, replace for interiors)
+- For statues/shapes: Stack multiple fill commands at different Y levels
+- For pixel art: Use setblock for individual pixels at different coordinates
+- For towers: fill x1 y1 z1 x2 y2 z2 <block> hollow
+- Keep commands under 80 for performance, but make them impactful!
+- Spawn is at approximately 0, 64, 0 - build structures visible from there
+
+EXAMPLES:
+- Giant tower: forceload add -10 -10 10 10, then fill -5 64 -5 5 120 5 stone_bricks hollow
+- Gold platform: fill -30 63 -30 30 63 30 gold_block
+- Simple pyramid: Multiple fills like fill -20 64 -20 20 64 20 sandstone, fill -18 65 -18 18 65 18 sandstone...
 
 Available biomes: plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove
 
@@ -158,10 +171,12 @@ User preferences:
 
 IMPORTANT: 
 - Be creative and build EXACTLY what they're asking for
-- Include WorldEdit commands to construct the structures
-- If they want giant basketball houses, BUILD giant basketball houses
-- If they want company logos, CREATE them with colored blocks
-- NEVER fall back to generic/vanilla - make it CUSTOM`;
+- Include VANILLA MINECRAFT commands (fill, setblock) to construct the structures
+- ALWAYS forceload chunks first before any fill commands!
+- If they want giant basketball houses, BUILD giant basketball houses using fill commands
+- If they want company logos, CREATE them with colored concrete blocks
+- NEVER fall back to generic/vanilla - make it CUSTOM
+- Keep structures within -100 to 100 X/Z range and 64 to 200 Y range`;
 
     const response = await azureOpenAI.chat.completions.create({
       model: AZURE_OPENAI_DEPLOYMENT,
@@ -180,7 +195,7 @@ IMPORTANT:
     }
 
     // Parse JSON response
-    let worldSpec: WorldSpec & { worldEditCommands?: string[] };
+    let worldSpec: WorldSpec & { buildCommands?: string[]; worldEditCommands?: string[] };
     try {
       let jsonStr = content.trim();
       // Remove markdown if present (shouldn't be with json_object mode, but just in case)
@@ -193,8 +208,10 @@ IMPORTANT:
       return { success: false, error: `Failed to parse AI response: ${parseError}` };
     }
 
-    // Extract WorldEdit commands (not part of schema validation)
-    const worldEditCommands = worldSpec.worldEditCommands || [];
+    // Extract build commands (vanilla Minecraft commands like fill, setblock)
+    // Also support legacy worldEditCommands for backwards compatibility
+    const buildCommands = worldSpec.buildCommands || worldSpec.worldEditCommands || [];
+    delete worldSpec.buildCommands;
     delete worldSpec.worldEditCommands;
 
     // Ensure metadata is present
@@ -218,11 +235,11 @@ IMPORTANT:
       };
     }
 
-    console.log(`AI generated world: "${worldSpec.displayName}" with ${worldEditCommands.length} WorldEdit commands`);
+    console.log(`AI generated world: "${worldSpec.displayName}" with ${buildCommands.length} build commands`);
 
-    // Attach WorldEdit commands for execution
-    if (worldEditCommands.length > 0) {
-      (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands = worldEditCommands;
+    // Attach build commands for execution
+    if (buildCommands.length > 0) {
+      (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands = buildCommands;
     }
 
     return { success: true, worldSpec };
