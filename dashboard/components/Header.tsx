@@ -7,8 +7,8 @@ import { checkHealth } from '@/lib/api';
 
 const navItems = [
   { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/create', label: 'Create', icon: '⚒️' },
-  { href: '/worlds', label: 'Worlds', icon: '🗺️' },
+  { href: '/assets/create', label: 'Create', icon: '🎨' },
+  { href: '/assets', label: 'Assets', icon: '📋' },
 ];
 
 export function Header() {
@@ -61,7 +61,7 @@ export function Header() {
                 WORLD FORGE
               </h1>
               <p className="text-xs text-gray-200 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
-                AI Minecraft World Creation
+                AI Pixel Art Builder
               </p>
             </div>
           </Link>

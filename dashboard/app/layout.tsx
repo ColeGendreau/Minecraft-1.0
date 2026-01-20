@@ -15,8 +15,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "World Forge | AI Minecraft World Creator",
-  description: "Create custom Minecraft worlds using natural language descriptions powered by AI",
+  title: "World Forge | AI Minecraft Pixel Art Builder",
+  description: "Build pixel art assets in Minecraft from images or AI prompts - live in real-time!",
 };
 
 export default function RootLayout({
@@ -42,7 +42,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-t border-surface-border py-6 text-center text-text-muted text-sm">
-            <p>World Forge - AI-Powered Minecraft World Creation</p>
+            <p>World Forge - AI-Powered Minecraft Pixel Art Builder</p>
           </footer>
         </div>
       </body>
