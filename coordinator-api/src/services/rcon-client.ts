@@ -124,12 +124,20 @@ export class RconClient {
   }
 
   /**
-   * Send a WorldEdit command (automatically prefixes with /)
+   * Send a command (WorldEdit or vanilla)
+   * WorldEdit commands already start with // so we don't add /
+   * Vanilla commands work without / via RCON
    */
   async sendWorldEdit(command: string): Promise<string> {
-    // Ensure the command starts with /
-    const fullCommand = command.startsWith('/') ? command : `/${command}`;
-    return this.send(fullCommand);
+    // WorldEdit commands start with // - send as-is
+    // Vanilla commands (fill, forceload, etc.) work without / via RCON
+    // Only add / for single-slash commands that don't have it
+    const trimmed = command.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('/')) {
+      return this.send(trimmed);
+    }
+    // Vanilla commands work fine without leading slash via RCON
+    return this.send(trimmed);
   }
 
   /**

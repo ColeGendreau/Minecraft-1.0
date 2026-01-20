@@ -322,29 +322,41 @@ async function processWorldRequest(
       
       console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
 
-      // Execute build commands if present (for building structures)
-      // These are vanilla Minecraft commands like fill, setblock, forceload
+      // Execute build commands if present (WorldEdit + vanilla commands)
+      // WorldEdit commands: //world, //pos1, //pos2, //set, //faces, //walls, etc.
+      // Vanilla commands: forceload, fill, setblock, summon
       const buildCmds = (worldSpec as WorldSpec & { _buildCommands?: string[] })._buildCommands;
       if (buildCmds && buildCmds.length > 0) {
-        console.log(`[${requestId}] Executing ${buildCmds.length} build commands...`);
+        console.log(`[${requestId}] Executing ${buildCmds.length} build commands (WorldEdit + vanilla)...`);
         
-        // Filter out comments and prepare commands
+        // Filter out comment lines (starting with "// " with space, NOT WorldEdit commands like "//set")
+        // WorldEdit commands start with "//" followed immediately by a command name (no space)
         const preparedCommands = buildCmds
-          .filter(cmd => cmd && !cmd.trim().startsWith('//'))  // Remove comment lines
-          .filter(cmd => cmd.trim().length > 0)
-          .map(cmd => {
-            // Don't add leading slash for vanilla commands (fill, setblock, forceload)
-            // They work without it via RCON
+          .filter(cmd => {
+            if (!cmd) return false;
             const trimmed = cmd.trim();
-            const isVanillaCmd = /^(fill|setblock|forceload|summon|tp|give|effect|say)/.test(trimmed);
+            if (trimmed.length === 0) return false;
+            // Keep WorldEdit commands (//pos1, //set, //faces, etc.) - they have no space after //
+            if (trimmed.startsWith('//') && trimmed.length > 2 && trimmed[2] !== ' ' && trimmed[2] !== '=') {
+              return true; // This is a WorldEdit command
+            }
+            // Remove comment lines (start with // followed by space or =)
+            if (trimmed.startsWith('//')) {
+              return false; // This is a comment
+            }
+            return true; // Keep vanilla commands
+          })
+          .map(cmd => {
+            const trimmed = cmd.trim();
             return { 
-              command: isVanillaCmd ? trimmed : (trimmed.startsWith('/') ? trimmed : `/${trimmed}`), 
-              delayMs: 150, // Slightly more delay for fill commands
+              command: trimmed, // Send as-is, WorldEdit commands need their // prefix
+              delayMs: 200, // Give WorldEdit time to process large operations
               optional: true
             };
           });
         
         if (preparedCommands.length > 0) {
+          console.log(`[${requestId}] Filtered to ${preparedCommands.length} actual commands`);
           const { results: buildResults, errors: buildErrors } = await executeRconCommands(preparedCommands);
           console.log(`[${requestId}] Build commands: ${buildResults.length} succeeded, ${buildErrors.length} failed`);
           
@@ -355,7 +367,7 @@ async function processWorldRequest(
           if (buildResults.length > 0) {
             // Announce the build
             await executeRconCommands([{
-              command: `say §6[World Forge] §aBuilt ${buildResults.length} structures for ${worldSpec.displayName}!`,
+              command: `say §6[World Forge] §a✨ Built ${buildResults.length} epic structures for ${worldSpec.displayName}!`,
               delayMs: 500
             }]);
           }
