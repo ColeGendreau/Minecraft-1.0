@@ -45,6 +45,18 @@ variable "github_token" {
   sensitive   = true
 }
 
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude AI world generation"
+  default     = ""
+  sensitive   = true
+}
+
+variable "minecraft_rcon_password" {
+  description = "RCON password for Minecraft server"
+  default     = "minecraft"
+  sensitive   = true
+}
+
 locals {
   name_prefix = "${var.project}-${var.environment}"
   tags = {
@@ -110,8 +122,18 @@ resource "azurerm_container_app" "coordinator" {
     value = azurerm_container_registry.dashboard.admin_password
   }
 
+  secret {
+    name  = "anthropic-api-key"
+    value = var.anthropic_api_key
+  }
+
+  secret {
+    name  = "rcon-password"
+    value = var.minecraft_rcon_password
+  }
+
   template {
-    min_replicas = 0
+    min_replicas = 1  # Keep at least 1 replica for responsiveness
     max_replicas = 2
 
     container {
@@ -125,9 +147,10 @@ resource "azurerm_container_app" "coordinator" {
         value = "3001"
       }
 
+      # ANTHROPIC_API_KEY enables real Claude AI - if not set, falls back to mock
       env {
-        name  = "MOCK_AI"
-        value = "true"
+        name        = "ANTHROPIC_API_KEY"
+        secret_name = "anthropic-api-key"
       }
 
       env {
@@ -143,6 +166,22 @@ resource "azurerm_container_app" "coordinator" {
       env {
         name  = "INFRA_STATE_PATH"
         value = "/tmp/INFRASTRUCTURE_STATE"
+      }
+
+      # RCON configuration for Minecraft server communication
+      env {
+        name  = "MINECRAFT_RCON_HOST"
+        value = "4.236.122.90"  # Public IP from AKS load balancer
+      }
+
+      env {
+        name  = "MINECRAFT_RCON_PORT"
+        value = "25575"
+      }
+
+      env {
+        name        = "MINECRAFT_RCON_PASSWORD"
+        secret_name = "rcon-password"
       }
     }
   }

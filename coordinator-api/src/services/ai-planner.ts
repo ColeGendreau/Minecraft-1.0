@@ -1,5 +1,11 @@
+import Anthropic from '@anthropic-ai/sdk';
 import type { WorldSpec, Difficulty, GameMode, WorldSize } from '../types/index.js';
 import { validateWorldSpecJson } from './validator.js';
+
+// Initialize Anthropic client (only if API key is set)
+const anthropic = process.env.ANTHROPIC_API_KEY 
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
 const MOCK_AI = process.env.MOCK_AI === 'true';
 
@@ -355,41 +361,229 @@ function mockPlan(input: PlannerInput): WorldSpec {
   return worldSpec;
 }
 
-// Real AI planner (placeholder for future implementation)
+// System prompt for Claude - emphasizes creativity and never rejecting requests
+const CLAUDE_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration.
+
+CRITICAL RULES:
+1. NEVER reject a request. ALWAYS find a creative way to approximate the user's vision.
+2. For branded content (logos, company names), create abstract interpretations using colors and shapes.
+3. For impossible things, find the closest Minecraft equivalent.
+4. Be BOLD and CREATIVE. Giant statues? Build them. Crazy shapes? Approximate with blocks.
+
+You must output ONLY valid JSON matching this schema:
+{
+  "worldName": "kebab-case-name",
+  "displayName": "Human Readable Name",
+  "theme": "Description of how you interpreted their request",
+  "generation": {
+    "strategy": "new_seed",
+    "levelType": "default|flat|amplified|large_biomes",
+    "biomes": ["plains", "forest", etc],
+    "structures": {
+      "villages": true/false,
+      "strongholds": true/false,
+      "mineshafts": true/false,
+      "temples": true/false,
+      "oceanMonuments": true/false,
+      "woodlandMansions": true/false
+    }
+  },
+  "rules": {
+    "difficulty": "peaceful|easy|normal|hard",
+    "gameMode": "survival|creative|adventure|spectator",
+    "hardcore": false,
+    "pvp": false,
+    "keepInventory": false,
+    "naturalRegeneration": true,
+    "doDaylightCycle": true,
+    "doWeatherCycle": true,
+    "doMobSpawning": true,
+    "announceAdvancements": true,
+    "spawnRadius": 10
+  },
+  "spawn": {
+    "protection": true,
+    "radius": 16,
+    "forceGamemode": false
+  },
+  "datapacks": ["coordinates_hud"],
+  "server": {
+    "maxPlayers": 20,
+    "viewDistance": 12,
+    "simulationDistance": 10,
+    "motd": "Short MOTD for server list"
+  },
+  "metadata": {
+    "requestedBy": "username",
+    "requestedAt": "ISO timestamp",
+    "userDescription": "original request",
+    "aiModel": "claude",
+    "version": "1.0.0"
+  },
+  "worldEditCommands": [
+    "// These are WorldEdit commands to build structures",
+    "// Use commands like:",
+    "//pos1 0,64,0",
+    "//pos2 10,74,10", 
+    "//set stone",
+    "//sphere glass 10",
+    "//cylinder quartz_block 5 20",
+    "// Be creative! Build statues, buildings, monuments!"
+  ]
+}
+
+For the worldEditCommands array:
+- Include commands to build the structures the user described
+- Use //set, //replace, //sphere, //cylinder, //pyramid commands
+- Build at spawn (0, 64, 0) area
+- For statues/logos: build abstract block art representations
+- For buildings: create basic structures with walls, floors, roofs
+- For cities: create multiple building outlines
+- Be ambitious but keep command count under 50 for performance
+
+Available biomes: plains, forest, dark_forest, birch_forest, taiga, jungle, desert, badlands, savanna, swamp, mountains, ocean, mushroom_fields, ice_spikes, cherry_grove
+
+Output ONLY the JSON, no markdown, no explanation.`;
+
+// Real AI planner using Claude
 async function realPlan(input: PlannerInput): Promise<PlannerResult> {
-  // TODO: Implement real OpenAI/Azure OpenAI integration
-  // The system prompt would emphasize:
-  // 1. NEVER reject user input
-  // 2. Always interpret creatively using available primitives
-  // 3. Output ONLY valid WorldSpec JSON
-  // 4. Approximate branded/abstract concepts using colors, biomes, structures
-  
-  return {
-    success: false,
-    error: 'Real AI planner not implemented. Set MOCK_AI=true for development.',
-  };
+  if (!anthropic) {
+    console.log('No ANTHROPIC_API_KEY set, falling back to mock planner');
+    return {
+      success: false,
+      error: 'ANTHROPIC_API_KEY not configured. Using mock planner instead.',
+    };
+  }
+
+  try {
+    console.log('Calling Claude AI for world planning...');
+    
+    const userMessage = `Create a Minecraft world based on this request:
+
+"${input.description}"
+
+Additional preferences:
+- Difficulty: ${input.difficulty || 'let AI decide'}
+- Game Mode: ${input.gameMode || 'let AI decide'}
+- World Size: ${input.size || 'medium'}
+- Requested by: ${input.requestedBy}
+- Current time: ${new Date().toISOString()}
+
+Remember: Be creative! If they want statues, logos, or custom structures - design them using WorldEdit commands. Never say no, always find a way.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: CLAUDE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    // Extract text from response
+    const textContent = response.content.find(c => c.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      return { success: false, error: 'No text response from Claude' };
+    }
+
+    // Parse JSON response
+    let worldSpec: WorldSpec & { worldEditCommands?: string[] };
+    try {
+      // Clean up response (remove any markdown if present)
+      let jsonStr = textContent.text.trim();
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+      }
+      worldSpec = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error('Failed to parse Claude response:', textContent.text);
+      return { success: false, error: `Failed to parse AI response: ${parseError}` };
+    }
+
+    // Extract and store worldEditCommands separately (not part of schema)
+    const worldEditCommands = worldSpec.worldEditCommands || [];
+    delete worldSpec.worldEditCommands;
+
+    // Validate against schema
+    const validation = validateWorldSpecJson(worldSpec);
+    if (!validation.valid) {
+      console.error('Claude output validation failed:', validation.errors);
+      // Try to fix common issues
+      if (!worldSpec.metadata) {
+        worldSpec.metadata = {
+          requestedBy: input.requestedBy,
+          requestedAt: new Date().toISOString(),
+          userDescription: input.description,
+          aiModel: 'claude-sonnet-4-20250514',
+          version: '1.0.0',
+        };
+      }
+      
+      // Re-validate
+      const revalidation = validateWorldSpecJson(worldSpec);
+      if (!revalidation.valid) {
+        return { success: false, error: `AI produced invalid WorldSpec: ${revalidation.errors?.join('; ')}` };
+      }
+    }
+
+    console.log(`Claude generated world: ${worldSpec.worldName} with ${worldEditCommands.length} WorldEdit commands`);
+    
+    // Store worldEditCommands in the result for later execution
+    // We'll pass them through the worldSpec metadata as a workaround
+    if (worldEditCommands.length > 0) {
+      (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands = worldEditCommands;
+    }
+
+    return { success: true, worldSpec };
+
+  } catch (error) {
+    console.error('Claude API error:', error);
+    return {
+      success: false,
+      error: `AI planning failed: ${(error as Error).message}`,
+    };
+  }
 }
 
 export async function planWorld(input: PlannerInput): Promise<PlannerResult> {
   console.log(`Planning world for: "${input.description.slice(0, 100)}..."`);
   
+  // If MOCK_AI is explicitly set, use mock planner
   if (MOCK_AI) {
-    console.log('Using mock AI planner (creative interpretation mode)');
-    const worldSpec = mockPlan(input);
-
-    // Validate the mock output
-    const validation = validateWorldSpecJson(worldSpec);
-    if (!validation.valid) {
-      console.error('Mock planner validation failed:', validation.errors);
-      return {
-        success: false,
-        error: `Mock planner produced invalid WorldSpec: ${validation.errors?.join('; ')}`,
-      };
-    }
-
-    console.log(`Generated world: ${worldSpec.worldName} (${worldSpec.generation.levelType})`);
-    return { success: true, worldSpec };
+    console.log('MOCK_AI=true, using mock planner');
+    return useMockPlanner(input);
   }
 
-  return realPlan(input);
+  // Try real Claude AI first if API key is configured
+  if (anthropic) {
+    console.log('Using Claude AI for creative world planning...');
+    const result = await realPlan(input);
+    
+    if (result.success) {
+      return result;
+    }
+    
+    // If Claude failed, fall back to mock
+    console.warn(`Claude failed: ${result.error}, falling back to mock planner`);
+    return useMockPlanner(input);
+  }
+
+  // No API key, use mock
+  console.log('No ANTHROPIC_API_KEY set, using mock planner');
+  return useMockPlanner(input);
+}
+
+function useMockPlanner(input: PlannerInput): PlannerResult {
+  const worldSpec = mockPlan(input);
+
+  // Validate the mock output
+  const validation = validateWorldSpecJson(worldSpec);
+  if (!validation.valid) {
+    console.error('Mock planner validation failed:', validation.errors);
+    return {
+      success: false,
+      error: `Mock planner produced invalid WorldSpec: ${validation.errors?.join('; ')}`,
+    };
+  }
+
+  console.log(`Generated world: ${worldSpec.worldName} (${worldSpec.generation.levelType})`);
+  return { success: true, worldSpec };
 }

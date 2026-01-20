@@ -19,6 +19,7 @@ import type {
   WorldDetailResponse,
   CurrentWorldResponse,
   WorldSpec,
+  WorldSpec,
   WorldRequestStatus,
 } from '../types/index.js';
 
@@ -310,17 +311,46 @@ async function processWorldRequest(
     console.log(`[${requestId}] Applying configuration via RCON...`);
 
     try {
-      // Build RCON commands from world spec
-      const commands = buildRconCommands(worldSpec);
-      console.log(`[${requestId}] Executing ${commands.length} RCON commands...`);
+      // Build RCON commands from world spec (game rules)
+      const gameCommands = buildRconCommands(worldSpec);
+      console.log(`[${requestId}] Executing ${gameCommands.length} game rule commands...`);
 
-      const { results, errors } = await executeRconCommands(commands);
+      const { results: gameResults, errors: gameErrors } = await executeRconCommands(gameCommands);
       
-      if (errors.length > 0) {
-        console.warn(`[${requestId}] Some commands had errors:`, errors);
+      if (gameErrors.length > 0) {
+        console.warn(`[${requestId}] Some game commands had errors:`, gameErrors);
       }
       
-      console.log(`[${requestId}] RCON commands executed: ${results.length} succeeded, ${errors.length} failed`);
+      console.log(`[${requestId}] Game rules applied: ${gameResults.length} succeeded`);
+
+      // Execute WorldEdit commands if present (for building structures)
+      const worldEditCommands = (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands;
+      if (worldEditCommands && worldEditCommands.length > 0) {
+        console.log(`[${requestId}] Executing ${worldEditCommands.length} WorldEdit build commands...`);
+        
+        // Filter out comments and prepare commands
+        const buildCommands = worldEditCommands
+          .filter(cmd => cmd && !cmd.startsWith('//') || cmd.startsWith('// ') === false)
+          .filter(cmd => cmd.trim().length > 0)
+          .map(cmd => ({ 
+            command: cmd.startsWith('/') ? cmd : `/${cmd}`, 
+            delayMs: 100,
+            optional: true // Don't fail if WorldEdit isn't available
+          }));
+        
+        if (buildCommands.length > 0) {
+          const { results: buildResults, errors: buildErrors } = await executeRconCommands(buildCommands);
+          console.log(`[${requestId}] WorldEdit commands: ${buildResults.length} succeeded, ${buildErrors.length} failed`);
+          
+          if (buildResults.length > 0) {
+            // Announce the build
+            await executeRconCommands([{
+              command: `say §6[World Forge] §aBuilt ${buildResults.length} structures!`,
+              delayMs: 500
+            }]);
+          }
+        }
+      }
 
     } catch (rconError) {
       console.error(`[${requestId}] RCON connection failed:`, rconError);
