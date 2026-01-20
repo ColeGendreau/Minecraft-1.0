@@ -32,16 +32,17 @@ export default function WorldDetailPage() {
 
   useEffect(() => {
     fetchWorld();
-    
-    // Auto-refresh for pending/building states
-    const interval = setInterval(() => {
-      if (world && ['pending', 'planned', 'building'].includes(world.status)) {
-        fetchWorld();
-      }
-    }, 3000);
+  }, [fetchWorld]);
 
+  // Separate effect for auto-refresh during processing states
+  useEffect(() => {
+    if (!world || !['pending', 'planned', 'building'].includes(world.status)) {
+      return;
+    }
+    
+    const interval = setInterval(fetchWorld, 5000);
     return () => clearInterval(interval);
-  }, [fetchWorld, world]);
+  }, [world?.status, fetchWorld]);
 
   const handleRetry = async () => {
     if (!world || retrying) return;
