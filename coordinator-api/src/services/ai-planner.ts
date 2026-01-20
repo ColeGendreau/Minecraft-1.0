@@ -1,11 +1,17 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { AzureOpenAI } from 'openai';
 import type { WorldSpec, Difficulty, GameMode, WorldSize } from '../types/index.js';
 import { validateWorldSpecJson } from './validator.js';
 
-// Initialize Anthropic client (only if API key is set)
-const anthropic = process.env.ANTHROPIC_API_KEY 
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Initialize Azure OpenAI client (if configured)
+const azureOpenAI = process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_API_KEY
+  ? new AzureOpenAI({
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      apiVersion: '2024-08-01-preview',
+    })
   : null;
+
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
 const MOCK_AI = process.env.MOCK_AI === 'true';
 
@@ -361,8 +367,8 @@ function mockPlan(input: PlannerInput): WorldSpec {
   return worldSpec;
 }
 
-// System prompt for Claude - emphasizes creativity and never rejecting requests
-const CLAUDE_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration.
+// System prompt for AI - emphasizes creativity and never rejecting requests
+const AI_SYSTEM_PROMPT = `You are World Forge AI, a creative Minecraft world planner. Your job is to interpret ANY user request and translate it into a Minecraft world configuration.
 
 CRITICAL RULES:
 1. NEVER reject a request. ALWAYS find a creative way to approximate the user's vision.
@@ -445,18 +451,18 @@ Available biomes: plains, forest, dark_forest, birch_forest, taiga, jungle, dese
 
 Output ONLY the JSON, no markdown, no explanation.`;
 
-// Real AI planner using Claude
+// Real AI planner using Azure OpenAI (GPT-4)
 async function realPlan(input: PlannerInput): Promise<PlannerResult> {
-  if (!anthropic) {
-    console.log('No ANTHROPIC_API_KEY set, falling back to mock planner');
+  if (!azureOpenAI) {
+    console.log('Azure OpenAI not configured, falling back to mock planner');
     return {
       success: false,
-      error: 'ANTHROPIC_API_KEY not configured. Using mock planner instead.',
+      error: 'AZURE_OPENAI_ENDPOINT/API_KEY not configured. Using mock planner instead.',
     };
   }
 
   try {
-    console.log('Calling Claude AI for world planning...');
+    console.log(`Calling Azure OpenAI (${AZURE_OPENAI_DEPLOYMENT}) for world planning...`);
     
     const userMessage = `Create a Minecraft world based on this request:
 
@@ -471,30 +477,33 @@ Additional preferences:
 
 Remember: Be creative! If they want statues, logos, or custom structures - design them using WorldEdit commands. Never say no, always find a way.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const response = await azureOpenAI.chat.completions.create({
+      model: AZURE_OPENAI_DEPLOYMENT,
       max_tokens: 4096,
-      system: CLAUDE_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userMessage }],
+      messages: [
+        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage }
+      ],
+      response_format: { type: 'json_object' },
     });
 
     // Extract text from response
-    const textContent = response.content.find(c => c.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      return { success: false, error: 'No text response from Claude' };
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return { success: false, error: 'No response from Azure OpenAI' };
     }
 
     // Parse JSON response
     let worldSpec: WorldSpec & { worldEditCommands?: string[] };
     try {
       // Clean up response (remove any markdown if present)
-      let jsonStr = textContent.text.trim();
+      let jsonStr = content.trim();
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
       }
       worldSpec = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error('Failed to parse Claude response:', textContent.text);
+      console.error('Failed to parse Azure OpenAI response:', content);
       return { success: false, error: `Failed to parse AI response: ${parseError}` };
     }
 
@@ -505,14 +514,14 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
     // Validate against schema
     const validation = validateWorldSpecJson(worldSpec);
     if (!validation.valid) {
-      console.error('Claude output validation failed:', validation.errors);
+      console.error('AI output validation failed:', validation.errors);
       // Try to fix common issues
       if (!worldSpec.metadata) {
         worldSpec.metadata = {
           requestedBy: input.requestedBy,
           requestedAt: new Date().toISOString(),
           userDescription: input.description,
-          aiModel: 'claude-sonnet-4-20250514',
+          aiModel: AZURE_OPENAI_DEPLOYMENT,
           version: '1.0.0',
         };
       }
@@ -524,10 +533,9 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
       }
     }
 
-    console.log(`Claude generated world: ${worldSpec.worldName} with ${worldEditCommands.length} WorldEdit commands`);
+    console.log(`Azure OpenAI generated world: ${worldSpec.worldName} with ${worldEditCommands.length} WorldEdit commands`);
     
     // Store worldEditCommands in the result for later execution
-    // We'll pass them through the worldSpec metadata as a workaround
     if (worldEditCommands.length > 0) {
       (worldSpec as WorldSpec & { _worldEditCommands?: string[] })._worldEditCommands = worldEditCommands;
     }
@@ -535,7 +543,7 @@ Remember: Be creative! If they want statues, logos, or custom structures - desig
     return { success: true, worldSpec };
 
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('Azure OpenAI API error:', error);
     return {
       success: false,
       error: `AI planning failed: ${(error as Error).message}`,
@@ -552,22 +560,22 @@ export async function planWorld(input: PlannerInput): Promise<PlannerResult> {
     return useMockPlanner(input);
   }
 
-  // Try real Claude AI first if API key is configured
-  if (anthropic) {
-    console.log('Using Claude AI for creative world planning...');
+  // Try Azure OpenAI first if configured
+  if (azureOpenAI) {
+    console.log('Using Azure OpenAI for creative world planning...');
     const result = await realPlan(input);
     
     if (result.success) {
       return result;
     }
     
-    // If Claude failed, fall back to mock
-    console.warn(`Claude failed: ${result.error}, falling back to mock planner`);
+    // If AI failed, fall back to mock
+    console.warn(`Azure OpenAI failed: ${result.error}, falling back to mock planner`);
     return useMockPlanner(input);
   }
 
-  // No API key, use mock
-  console.log('No ANTHROPIC_API_KEY set, using mock planner');
+  // No Azure OpenAI configured, use mock
+  console.log('Azure OpenAI not configured, using mock planner');
   return useMockPlanner(input);
 }
 

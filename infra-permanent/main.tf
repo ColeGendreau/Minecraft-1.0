@@ -45,16 +45,15 @@ variable "github_token" {
   sensitive   = true
 }
 
-variable "anthropic_api_key" {
-  description = "Anthropic API key for Claude AI world generation"
-  default     = ""
-  sensitive   = true
-}
-
 variable "minecraft_rcon_password" {
   description = "RCON password for Minecraft server"
   default     = "minecraft"
   sensitive   = true
+}
+
+variable "minecraft_public_ip" {
+  description = "Public IP of the Minecraft server for RCON"
+  default     = "4.236.122.90"
 }
 
 locals {
@@ -94,6 +93,34 @@ resource "azurerm_log_analytics_workspace" "dashboard" {
   tags                = local.tags
 }
 
+# Azure OpenAI Service for AI-powered world generation
+resource "azurerm_cognitive_account" "openai" {
+  name                  = "${local.name_prefix}-openai"
+  location              = "eastus"  # Azure OpenAI has limited region availability
+  resource_group_name   = azurerm_resource_group.dashboard.name
+  kind                  = "OpenAI"
+  sku_name              = "S0"
+  custom_subdomain_name = "${local.name_prefix}-openai"
+  tags                  = local.tags
+}
+
+# Deploy GPT-4o model for world generation
+resource "azurerm_cognitive_deployment" "gpt4o" {
+  name                 = "gpt-4o"
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+  
+  model {
+    format  = "OpenAI"
+    name    = "gpt-4o"
+    version = "2024-08-06"
+  }
+  
+  sku {
+    name     = "Standard"
+    capacity = 10  # 10K tokens per minute - adjust as needed
+  }
+}
+
 # Container Apps Environment
 resource "azurerm_container_app_environment" "dashboard" {
   name                       = "${local.name_prefix}-dashboard-env"
@@ -123,8 +150,8 @@ resource "azurerm_container_app" "coordinator" {
   }
 
   secret {
-    name  = "anthropic-api-key"
-    value = var.anthropic_api_key
+    name  = "openai-api-key"
+    value = azurerm_cognitive_account.openai.primary_access_key
   }
 
   secret {
@@ -147,10 +174,20 @@ resource "azurerm_container_app" "coordinator" {
         value = "3001"
       }
 
-      # ANTHROPIC_API_KEY enables real Claude AI - if not set, falls back to mock
+      # Azure OpenAI configuration for AI-powered world generation
       env {
-        name        = "ANTHROPIC_API_KEY"
-        secret_name = "anthropic-api-key"
+        name  = "AZURE_OPENAI_ENDPOINT"
+        value = azurerm_cognitive_account.openai.endpoint
+      }
+
+      env {
+        name        = "AZURE_OPENAI_API_KEY"
+        secret_name = "openai-api-key"
+      }
+
+      env {
+        name  = "AZURE_OPENAI_DEPLOYMENT"
+        value = azurerm_cognitive_deployment.gpt4o.name
       }
 
       env {
@@ -171,7 +208,7 @@ resource "azurerm_container_app" "coordinator" {
       # RCON configuration for Minecraft server communication
       env {
         name  = "MINECRAFT_RCON_HOST"
-        value = "4.236.122.90"  # Public IP from AKS load balancer
+        value = var.minecraft_public_ip
       }
 
       env {
@@ -283,4 +320,14 @@ output "acr_password" {
   description = "ACR admin password"
   value       = azurerm_container_registry.dashboard.admin_password
   sensitive   = true
+}
+
+output "azure_openai_endpoint" {
+  description = "Azure OpenAI endpoint URL"
+  value       = azurerm_cognitive_account.openai.endpoint
+}
+
+output "azure_openai_deployment" {
+  description = "Azure OpenAI deployment name"
+  value       = azurerm_cognitive_deployment.gpt4o.name
 }
