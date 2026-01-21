@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { getAssets, getAssetsStatus, deleteAsset, duplicateAsset, nukeAllAssets } from '@/lib/api';
 import type { Asset, AssetStatusResponse } from '@/lib/api';
+import { useTheme } from '@/lib/theme-context';
 
 export default function AssetsPage() {
+  const { isDay } = useTheme();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [status, setStatus] = useState<AssetStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,52 +78,47 @@ export default function AssetsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-300 to-emerald-200">
-      {/* Clouds */}
+    <main className={`min-h-screen transition-colors duration-500 ${
+      isDay 
+        ? 'bg-gradient-to-b from-sky-400 via-sky-300 to-emerald-200' 
+        : 'bg-gradient-to-b from-slate-900 via-purple-900/30 to-slate-800'
+    }`}>
+      {/* Sky decorations */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-float opacity-60"
-            style={{
-              left: `${(i * 20) % 100}%`,
-              top: `${5 + (i * 6) % 15}%`,
-              animationDelay: `${i * 0.7}s`,
-              animationDuration: `${4 + (i % 3)}s`
-            }}
-          >
-            <div className="flex gap-1">
-              <div className="w-10 h-6 bg-white rounded-lg" />
-              <div className="w-14 h-8 bg-white rounded-lg -mt-1" />
-              <div className="w-8 h-5 bg-white rounded-lg" />
+        {isDay ? (
+          [...Array(5)].map((_, i) => (
+            <div key={i} className="absolute animate-float opacity-60" style={{ left: `${(i * 20) % 100}%`, top: `${5 + (i * 6) % 15}%`, animationDelay: `${i * 0.7}s`, animationDuration: `${4 + (i % 3)}s` }}>
+              <div className="flex gap-1">
+                <div className="w-10 h-6 bg-white rounded-lg" />
+                <div className="w-14 h-8 bg-white rounded-lg -mt-1" />
+                <div className="w-8 h-5 bg-white rounded-lg" />
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          [...Array(20)].map((_, i) => (
+            <div key={i} className="absolute animate-pulse" style={{ left: `${(i * 5) % 100}%`, top: `${(i * 5) % 50}%`, animationDelay: `${i * 0.1}s` }}>
+              <span className="text-white text-xs">✦</span>
+            </div>
+          ))
+        )}
       </div>
 
-      {/* Nuke Confirmation Modal */}
+      {/* Nuke Modal */}
       {showNukeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="mc-card p-8 max-w-md bg-white border-4 border-red-500 shadow-2xl">
+          <div className={`p-8 max-w-md rounded-lg border-4 shadow-2xl ${isDay ? 'bg-white border-red-500' : 'bg-slate-800 border-red-700'}`}>
             <div className="text-center">
               <div className="text-6xl mb-4">☢️</div>
-              <h2 
-                className="text-xl text-red-600 mb-4"
-                style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
-              >
+              <h2 className="text-xl text-red-500 mb-4" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}>
                 NUKE ALL ASSETS?
               </h2>
-              <p className="text-gray-700 mb-6" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                This will DELETE all {assets.length} assets from the Minecraft world. 
-                The area will be cleared and reset.
+              <p className={`mb-6 ${isDay ? 'text-gray-700' : 'text-gray-300'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+                This will DELETE all {assets.length} assets from the Minecraft world.
               </p>
               <div className="flex gap-4 justify-center">
-                <button onClick={() => setShowNukeConfirm(false)} className="mc-button-stone">
-                  CANCEL
-                </button>
-                <button onClick={handleNuke} className="mc-button-stone !bg-red-600 !border-red-800">
-                  ☢️ CONFIRM NUKE
-                </button>
+                <button onClick={() => setShowNukeConfirm(false)} className="mc-button-stone">CANCEL</button>
+                <button onClick={handleNuke} className="mc-button-stone !bg-red-600 !border-red-800">☢️ CONFIRM</button>
               </div>
             </div>
           </div>
@@ -132,34 +129,24 @@ export default function AssetsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-amber-700 hover:text-amber-900 transition-colors font-bold bg-white/50 px-3 py-1 rounded">
+            <Link href="/" className={`font-bold px-3 py-1 rounded transition-colors ${isDay ? 'text-amber-700 hover:text-amber-900 bg-white/50' : 'text-slate-300 hover:text-white bg-slate-800/50'}`}>
               ← Back
             </Link>
             <div>
-              <h1 
-                className="text-2xl text-amber-900 drop-shadow"
-                style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px' }}
-              >
+              <h1 className={isDay ? 'text-2xl text-amber-900' : 'text-2xl text-white'} style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px' }}>
                 🖼️ ASSET GALLERY
               </h1>
-              <p className="text-amber-800 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+              <p className={`mt-1 ${isDay ? 'text-amber-800' : 'text-slate-400'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
                 All pixel art built in the Minecraft world
               </p>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <Link href="/assets/create" className="mc-button-grass shadow-lg">
-              + NEW ASSET
-            </Link>
-            
+            <Link href="/assets/create" className="mc-button-grass shadow-lg">+ NEW ASSET</Link>
             {assets.length > 0 && (
-              <button
-                onClick={() => setShowNukeConfirm(true)}
-                disabled={actionLoading === 'nuke'}
-                className="mc-button-stone !bg-red-600 !border-red-800 hover:!bg-red-700 shadow-lg"
-              >
-                {actionLoading === 'nuke' ? '☢️ NUKING...' : '☢️ NUKE ALL'}
+              <button onClick={() => setShowNukeConfirm(true)} disabled={actionLoading === 'nuke'} className="mc-button-stone !bg-red-600 !border-red-800 hover:!bg-red-700 shadow-lg">
+                {actionLoading === 'nuke' ? '☢️...' : '☢️ NUKE'}
               </button>
             )}
           </div>
@@ -167,18 +154,18 @@ export default function AssetsPage() {
 
         {/* AI Status */}
         {status && (
-          <div className={`mc-card p-4 mb-6 bg-white/90 backdrop-blur shadow-lg ${status.aiImageGeneration.available ? 'border-4 border-emerald-400' : 'border-4 border-amber-400'}`}>
+          <div className={`p-4 mb-6 rounded-lg border-4 shadow-lg ${
+            status.aiImageGeneration.available 
+              ? (isDay ? 'bg-white/90 border-emerald-400' : 'bg-slate-800/90 border-emerald-700')
+              : (isDay ? 'bg-white/90 border-amber-400' : 'bg-slate-800/90 border-amber-700')
+          }`}>
             <div className="flex items-center gap-3">
-              <span className="text-2xl">
-                {status.aiImageGeneration.available ? '🔍' : '📷'}
-              </span>
+              <span className="text-2xl">{status.aiImageGeneration.available ? '🔍' : '📷'}</span>
               <div>
-                <p className="text-gray-800 font-bold" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                  {status.aiImageGeneration.available 
-                    ? '✨ AI Image Lookup ENABLED'
-                    : '📷 Image URL Mode Only'}
+                <p className={`font-bold ${isDay ? 'text-gray-800' : 'text-white'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+                  {status.aiImageGeneration.available ? '✨ AI Image Lookup ENABLED' : '📷 Image URL Mode Only'}
                 </p>
-                <p className="text-gray-500 text-sm" style={{ fontFamily: "'VT323', monospace" }}>
+                <p className={`text-sm ${isDay ? 'text-gray-500' : 'text-gray-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
                   {status.aiImageGeneration.note}
                 </p>
               </div>
@@ -186,45 +173,34 @@ export default function AssetsPage() {
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading */}
         {loading && (
-          <div className="mc-card p-12 text-center bg-white/90 backdrop-blur shadow-xl border-4 border-amber-400">
+          <div className={`p-12 text-center rounded-lg border-4 shadow-xl ${isDay ? 'bg-white/90 border-amber-400' : 'bg-slate-800/90 border-slate-600'}`}>
             <div className="text-4xl mb-4 animate-bounce">⛏️</div>
-            <p className="text-amber-800 text-xl" style={{ fontFamily: "'VT323', monospace" }}>
-              Mining assets...
-            </p>
+            <p className={`text-xl ${isDay ? 'text-amber-800' : 'text-slate-300'}`} style={{ fontFamily: "'VT323', monospace" }}>Mining assets...</p>
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error */}
         {error && (
-          <div className="mc-card p-8 text-center bg-red-50 border-4 border-red-400 shadow-xl">
+          <div className={`p-8 text-center rounded-lg border-4 shadow-xl ${isDay ? 'bg-red-50 border-red-400' : 'bg-red-900/30 border-red-700'}`}>
             <div className="text-4xl mb-4">💀</div>
-            <p className="text-red-700 mb-2 text-xl" style={{ fontFamily: "'VT323', monospace" }}>
-              {error}
-            </p>
-            <button onClick={fetchData} className="mc-button-stone mt-4">
-              TRY AGAIN
-            </button>
+            <p className="text-red-500 mb-2 text-xl" style={{ fontFamily: "'VT323', monospace" }}>{error}</p>
+            <button onClick={fetchData} className="mc-button-stone mt-4">TRY AGAIN</button>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty */}
         {!loading && !error && assets.length === 0 && (
-          <div className="mc-card p-12 text-center border-4 border-dashed border-emerald-400 bg-emerald-50/90 backdrop-blur shadow-xl">
-            <div className="text-8xl mb-6 animate-float drop-shadow-lg">🎨</div>
-            <h3 
-              className="text-xl text-emerald-800 mb-4"
-              style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}
-            >
+          <div className={`p-12 text-center rounded-lg border-4 border-dashed shadow-xl ${isDay ? 'bg-emerald-50/90 border-emerald-400' : 'bg-emerald-900/30 border-emerald-700'}`}>
+            <div className="text-8xl mb-6 animate-float">🎨</div>
+            <h3 className={`text-xl mb-4 ${isDay ? 'text-emerald-800' : 'text-emerald-300'}`} style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}>
               NO ASSETS YET
             </h3>
-            <p className="text-emerald-700 mb-6 text-xl" style={{ fontFamily: "'VT323', monospace" }}>
-              Create your first pixel art asset from an image or AI lookup.
+            <p className={`mb-6 text-xl ${isDay ? 'text-emerald-700' : 'text-emerald-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
+              Create your first pixel art asset!
             </p>
-            <Link href="/assets/create" className="mc-button-grass inline-block shadow-xl">
-              🎨 CREATE YOUR FIRST ASSET
-            </Link>
+            <Link href="/assets/create" className="mc-button-grass inline-block shadow-xl">🎨 CREATE FIRST ASSET</Link>
           </div>
         )}
 
@@ -239,6 +215,7 @@ export default function AssetsPage() {
                 onDuplicate={() => handleDuplicate(asset)}
                 isDeleting={actionLoading === asset.id}
                 isDuplicating={actionLoading === `dup-${asset.id}`}
+                isDay={isDay}
               />
             ))}
           </div>
@@ -246,7 +223,7 @@ export default function AssetsPage() {
 
         {/* Stats */}
         {!loading && assets.length > 0 && (
-          <div className="mt-8 text-center text-amber-800 font-bold" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+          <div className={`mt-8 text-center font-bold ${isDay ? 'text-amber-800' : 'text-slate-400'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
             🖼️ {assets.length} asset{assets.length !== 1 ? 's' : ''} in world
           </div>
         )}
@@ -256,57 +233,38 @@ export default function AssetsPage() {
 }
 
 function AssetCard({
-  asset,
-  onDelete,
-  onDuplicate,
-  isDeleting,
-  isDuplicating,
+  asset, onDelete, onDuplicate, isDeleting, isDuplicating, isDay
 }: {
-  asset: Asset;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  isDeleting: boolean;
-  isDuplicating: boolean;
+  asset: Asset; onDelete: () => void; onDuplicate: () => void;
+  isDeleting: boolean; isDuplicating: boolean; isDay: boolean;
 }) {
   const imageUrl = asset.generatedImageUrl || asset.imageUrl;
   const isAiGenerated = !!asset.prompt;
 
   return (
-    <div className="mc-card p-4 relative group bg-white/95 backdrop-blur border-4 border-amber-400 shadow-xl hover:scale-105 transition-transform">
-      {/* Image Preview */}
-      <div className="aspect-square bg-amber-50 rounded-lg mb-3 overflow-hidden border-2 border-amber-300">
+    <div className={`p-4 relative group rounded-lg border-4 shadow-xl hover:scale-105 transition-transform ${
+      isDay ? 'bg-white/95 border-amber-400' : 'bg-slate-800/95 border-slate-600'
+    }`}>
+      {/* Image */}
+      <div className={`aspect-square rounded-lg mb-3 overflow-hidden border-2 ${isDay ? 'bg-amber-50 border-amber-300' : 'bg-slate-700 border-slate-600'}`}>
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={asset.name}
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/placeholder.png';
-            }}
-          />
+          <img src={imageUrl} alt={asset.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl text-amber-300">
-            🖼️
-          </div>
+          <div className={`w-full h-full flex items-center justify-center text-4xl ${isDay ? 'text-amber-300' : 'text-slate-600'}`}>🖼️</div>
         )}
       </div>
 
       {/* Info */}
       <div className="mb-3">
-        <h3 
-          className="text-amber-900 font-bold truncate"
-          style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '9px' }}
-        >
+        <h3 className={`font-bold truncate ${isDay ? 'text-amber-900' : 'text-white'}`} style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '9px' }}>
           {asset.name}
         </h3>
-        
         {asset.prompt && (
-          <p className="text-purple-600 text-sm truncate mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+          <p className="text-purple-500 text-sm truncate mt-1" style={{ fontFamily: "'VT323', monospace" }}>
             🔍 &quot;{asset.prompt}&quot;
           </p>
         )}
-
-        <div className="flex items-center gap-2 mt-2 text-xs text-amber-700" style={{ fontFamily: "'VT323', monospace" }}>
+        <div className={`flex items-center gap-2 mt-2 text-xs ${isDay ? 'text-amber-700' : 'text-slate-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
           <span>📍 {asset.position.x}, {asset.position.y}, {asset.position.z}</span>
           <span>•</span>
           <span>{asset.dimensions.width}×{asset.dimensions.height}</span>
@@ -315,27 +273,17 @@ function AssetCard({
 
       {/* Actions */}
       <div className="flex gap-2">
-        <button
-          onClick={onDuplicate}
-          disabled={isDuplicating}
-          className="flex-1 mc-button-stone text-xs py-2"
-        >
+        <button onClick={onDuplicate} disabled={isDuplicating} className="flex-1 mc-button-stone text-xs py-2">
           {isDuplicating ? '...' : '📋 Copy'}
         </button>
-        <button
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="flex-1 mc-button-stone text-xs py-2 !bg-red-600 !border-red-800"
-        >
+        <button onClick={onDelete} disabled={isDeleting} className="flex-1 mc-button-stone text-xs py-2 !bg-red-600 !border-red-800">
           {isDeleting ? '...' : '🗑️ Delete'}
         </button>
       </div>
 
       {/* Badge */}
       {isAiGenerated && (
-        <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500 text-white text-xs rounded shadow-lg">
-          🔍 AI
-        </div>
+        <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500 text-white text-xs rounded shadow-lg">🔍 AI</div>
       )}
     </div>
   );

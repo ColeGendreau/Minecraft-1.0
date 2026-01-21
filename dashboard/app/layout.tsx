@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { ThemeProvider } from "@/lib/theme-context";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -25,26 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-display antialiased bg-surface min-h-screen`}
-      >
-        {/* Background pattern */}
-        <div className="fixed inset-0 bg-grid-pattern bg-grid opacity-30 pointer-events-none" />
-        
-        {/* Gradient orbs */}
-        <div className="fixed top-0 left-1/4 w-96 h-96 bg-accent-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-accent-secondary/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col min-h-screen">
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
+        <ThemeProvider>
           <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <footer className="border-t border-surface-border py-6 text-center text-text-muted text-sm">
-            <p>World Forge - AI-Powered Minecraft Pixel Art Builder</p>
-          </footer>
-        </div>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
