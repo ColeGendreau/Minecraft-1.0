@@ -19,6 +19,8 @@
   "author": "ColeGendreau",
   "license": "MIT",
   "dependencies": {
+    "@azure/arm-network": "^35.0.0",
+    "@azure/identity": "^4.13.0",
     "@octokit/rest": "^20.0.2",
     "@types/sharp": "^0.31.1",
     "ajv": "^8.12.0",

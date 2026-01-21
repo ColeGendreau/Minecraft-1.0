@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { Octokit } from '@octokit/rest';
+import { DefaultAzureCredential } from '@azure/identity';
+import { NetworkManagementClient } from '@azure/arm-network';
 import { getClusterMetrics, type ClusterMetrics, type PodInfo, type NodeInfo } from '../services/kubernetes.js';
 import { 
   getClusterResourceMetrics, 
@@ -18,6 +20,62 @@ const GITHUB_OWNER = process.env.GITHUB_OWNER || 'ColeGendreau';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'Minecraft-1.0';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const STATE_FILE_PATH = 'INFRASTRUCTURE_STATE';
+
+// Azure configuration for looking up public IP
+const AZURE_SUBSCRIPTION_ID = process.env.AZURE_SUBSCRIPTION_ID;
+const AKS_RESOURCE_GROUP = process.env.AKS_RESOURCE_GROUP || 'mc-demo-dev-rg';
+
+// Cache the public IP to avoid repeated Azure API calls
+let cachedPublicIp: string | null = null;
+let publicIpCacheTime: number = 0;
+const PUBLIC_IP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get the public IP from Azure (with caching)
+ * Looks up the static public IP resource in the AKS resource group
+ */
+async function getPublicIpFromAzure(): Promise<string | null> {
+  // Return cached value if still valid
+  if (cachedPublicIp && Date.now() - publicIpCacheTime < PUBLIC_IP_CACHE_TTL) {
+    return cachedPublicIp;
+  }
+
+  // Check for hardcoded override first
+  if (process.env.PUBLIC_IP) {
+    cachedPublicIp = process.env.PUBLIC_IP;
+    publicIpCacheTime = Date.now();
+    return cachedPublicIp;
+  }
+
+  if (!AZURE_SUBSCRIPTION_ID) {
+    console.log('AZURE_SUBSCRIPTION_ID not set, cannot look up public IP');
+    return null;
+  }
+
+  try {
+    const credential = new DefaultAzureCredential();
+    const networkClient = new NetworkManagementClient(credential, AZURE_SUBSCRIPTION_ID);
+    
+    // List public IPs in the AKS resource group
+    const publicIps = networkClient.publicIPAddresses.list(AKS_RESOURCE_GROUP);
+    
+    for await (const ip of publicIps) {
+      // Look for our static public IP (named mc-demo-dev-public-ip or similar)
+      if (ip.name?.includes('public-ip') && ip.ipAddress) {
+        console.log(`Found public IP: ${ip.ipAddress} (${ip.name})`);
+        cachedPublicIp = ip.ipAddress;
+        publicIpCacheTime = Date.now();
+        return cachedPublicIp;
+      }
+    }
+    
+    console.log('No public IP found in resource group');
+    return null;
+  } catch (error) {
+    console.error('Failed to get public IP from Azure:', error);
+    return null;
+  }
+}
 
 // Initialize Octokit (GitHub API client)
 const getOctokit = () => {
@@ -245,8 +303,15 @@ async function getLastWorkflowStatus(): Promise<{
  * Check if infrastructure is actually running by pinging public services
  * This works from Container Apps (no kubectl needed)
  */
-async function checkInfrastructureReachable(): Promise<boolean> {
-  const publicIp = process.env.PUBLIC_IP || '4.242.217.139';
+async function checkInfrastructureReachable(): Promise<{ reachable: boolean; publicIp: string | null }> {
+  // Get the public IP from Azure (cached)
+  const publicIp = await getPublicIpFromAzure();
+  
+  if (!publicIp) {
+    console.log('Infrastructure check: No public IP available');
+    return { reachable: false, publicIp: null };
+  }
+  
   const grafanaUrl = `https://grafana.${publicIp}.nip.io`;
   
   try {
@@ -261,11 +326,11 @@ async function checkInfrastructureReachable(): Promise<boolean> {
     clearTimeout(timeout);
     
     // Any response (even 302 redirect to login) means Grafana is up
-    console.log(`Infrastructure check: Grafana responded with ${response.status}`);
-    return response.status < 500;
+    console.log(`Infrastructure check: Grafana at ${publicIp} responded with ${response.status}`);
+    return { reachable: response.status < 500, publicIp };
   } catch (error) {
-    console.log(`Infrastructure check: Grafana unreachable - ${error}`);
-    return false;
+    console.log(`Infrastructure check: Grafana at ${publicIp} unreachable - ${error}`);
+    return { reachable: false, publicIp };
   }
 }
 
@@ -276,7 +341,9 @@ router.get('/status', async (req, res) => {
   try {
     // First, check if infrastructure is ACTUALLY running by pinging public services
     // This works from Container Apps (kubectl doesn't work here)
-    const clusterIsReachable = await checkInfrastructureReachable();
+    const infraCheck = await checkInfrastructureReachable();
+    const clusterIsReachable = infraCheck.reachable;
+    const publicIp = infraCheck.publicIp;
     
     const [{ state: infraState }, workflowInfo] = await Promise.all([
       getInfrastructureState(),
@@ -327,11 +394,10 @@ router.get('/status', async (req, res) => {
         : (isRunning ? 'running' : 'stopped'),
     }));
 
-    const publicIp = process.env.PUBLIC_IP || '4.242.217.139';
-    
     // Note: kubectl metrics not available from Container Apps
     // Use static estimates when running (real metrics would come from Prometheus via Grafana)
-    const metrics = isRunning
+    // publicIp is already fetched from Azure above
+    const metrics = (isRunning && publicIp)
       ? {
           nodes: 2,
           pods: 12,
