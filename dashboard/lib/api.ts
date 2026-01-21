@@ -209,7 +209,8 @@ export interface InfrastructureCostSummary {
 
 // Get infrastructure status
 export async function getInfrastructureStatus(): Promise<InfrastructureStatusResponse> {
-  return fetchApi<InfrastructureStatusResponse>('/api/infrastructure/status');
+  // 15 second timeout - this queries GitHub for workflow status
+  return fetchApi<InfrastructureStatusResponse>('/api/infrastructure/status', {}, 15000);
 }
 
 // Toggle infrastructure state
@@ -220,10 +221,11 @@ export async function toggleInfrastructure(targetState: 'ON' | 'OFF'): Promise<{
   estimatedTime: string;
   workflowUrl: string;
 }> {
+  // 30 second timeout - this call commits to GitHub which can be slow
   return fetchApi('/api/infrastructure/toggle', {
     method: 'POST',
     body: JSON.stringify({ targetState }),
-  });
+  }, 30000);
 }
 
 // Get cost estimates
