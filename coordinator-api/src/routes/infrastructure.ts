@@ -1,5 +1,15 @@
 import { Router } from 'express';
 import { Octokit } from '@octokit/rest';
+import { getClusterMetrics, type ClusterMetrics, type PodInfo, type NodeInfo } from '../services/kubernetes';
+import { 
+  getClusterResourceMetrics, 
+  getMinecraftMetrics, 
+  isPrometheusAvailable,
+  getAlerts,
+  type ClusterResourceMetrics,
+  type MinecraftMetrics,
+} from '../services/prometheus';
+import { getAzureCosts, type CostResponse } from '../services/azure-costs';
 
 const router = Router();
 
@@ -88,33 +98,138 @@ async function updateInfrastructureState(newState: string, currentSha: string): 
 }
 
 /**
+ * Check if there's an active terraform workflow and what it's doing
+ */
+async function getActiveWorkflowInfo(): Promise<{
+  hasActiveRun: boolean;
+  action: 'deploying' | 'destroying' | 'unknown' | null;
+  runId: number | null;
+  runUrl: string | null;
+  startedAt: string | null;
+  progress: number; // 0-100 estimated progress
+}> {
+  try {
+    const octokit = getOctokit();
+    
+    // Get recent workflow runs
+    const { data: workflowRuns } = await octokit.actions.listWorkflowRunsForRepo({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      per_page: 5,
+    });
+
+    // Find active terraform-related runs
+    const activeRun = workflowRuns.workflow_runs.find(run => 
+      (run.status === 'in_progress' || run.status === 'queued') &&
+      (run.name?.toLowerCase().includes('terraform') || 
+       run.name?.toLowerCase().includes('deploy') ||
+       run.name?.toLowerCase().includes('minecraft'))
+    );
+
+    if (!activeRun) {
+      return { hasActiveRun: false, action: null, runId: null, runUrl: null, startedAt: null, progress: 0 };
+    }
+
+    // Determine action from commit message or run name
+    const isDestroying = activeRun.head_commit?.message?.toLowerCase().includes('destroy') ||
+                         activeRun.name?.toLowerCase().includes('destroy');
+    const isDeploying = activeRun.head_commit?.message?.toLowerCase().includes('deploy') ||
+                        activeRun.name?.toLowerCase().includes('deploy');
+
+    // Estimate progress based on time elapsed (rough estimate)
+    const startedAt = activeRun.created_at;
+    const elapsed = Date.now() - new Date(startedAt).getTime();
+    const estimatedTotal = isDestroying ? 8 * 60 * 1000 : 12 * 60 * 1000; // 8 min destroy, 12 min deploy
+    const progress = Math.min(Math.round((elapsed / estimatedTotal) * 100), 95); // Cap at 95% until complete
+
+    return {
+      hasActiveRun: true,
+      action: isDestroying ? 'destroying' : isDeploying ? 'deploying' : 'unknown',
+      runId: activeRun.id,
+      runUrl: activeRun.html_url,
+      startedAt,
+      progress,
+    };
+  } catch (error) {
+    console.error('Error checking active workflow:', error);
+    return { hasActiveRun: false, action: null, runId: null, runUrl: null, startedAt: null, progress: 0 };
+  }
+}
+
+/**
  * GET /api/infrastructure/status
  */
 router.get('/status', async (req, res) => {
   try {
-    const { state: infraState } = await getInfrastructureState();
-    const isRunning = infraState === 'ON';
+    const [{ state: infraState }, workflowInfo] = await Promise.all([
+      getInfrastructureState(),
+      getActiveWorkflowInfo(),
+    ]);
 
+    // Determine the actual operational state
+    // State file says target, but workflow determines if we're transitioning
+    let operationalState: 'running' | 'stopped' | 'deploying' | 'destroying' = 
+      infraState === 'ON' ? 'running' : 'stopped';
+    
+    if (workflowInfo.hasActiveRun) {
+      if (workflowInfo.action === 'destroying') {
+        operationalState = 'destroying';
+      } else if (workflowInfo.action === 'deploying') {
+        operationalState = 'deploying';
+      }
+    }
+
+    // isRunning should be true if currently running OR still in process of destroying
+    // (resources still exist during destruction)
+    const isRunning = operationalState === 'running' || operationalState === 'destroying';
+    const isTransitioning = operationalState === 'deploying' || operationalState === 'destroying';
+
+    // Try to get real cluster metrics if resources might exist
+    let clusterMetrics: ClusterMetrics | null = null;
+    if (isRunning) {
+      clusterMetrics = await getClusterMetrics().catch(() => null);
+    }
+
+    // Determine service status based on operational state
     const services = SERVICES.map((service) => ({
       ...service,
-      status: isRunning ? 'running' : 'stopped',
+      status: isTransitioning 
+        ? (operationalState === 'deploying' ? 'starting' : 'stopping')
+        : (isRunning ? 'running' : 'stopped'),
     }));
 
+    const publicIp = process.env.PUBLIC_IP || '4.236.122.90';
+    
+    // Use real metrics if available, otherwise use defaults
     const metrics = isRunning
       ? {
-          nodes: 2,
-          pods: 12,
-          cpuUsage: Math.floor(Math.random() * 30) + 20,
-          memoryUsage: Math.floor(Math.random() * 40) + 30,
-          publicIp: process.env.PUBLIC_IP || '4.236.122.90',
-          grafanaUrl: `https://grafana.${process.env.PUBLIC_IP || '4.236.122.90'}.nip.io`,
-          minecraftAddress: `${process.env.PUBLIC_IP || '4.236.122.90'}:25565`,
+          nodes: clusterMetrics?.nodes.ready ?? 2,
+          pods: clusterMetrics?.pods.running ?? 12,
+          totalPods: clusterMetrics?.pods.total ?? 12,
+          pendingPods: clusterMetrics?.pods.pending ?? 0,
+          failedPods: clusterMetrics?.pods.failed ?? 0,
+          cpuUsage: clusterMetrics?.resources.cpuUsage ?? Math.floor(Math.random() * 30) + 20,
+          memoryUsage: clusterMetrics?.resources.memoryUsage ?? Math.floor(Math.random() * 40) + 30,
+          publicIp,
+          grafanaUrl: `https://grafana.${publicIp}.nip.io`,
+          prometheusUrl: `https://prometheus.${publicIp}.nip.io`,
+          minecraftAddress: `${publicIp}:25565`,
+          namespaces: clusterMetrics?.namespaces ?? [],
         }
       : null;
 
     res.json({
       state: infraState,
+      operationalState,
       isRunning,
+      isTransitioning,
+      transition: workflowInfo.hasActiveRun ? {
+        action: workflowInfo.action,
+        progress: workflowInfo.progress,
+        startedAt: workflowInfo.startedAt,
+        runUrl: workflowInfo.runUrl,
+        estimatedMinutes: workflowInfo.action === 'destroying' ? 8 : 12,
+      } : null,
       services,
       metrics,
       lastUpdated: new Date().toISOString(),
@@ -128,6 +243,143 @@ router.get('/status', async (req, res) => {
   } catch (error) {
     console.error('Error getting infrastructure status:', error);
     res.status(500).json({ error: 'Failed to get infrastructure status' });
+  }
+});
+
+/**
+ * GET /api/infrastructure/monitoring
+ * Returns detailed monitoring data from Kubernetes and Prometheus
+ */
+router.get('/monitoring', async (req, res) => {
+  try {
+    const { state: infraState } = await getInfrastructureState();
+    const isRunning = infraState === 'ON';
+
+    if (!isRunning) {
+      res.json({
+        available: false,
+        message: 'Infrastructure is not running',
+        kubernetes: null,
+        prometheus: null,
+        minecraft: null,
+      });
+      return;
+    }
+
+    // Fetch data from both sources in parallel
+    const [
+      clusterMetrics,
+      prometheusMetrics,
+      minecraftMetrics,
+      prometheusAvailable,
+      alerts,
+    ] = await Promise.all([
+      getClusterMetrics().catch(() => null),
+      getClusterResourceMetrics().catch(() => null),
+      getMinecraftMetrics().catch(() => null),
+      isPrometheusAvailable().catch(() => false),
+      getAlerts().catch(() => []),
+    ]);
+
+    res.json({
+      available: true,
+      timestamp: new Date().toISOString(),
+      
+      // Kubernetes data (from kubectl)
+      kubernetes: clusterMetrics ? {
+        nodes: clusterMetrics.nodes,
+        pods: clusterMetrics.pods,
+        namespaces: clusterMetrics.namespaces,
+      } : null,
+      
+      // Prometheus data (real metrics)
+      prometheus: {
+        available: prometheusAvailable,
+        metrics: prometheusMetrics,
+        alerts,
+      },
+      
+      // Minecraft-specific metrics
+      minecraft: minecraftMetrics,
+    });
+  } catch (error) {
+    console.error('Error getting monitoring data:', error);
+    res.status(500).json({ 
+      error: 'Failed to get monitoring data',
+      available: false,
+    });
+  }
+});
+
+/**
+ * GET /api/infrastructure/pods
+ * Returns detailed pod information
+ */
+router.get('/pods', async (req, res) => {
+  try {
+    const { state: infraState } = await getInfrastructureState();
+    const isRunning = infraState === 'ON';
+
+    if (!isRunning) {
+      res.json({
+        available: false,
+        pods: [],
+        message: 'Infrastructure is not running',
+      });
+      return;
+    }
+
+    const clusterMetrics = await getClusterMetrics().catch(() => null);
+    
+    res.json({
+      available: true,
+      timestamp: new Date().toISOString(),
+      pods: clusterMetrics?.pods.details ?? [],
+      summary: {
+        total: clusterMetrics?.pods.total ?? 0,
+        running: clusterMetrics?.pods.running ?? 0,
+        pending: clusterMetrics?.pods.pending ?? 0,
+        failed: clusterMetrics?.pods.failed ?? 0,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting pods:', error);
+    res.status(500).json({ error: 'Failed to get pod data' });
+  }
+});
+
+/**
+ * GET /api/infrastructure/nodes
+ * Returns detailed node information
+ */
+router.get('/nodes', async (req, res) => {
+  try {
+    const { state: infraState } = await getInfrastructureState();
+    const isRunning = infraState === 'ON';
+
+    if (!isRunning) {
+      res.json({
+        available: false,
+        nodes: [],
+        message: 'Infrastructure is not running',
+      });
+      return;
+    }
+
+    const clusterMetrics = await getClusterMetrics().catch(() => null);
+    
+    res.json({
+      available: true,
+      timestamp: new Date().toISOString(),
+      nodes: clusterMetrics?.nodes.details ?? [],
+      summary: {
+        total: clusterMetrics?.nodes.total ?? 0,
+        ready: clusterMetrics?.nodes.ready ?? 0,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting nodes:', error);
+    res.status(500).json({ error: 'Failed to get node data' });
   }
 });
 
@@ -205,19 +457,62 @@ router.post('/toggle', async (req, res) => {
 
 /**
  * GET /api/infrastructure/cost
+ * Returns real Azure cost data from Cost Management API
  */
-router.get('/cost', (req, res) => {
-  res.json({
-    daily: { running: '$3-5', stopped: '$0' },
-    monthly: { running: '$100-150', stopped: '$0' },
-    breakdown: [
-      { service: 'AKS Cluster (2 nodes)', daily: '$3.50' },
-      { service: 'Container Registry', daily: '$0.16' },
-      { service: 'Log Analytics', daily: '$0.10-0.50' },
-      { service: 'Static Public IP', daily: '$0.10' },
-    ],
-    note: 'Infrastructure can be destroyed and rebuilt in ~10 minutes',
-  });
+router.get('/cost', async (req, res) => {
+  try {
+    const costs = await getAzureCosts();
+    res.json(costs);
+  } catch (error) {
+    console.error('Error getting costs:', error);
+    res.status(500).json({ 
+      available: false,
+      error: 'Failed to retrieve cost data',
+    });
+  }
+});
+
+/**
+ * GET /api/infrastructure/cost/summary
+ * Returns a simplified cost summary (for backward compatibility)
+ */
+router.get('/cost/summary', async (req, res) => {
+  try {
+    const costs = await getAzureCosts();
+    
+    // Convert to the old format for backward compatibility
+    res.json({
+      daily: { 
+        running: costs.today.cost, 
+        stopped: '$0' 
+      },
+      monthly: { 
+        running: costs.thisMonth.cost, 
+        forecast: costs.thisMonth.forecast,
+        stopped: '$0' 
+      },
+      breakdown: costs.breakdown.byService.slice(0, 5).map(s => ({
+        service: s.service,
+        daily: s.cost,
+      })),
+      note: costs.available 
+        ? 'Real cost data from Azure Cost Management' 
+        : 'Estimated costs - Azure Cost Management not configured',
+      isEstimate: !costs.available,
+    });
+  } catch (error) {
+    console.error('Error getting cost summary:', error);
+    res.json({
+      daily: { running: '~$3-5', stopped: '$0' },
+      monthly: { running: '~$100-150', stopped: '$0' },
+      breakdown: [
+        { service: 'AKS Cluster', daily: '~$3.50' },
+        { service: 'Other services', daily: '~$1.00' },
+      ],
+      note: 'Estimated costs - unable to query Azure',
+      isEstimate: true,
+    });
+  }
 });
 
 /**

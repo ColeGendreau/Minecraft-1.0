@@ -140,9 +140,20 @@ export interface InfrastructureMetrics {
   minecraftAddress: string;
 }
 
+export interface InfrastructureTransition {
+  action: 'deploying' | 'destroying' | 'unknown';
+  progress: number;
+  startedAt: string;
+  runUrl: string | null;
+  estimatedMinutes: number;
+}
+
 export interface InfrastructureStatusResponse {
   state: 'ON' | 'OFF' | 'UNKNOWN';
+  operationalState: 'running' | 'stopped' | 'deploying' | 'destroying';
   isRunning: boolean;
+  isTransitioning: boolean;
+  transition: InfrastructureTransition | null;
   services: ServiceStatus[];
   metrics: InfrastructureMetrics | null;
   lastUpdated: string;
@@ -155,10 +166,44 @@ export interface InfrastructureStatusResponse {
 }
 
 export interface InfrastructureCostResponse {
+  available: boolean;
+  error?: string;
+  today: {
+    cost: string;
+    currency: string;
+  };
+  yesterday: {
+    cost: string;
+    currency: string;
+  };
+  thisMonth: {
+    cost: string;
+    forecast: string;
+    currency: string;
+    startDate: string;
+    endDate: string;
+  };
+  lastMonth: {
+    cost: string;
+    currency: string;
+    startDate: string;
+    endDate: string;
+  };
+  breakdown: {
+    byService: Array<{ service: string; cost: string; percentage: number }>;
+    byResourceGroup: Array<{ resourceGroup: string; cost: string; percentage: number }>;
+  };
+  dailyTrend: Array<{ date: string; cost: number }>;
+  lastUpdated: string;
+}
+
+// Legacy format for backward compatibility
+export interface InfrastructureCostSummary {
   daily: { running: string; stopped: string };
-  monthly: { running: string; stopped: string };
+  monthly: { running: string; stopped: string; forecast?: string };
   breakdown: Array<{ service: string; daily: string }>;
   note: string;
+  isEstimate?: boolean;
 }
 
 // Get infrastructure status
@@ -277,6 +322,161 @@ export interface InfrastructureLogsResponse {
 // Get Azure infrastructure logs and activity
 export async function getInfrastructureLogs(): Promise<InfrastructureLogsResponse> {
   return fetchApi<InfrastructureLogsResponse>('/api/infrastructure/logs', {}, 15000);
+}
+
+// ========== MONITORING ==========
+
+export interface PodInfo {
+  name: string;
+  namespace: string;
+  status: string;
+  ready: string;
+  restarts: number;
+  age: string;
+  node: string;
+  ip: string;
+  cpu?: string;
+  memory?: string;
+  containers: Array<{
+    name: string;
+    ready: boolean;
+    restarts: number;
+    image: string;
+  }>;
+}
+
+export interface NodeInfo {
+  name: string;
+  status: string;
+  roles: string;
+  age: string;
+  version: string;
+  internalIp: string;
+  cpu: {
+    capacity: string;
+    allocatable: string;
+    used?: string;
+    percentage?: number;
+  };
+  memory: {
+    capacity: string;
+    allocatable: string;
+    used?: string;
+    percentage?: number;
+  };
+  pods: {
+    capacity: number;
+    running: number;
+  };
+}
+
+export interface PrometheusMetrics {
+  cpu: {
+    usage: number;
+    requests: number;
+    limits: number;
+    usageByNode: Array<{ node: string; usage: number; percentage: number }>;
+    usageByNamespace: Array<{ namespace: string; usage: number }>;
+  };
+  memory: {
+    usage: number;
+    requests: number;
+    limits: number;
+    usageByNode: Array<{ node: string; usage: number; percentage: number }>;
+    usageByNamespace: Array<{ namespace: string; usage: number }>;
+  };
+  network: {
+    receiveBytesPerSec: number;
+    transmitBytesPerSec: number;
+    byPod: Array<{ pod: string; namespace: string; rx: number; tx: number }>;
+  };
+  storage: {
+    usedBytes: number;
+    totalBytes: number;
+    percentage: number;
+  };
+}
+
+export interface MinecraftMetrics {
+  playersOnline: number;
+  maxPlayers: number;
+  tps: number;
+  worldSize: number;
+  uptime: number;
+  memoryUsed: number;
+  memoryMax: number;
+}
+
+export interface MonitoringResponse {
+  available: boolean;
+  timestamp?: string;
+  message?: string;
+  kubernetes: {
+    nodes: {
+      total: number;
+      ready: number;
+      details: NodeInfo[];
+    };
+    pods: {
+      total: number;
+      running: number;
+      pending: number;
+      failed: number;
+      details: PodInfo[];
+    };
+    namespaces: string[];
+  } | null;
+  prometheus: {
+    available: boolean;
+    metrics: PrometheusMetrics | null;
+    alerts: Array<{
+      name: string;
+      severity: string;
+      state: string;
+      summary: string;
+      since: string;
+    }>;
+  } | null;
+  minecraft: MinecraftMetrics | null;
+}
+
+export interface PodsResponse {
+  available: boolean;
+  timestamp?: string;
+  message?: string;
+  pods: PodInfo[];
+  summary: {
+    total: number;
+    running: number;
+    pending: number;
+    failed: number;
+  };
+}
+
+export interface NodesResponse {
+  available: boolean;
+  timestamp?: string;
+  message?: string;
+  nodes: NodeInfo[];
+  summary: {
+    total: number;
+    ready: number;
+  };
+}
+
+// Get detailed monitoring data
+export async function getMonitoringData(): Promise<MonitoringResponse> {
+  return fetchApi<MonitoringResponse>('/api/infrastructure/monitoring', {}, 15000);
+}
+
+// Get pod details
+export async function getPods(): Promise<PodsResponse> {
+  return fetchApi<PodsResponse>('/api/infrastructure/pods', {}, 15000);
+}
+
+// Get node details
+export async function getNodes(): Promise<NodesResponse> {
+  return fetchApi<NodesResponse>('/api/infrastructure/nodes', {}, 15000);
 }
 
 // ========== ASSETS ==========
