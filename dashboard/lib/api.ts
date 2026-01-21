@@ -228,9 +228,9 @@ export async function toggleInfrastructure(targetState: 'ON' | 'OFF'): Promise<{
   }, 30000);
 }
 
-// Get cost estimates
+// Get cost estimates (longer timeout - cost queries can be slow)
 export async function getInfrastructureCost(): Promise<InfrastructureCostResponse> {
-  return fetchApi<InfrastructureCostResponse>('/api/infrastructure/cost');
+  return fetchApi<InfrastructureCostResponse>('/api/infrastructure/cost', {}, 30000);
 }
 
 // ========== WORKFLOW STATUS ==========
