@@ -240,19 +240,9 @@ jobs:
             echo "✅ Azure OpenAI Endpoint: $OPENAI_ENDPOINT"
           fi
           
-          # Get Bing Search credentials (Microsoft.Bing/accounts, not Cognitive Services)
-          BING_KEY=$(az resource invoke-action \
-            --action listKeys \
-            --name mc-demo-dev-bing \
-            --resource-group mc-demo-dev-rg \
-            --resource-type "Microsoft.Bing/accounts" \
-            --query "key1" -o tsv 2>/dev/null || echo "")
-          
-          if [ -n "$BING_KEY" ]; then
-            echo "✅ Bing Search API configured"
-          else
-            echo "⚠️ Bing Search not found - Image Search will be disabled"
-          fi
+          # Note: Bing Search API has been retired by Microsoft
+          # Image Search feature uses direct URL input only
+          BING_KEY=""
           
           # Get coordinator identity client ID
           CLIENT_ID=$(az identity show \

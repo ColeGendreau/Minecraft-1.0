@@ -21,5 +21,10 @@ resource "azurerm_public_ip" "ingress" {
   depends_on = [
     azurerm_kubernetes_cluster.aks
   ]
+
+  # Prevent recreation when AKS adds its own tags
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
