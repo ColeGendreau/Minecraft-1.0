@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getAssets, checkHealth, getInfrastructureStatus } from '@/lib/api';
+import { getAssets, getInfrastructureStatus } from '@/lib/api';
 import type { Asset, InfrastructureStatusResponse } from '@/lib/api';
 import { useTheme } from '@/lib/theme-context';
 
@@ -16,18 +16,18 @@ export default function HomePage() {
 
   const fetchData = useCallback(async () => {
     try {
-      await checkHealth();
-      const [assetsData, infraData] = await Promise.all([
-        getAssets(),
-        getInfrastructureStatus().catch(() => null)
-      ]);
+      // Fetch assets first (fast) - don't block on infrastructure status
+      const assetsData = await getAssets();
       setAssets(assetsData.assets);
+      setLoading(false);
+      
+      // Fetch infrastructure status separately (can be slow - queries GitHub)
+      const infraData = await getInfrastructureStatus().catch(() => null);
       setInfraStatus(infraData);
       setServerOnline(infraData?.isRunning ?? false);
       setServerAddress(infraData?.metrics?.minecraftAddress ?? null);
     } catch {
       setServerOnline(false);
-    } finally {
       setLoading(false);
     }
   }, []);
