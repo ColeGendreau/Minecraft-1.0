@@ -424,13 +424,14 @@ export function nukeAllAssets(): number {
 }
 
 // Get the next available position for a new asset (to avoid overlap)
-// All assets are placed in a single row along the X axis at Z=50
-// When assets are deleted, new ones can fill those gaps
+// Assets are placed in a row along X axis with generous spacing for visibility
+// Accounts for any facing direction by using max(width, depth) for spacing
 export function getNextAssetPosition(): { x: number; y: number; z: number } {
-  const ASSET_Z = 50;        // All assets at same Z
+  const ASSET_Z = 50;        // Base Z position
   const ASSET_Y = 65;        // Ground level
-  const GAP = 20;            // Space between assets
+  const MIN_GAP = 50;        // Minimum gap between assets for visibility
   const START_X = 0;         // Starting position
+  const MIN_SLOT_SIZE = 100; // Minimum slot size to reserve for new assets
   
   const activeAssets = getActiveAssets();
   
@@ -439,22 +440,21 @@ export function getNextAssetPosition(): { x: number; y: number; z: number } {
   }
   
   // Build a list of occupied X ranges
+  // Use max(width, depth) to account for any facing direction
   const occupiedRanges: Array<{ start: number; end: number }> = [];
   for (const asset of activeAssets) {
+    const maxDimension = Math.max(asset.width, asset.depth);
     occupiedRanges.push({
-      start: asset.position_x - GAP, // Include gap before
-      end: asset.position_x + asset.width + GAP, // Include gap after
+      start: asset.position_x - MIN_GAP,
+      end: asset.position_x + maxDimension + MIN_GAP,
     });
   }
   
   // Sort by start position
   occupiedRanges.sort((a, b) => a.start - b.start);
   
-  // Look for a gap big enough (we'll use a minimum width of 50 blocks as estimate)
-  const MIN_WIDTH = 50;
-  
   // Check if there's space at the beginning
-  if (occupiedRanges.length > 0 && occupiedRanges[0].start > START_X + MIN_WIDTH) {
+  if (occupiedRanges.length > 0 && occupiedRanges[0].start > START_X + MIN_SLOT_SIZE) {
     return { x: START_X, y: ASSET_Y, z: ASSET_Z };
   }
   
@@ -464,13 +464,12 @@ export function getNextAssetPosition(): { x: number; y: number; z: number } {
     const gapEnd = occupiedRanges[i + 1].start;
     const gapSize = gapEnd - gapStart;
     
-    if (gapSize >= MIN_WIDTH) {
-      // Found a gap! Place asset here
+    if (gapSize >= MIN_SLOT_SIZE) {
       return { x: Math.round(gapStart), y: ASSET_Y, z: ASSET_Z };
     }
   }
   
-  // No gaps found - place at the end
+  // No gaps found - place at the end with extra spacing
   const lastRange = occupiedRanges[occupiedRanges.length - 1];
   return {
     x: Math.round(lastRange.end),
