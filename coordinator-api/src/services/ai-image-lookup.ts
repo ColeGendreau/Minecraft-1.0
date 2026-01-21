@@ -2,8 +2,7 @@
  * AI Image Lookup Service
  * 
  * Uses Azure OpenAI GPT-4o to find real image URLs from text descriptions.
- * This is much more reliable for pixel art conversion than AI-generated images
- * because real images (logos, icons, etc.) have cleaner, more recognizable shapes.
+ * Includes URL validation to ensure the image actually exists.
  */
 
 import { AzureOpenAI } from 'openai';
@@ -27,42 +26,89 @@ export interface ImageLookupResult {
   imageUrl?: string;
   searchQuery?: string;
   error?: string;
+  attempts?: number;
 }
 
 /**
  * System prompt for the image lookup bot
  */
-const IMAGE_LOOKUP_PROMPT = `You are an image lookup bot.
-I will give you text input.
-Your job is to find one single image URL that is most relevant to that text.
+const IMAGE_LOOKUP_PROMPT = `You are an image URL finder.
+I will give you text describing something (a logo, icon, character, etc).
+Your job is to provide a WORKING image URL.
 
-Rules:
-- Respond with ONLY the direct image URL
-- No extra text, no formatting, no explanation
-- Prefer PNG images when available
-- The URL must point directly to an image file (ending in .png, .jpg, .jpeg, .gif, .webp, or from known image CDNs)
-- If multiple options exist, choose the most official or widely recognized image
-- Prefer images from:
-  - Wikipedia/Wikimedia Commons
-  - Official brand websites
-  - GitHub raw content
-  - Imgur
-  - Other reliable image hosts
-- The image should work well for pixel art conversion:
-  - Clear, distinct shapes
-  - Simple backgrounds (preferably transparent)
-  - Recognizable silhouettes
-  - Bold colors
+CRITICAL RULES:
+- Return ONLY the URL, nothing else
+- The URL MUST be from one of these reliable sources:
+  
+  PREFERRED (most likely to work):
+  - upload.wikimedia.org (Wikipedia/Wikimedia Commons - BEST CHOICE)
+  - raw.githubusercontent.com (GitHub raw files)
+  - i.imgur.com (Imgur direct links)
+  - cdn.iconscout.com
+  - assets.stickpng.com
+  
+  ACCEPTABLE:
+  - i.redd.it (Reddit images)
+  - pbs.twimg.com (Twitter/X images)
+  - cdn.pixabay.com
+  
+- URL must end in .png, .jpg, .jpeg, .gif, .webp, or .svg
+- Choose images that are:
+  - Clear with distinct shapes
+  - Simple/transparent backgrounds
+  - Official/recognizable versions
+  - Good for pixel art conversion
 
-Output must be exactly one URL and nothing else.`;
+For logos, use the Wikipedia/Wikimedia version when possible.
+
+Output: Just the URL. Nothing else.`;
 
 /**
- * Look up an image URL using AI
- * 
- * @param description - What kind of image to find (e.g., "Apple logo", "red dragon", "Nike swoosh")
- * @returns The image URL if found, or an error
+ * Validate that a URL returns a valid image
  */
-export async function lookupImageUrl(description: string): Promise<ImageLookupResult> {
+async function validateImageUrl(url: string, timeoutMs: number = 5000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    
+    const response = await fetch(url, {
+      method: 'HEAD', // Just check headers, don't download
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; WorldForge/1.0)',
+      },
+    });
+    
+    clearTimeout(timeout);
+    
+    if (!response.ok) {
+      console.log(`[AI Image Lookup] URL validation failed: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    // Check content type is an image
+    const contentType = response.headers.get('content-type') || '';
+    const isImage = contentType.startsWith('image/') || 
+                    contentType.includes('svg') ||
+                    // Some CDNs don't return proper content-type
+                    url.match(/\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i);
+    
+    if (!isImage) {
+      console.log(`[AI Image Lookup] URL is not an image: ${contentType}`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.log(`[AI Image Lookup] URL validation error: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Look up an image URL using AI with validation and retries
+ */
+export async function lookupImageUrl(description: string, maxAttempts: number = 3): Promise<ImageLookupResult> {
   console.log(`[AI Image Lookup] Searching for: "${description}"`);
   
   if (!azureOpenAI) {
@@ -72,64 +118,80 @@ export async function lookupImageUrl(description: string): Promise<ImageLookupRe
     };
   }
   
-  try {
-    const response = await azureOpenAI.chat.completions.create({
-      model: AZURE_OPENAI_DEPLOYMENT,
-      max_tokens: 500,
-      temperature: 0.3, // Lower temperature for more consistent results
-      messages: [
-        { role: 'system', content: IMAGE_LOOKUP_PROMPT },
-        { role: 'user', content: description }
-      ],
-    });
-    
-    const content = response.choices[0]?.message?.content?.trim();
-    
-    if (!content) {
-      return {
-        success: false,
-        error: 'AI returned no response',
-      };
+  const triedUrls: string[] = [];
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`[AI Image Lookup] Attempt ${attempt}/${maxAttempts}`);
+      
+      // Build the prompt, including previously tried URLs to avoid
+      let userPrompt = description;
+      if (triedUrls.length > 0) {
+        userPrompt += `\n\nDO NOT use these URLs (they don't work):\n${triedUrls.join('\n')}\n\nFind a DIFFERENT URL from a different source.`;
+      }
+      
+      const response = await azureOpenAI.chat.completions.create({
+        model: AZURE_OPENAI_DEPLOYMENT,
+        max_tokens: 500,
+        temperature: 0.3 + (attempt * 0.2), // Increase temperature on retries for variety
+        messages: [
+          { role: 'system', content: IMAGE_LOOKUP_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+      });
+      
+      const content = response.choices[0]?.message?.content?.trim();
+      
+      if (!content) {
+        console.warn(`[AI Image Lookup] Empty response on attempt ${attempt}`);
+        continue;
+      }
+      
+      // Extract URL from response
+      const urlMatch = content.match(/https?:\/\/[^\s"'<>]+/);
+      if (!urlMatch) {
+        console.warn(`[AI Image Lookup] No URL in response: "${content.substring(0, 100)}"`);
+        continue;
+      }
+      
+      const url = urlMatch[0].replace(/[,.\])]+$/, ''); // Clean trailing punctuation
+      
+      // Check if we've already tried this URL
+      if (triedUrls.includes(url)) {
+        console.log(`[AI Image Lookup] Already tried this URL, skipping`);
+        continue;
+      }
+      
+      triedUrls.push(url);
+      console.log(`[AI Image Lookup] Validating URL: ${url}`);
+      
+      // Validate the URL actually works
+      const isValid = await validateImageUrl(url);
+      
+      if (isValid) {
+        console.log(`[AI Image Lookup] ✓ Found valid image on attempt ${attempt}`);
+        return {
+          success: true,
+          imageUrl: url,
+          searchQuery: description,
+          attempts: attempt,
+        };
+      }
+      
+      console.log(`[AI Image Lookup] ✗ URL invalid, trying again...`);
+      
+    } catch (error) {
+      console.error(`[AI Image Lookup] Error on attempt ${attempt}:`, error);
     }
-    
-    // Validate that the response looks like a URL
-    if (!content.startsWith('http://') && !content.startsWith('https://')) {
-      console.warn(`[AI Image Lookup] AI returned non-URL: "${content}"`);
-      return {
-        success: false,
-        error: `AI did not return a valid URL. Response: "${content.substring(0, 100)}"`,
-        searchQuery: description,
-      };
-    }
-    
-    // Basic URL validation - check it looks like an image URL
-    const url = content.split(/\s/)[0]; // Take first word in case of extra text
-    
-    console.log(`[AI Image Lookup] Found URL: ${url}`);
-    
-    return {
-      success: true,
-      imageUrl: url,
-      searchQuery: description,
-    };
-    
-  } catch (error) {
-    console.error('[AI Image Lookup] Error:', error);
-    
-    if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message,
-        searchQuery: description,
-      };
-    }
-    
-    return {
-      success: false,
-      error: 'Unknown error during image lookup',
-      searchQuery: description,
-    };
   }
+  
+  // All attempts failed
+  return {
+    success: false,
+    error: `Could not find a working image after ${maxAttempts} attempts. Try using "Image URL" mode with a direct link instead.`,
+    searchQuery: description,
+    attempts: maxAttempts,
+  };
 }
 
 /**
@@ -153,4 +215,3 @@ export function getImageLookupStatus(): {
     endpoint: AZURE_OPENAI_ENDPOINT ? `${AZURE_OPENAI_ENDPOINT.substring(0, 30)}...` : undefined,
   };
 }
-
