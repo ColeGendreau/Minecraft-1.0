@@ -428,7 +428,7 @@ export function nukeAllAssets(): number {
 // Accounts for any facing direction by using max(width, depth) for spacing
 export function getNextAssetPosition(): { x: number; y: number; z: number } {
   const ASSET_Z = 50;        // Base Z position
-  const ASSET_Y = 65;        // Ground level
+  const ASSET_Y = 100;       // Well above terrain (terrain is ~64-68)
   const MIN_GAP = 50;        // Minimum gap between assets for visibility
   const START_X = 0;         // Starting position
   const MIN_SLOT_SIZE = 100; // Minimum slot size to reserve for new assets
