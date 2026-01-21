@@ -20,7 +20,9 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  // In production, CORS_ORIGIN should be set to the dashboard URL
+  // If not set, allow all origins (for development/testing)
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
 }));
 app.use(express.json());

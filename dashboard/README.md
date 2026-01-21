@@ -2,21 +2,25 @@
 
 AI-powered Minecraft world creation dashboard with infrastructure control.
 
+## ☁️ Cloud-Only Architecture
+
+This dashboard runs **entirely in Azure** as a Container App. There is no local development mode.
+
+**Deployment**: Automatic via GitHub Actions when code changes are pushed to `main`.
+
 ## Features
 
-- **Unlimited Creativity**: Describe ANY world idea in natural language
-  - "Pink banana themed world"
-  - "Ferrari racing paradise"  
-  - "Giant Michael Jordan statues"
-  - No restrictions on input
+- **Pixel Art Builder**: Create pixel art in Minecraft from images
+  - Paste any image URL
+  - Search for images on the web
+  - Watch it build live via RCON
 
 - **Infrastructure Control**: Full ON/OFF control of Azure infrastructure
-  - One-click deploy/destroy
-  - Real-time service status indicators
+  - One-click deploy/destroy via GitHub Actions
+  - Real-time workflow progress modal
   - Cost tracking ($0 when off, ~$3-5/day when running)
 
 - **Service Monitoring**: Visual status for all services
-  - Azure Resource Group
   - AKS Kubernetes Cluster
   - Container Registry
   - NGINX Ingress
@@ -24,47 +28,34 @@ AI-powered Minecraft world creation dashboard with infrastructure control.
   - Minecraft Server
   - Prometheus
   - Grafana
-  - Log Analytics
-
-## Quick Start
-
-```bash
-# Start the dashboard (port 3000)
-npm run dev
-
-# Requires coordinator-api running on port 3001
-cd ../coordinator-api && npm run dev
-```
 
 ## Pages
 
-- `/` - Home: Infrastructure control + current world
-- `/create` - Create any world you can imagine
-- `/worlds` - History of all world requests
-- `/worlds/[id]` - Request details and AI interpretation
+- `/` - Home: Pixel art gallery + server status
+- `/admin` - Admin: Infrastructure control + monitoring
+- `/assets/create` - Create pixel art from images
 
-## Design Philosophy
+## How Deployment Works
 
-**"Unlimited creativity at the input layer. Strict constraints at the execution layer."**
-
-1. **INPUT**: Accept any natural language description
-2. **AI PLANNER**: Interprets intent, theme, motifs → WorldSpec JSON
-3. **BUILDER**: Maps to Minecraft primitives (biomes, structures, rules)
-4. **DEPLOY**: Git commit → GitHub Actions → Helm → AKS
-
-The AI never rejects input. It approximates creative ideas using available primitives.
+1. Push code to `main` branch
+2. GitHub Actions detects dashboard/ or coordinator-api/ changes
+3. Builds container image in Azure Container Registry
+4. Deploys to Azure Container Apps
+5. Environment variables (API URL, etc.) set automatically
 
 ## Configuration
 
-Create `.env.local`:
+Environment variables are set **automatically by GitHub Actions** during deployment:
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
+| Variable | Description | Set By |
+|----------|-------------|--------|
+| `NEXT_PUBLIC_API_URL` | Coordinator API URL | CI/CD |
+| `DASHBOARD_PASSWORD` | Optional password protection | Azure Secret |
+| `API_KEY` | Coordinator auth key | Azure Secret |
 
 ## Tech Stack
 
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- Custom dark theme with Minecraft-inspired colors
+- Custom Minecraft-inspired theme (day/night mode)

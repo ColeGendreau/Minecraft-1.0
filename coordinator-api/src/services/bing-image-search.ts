@@ -1,13 +1,11 @@
 /**
- * Bing Image Search Service
+ * Image Search Service
  * 
- * Uses Azure Bing Search API to find real images from search queries.
- * This actually searches the internet in real-time, unlike GPT which just guesses URLs.
+ * NOTE: Bing Image Search API has been retired by Microsoft (December 2023).
+ * This service now always returns unavailable.
+ * 
+ * Users should provide direct image URLs instead of search queries.
  */
-
-// Bing Search API configuration
-const BING_SEARCH_KEY = process.env.BING_SEARCH_KEY;
-const BING_SEARCH_ENDPOINT = process.env.BING_SEARCH_ENDPOINT || 'https://api.bing.microsoft.com';
 
 export interface ImageSearchResult {
   success: boolean;
@@ -19,122 +17,34 @@ export interface ImageSearchResult {
 }
 
 /**
- * Search for an image using Bing Image Search API
+ * Search for an image
  * 
- * @param query - What to search for (e.g., "Ferrari logo", "Apple logo PNG")
- * @returns The best matching image URL
+ * NOTE: Bing Image Search API has been retired by Microsoft.
+ * This function always returns an error directing users to provide image URLs directly.
+ * 
+ * @param query - Search query (not used - service is retired)
+ * @returns Error result indicating service is unavailable
  */
 export async function searchImage(query: string): Promise<ImageSearchResult> {
-  console.log(`[Bing Image Search] Searching for: "${query}"`);
+  console.log(`[Image Search] Search requested for: "${query}" - service is retired`);
   
-  if (!BING_SEARCH_KEY) {
-    return {
-      success: false,
-      error: 'Bing Search API is not configured. Please set BING_SEARCH_KEY.',
-      searchQuery: query,
-    };
-  }
-  
-  try {
-    // Build search URL with parameters optimized for pixel art conversion
-    const searchParams = new URLSearchParams({
-      q: query + ' logo PNG transparent', // Optimize for clean images
-      count: '5',
-      imageType: 'Clipart', // Prefer simple graphics over photos
-      aspect: 'Square', // Square images work best for pixel art
-      safeSearch: 'Strict',
-    });
-    
-    const url = `${BING_SEARCH_ENDPOINT}/v7.0/images/search?${searchParams}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Ocp-Apim-Subscription-Key': BING_SEARCH_KEY,
-      },
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Bing Image Search] API error: ${response.status} - ${errorText}`);
-      return {
-        success: false,
-        error: `Bing Search API error: ${response.status}`,
-        searchQuery: query,
-      };
-    }
-    
-    interface BingImageResult {
-      contentUrl: string;
-      thumbnailUrl: string;
-      hostPageUrl: string;
-      encodingFormat: string;
-      width: number;
-      height: number;
-    }
-    
-    interface BingSearchResponse {
-      value?: BingImageResult[];
-    }
-    
-    const data = await response.json() as BingSearchResponse;
-    
-    if (!data.value || data.value.length === 0) {
-      return {
-        success: false,
-        error: 'No images found for this search query.',
-        searchQuery: query,
-      };
-    }
-    
-    // Find the best image (prefer PNG, transparent, reasonable size)
-    const images = data.value;
-    
-    // Sort by preference: PNG > others, reasonable size
-    const sortedImages = images.sort((a, b) => {
-      // Prefer PNG
-      const aIsPng = a.encodingFormat?.toLowerCase() === 'png' || a.contentUrl.toLowerCase().includes('.png');
-      const bIsPng = b.encodingFormat?.toLowerCase() === 'png' || b.contentUrl.toLowerCase().includes('.png');
-      if (aIsPng && !bIsPng) return -1;
-      if (!aIsPng && bIsPng) return 1;
-      
-      // Prefer reasonable dimensions (not too small, not too huge)
-      const aSize = Math.min(a.width, a.height);
-      const bSize = Math.min(b.width, b.height);
-      const aGoodSize = aSize >= 100 && aSize <= 1000;
-      const bGoodSize = bSize >= 100 && bSize <= 1000;
-      if (aGoodSize && !bGoodSize) return -1;
-      if (!aGoodSize && bGoodSize) return 1;
-      
-      return 0;
-    });
-    
-    const bestImage = sortedImages[0];
-    
-    console.log(`[Bing Image Search] Found image: ${bestImage.contentUrl.substring(0, 80)}...`);
-    
-    return {
-      success: true,
-      imageUrl: bestImage.contentUrl,
-      thumbnailUrl: bestImage.thumbnailUrl,
-      sourceUrl: bestImage.hostPageUrl,
-      searchQuery: query,
-    };
-    
-  } catch (error) {
-    console.error('[Bing Image Search] Error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown search error',
-      searchQuery: query,
-    };
-  }
+  // Bing Image Search API was retired by Microsoft in December 2023
+  // Always return unavailable - users should provide direct image URLs
+  return {
+    success: false,
+    error: 'Image Search is no longer available (Bing API retired by Microsoft). Please provide a direct image URL instead.',
+    searchQuery: query,
+  };
 }
 
 /**
- * Check if Bing Image Search is available
+ * Check if Image Search is available
+ * 
+ * NOTE: Always returns false - Bing Image Search API has been retired by Microsoft.
  */
 export function isImageSearchAvailable(): boolean {
-  return !!BING_SEARCH_KEY;
+  // Bing Image Search API was retired by Microsoft in December 2023
+  return false;
 }
 
 /**
@@ -145,8 +55,7 @@ export function getImageSearchStatus(): {
   service: string;
 } {
   return {
-    available: isImageSearchAvailable(),
-    service: 'Bing Image Search',
+    available: false,
+    service: 'Image Search (retired)',
   };
 }
-

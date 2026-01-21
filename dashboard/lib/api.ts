@@ -8,7 +8,8 @@ import type {
   WorldRequestStatus,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// API URL must be set in production - no localhost fallback
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // API key for authenticating with coordinator (set in environment)
 const API_KEY = process.env.API_KEY || process.env.NEXT_PUBLIC_API_KEY || '';

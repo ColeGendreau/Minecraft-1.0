@@ -26,11 +26,8 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Option A: Provide an image URL                                 │
+│  Provide an image URL                                           │
 │  "https://upload.wikimedia.org/wikipedia/commons/apple-logo.png"│
-├─────────────────────────────────────────────────────────────────┤
-│  Option B: Search for an image (Bing Image Search)              │
-│  "Ferrari logo" → Bing finds a real image on the web            │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -57,7 +54,6 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 **Key Features:**
 - 🖼️ **Image URL mode** — Paste any PNG/JPG URL and watch it build
-- 🔍 **Image Search** — Search the web via Bing, find any image
 - 📍 **Auto-positioning** — Assets automatically spaced, never overlap
 - ⚡ **Live building** — Watch blocks appear in real-time via RCON
 - 🎮 **No restart needed** — Assets build instantly on the live server
@@ -74,8 +70,7 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 - Day/night theme toggle ☀️🌙
 
 ### Create Page
-- **Image URL** — Paste a direct image link
-- **Image Search** — Search the web for any image
+- **Image URL** — Paste a direct image link (PNG, JPG, etc.)
 - Scale selector (1x-4x blocks per pixel)
 - Depth selector (flat or 3D relief)
 - Facing direction (N/S/E/W)
@@ -99,9 +94,9 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ### 1. Deploy Infrastructure
 ```
-GitHub → Actions → "Terraform Apply" → Run workflow
+Dashboard → Admin → Click "DEPLOY" (or GitHub Actions → "Terraform Apply")
 ```
-*Wait ~10 minutes for AKS + Bing Search + Minecraft to spin up*
+*Wait ~12-15 minutes for AKS + Minecraft to spin up — watch progress in the deployment modal!*
 
 ### 2. Open Dashboard
 ```
@@ -139,7 +134,7 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │    └─────────────┘         └────────┬─────────┘                   │
 │          │                          │                              │
 │    [Create Assets]          [Build via RCON]                      │
-│    [Admin Panel]            [Image Search]                        │
+│    [Admin Panel]            [Toggle Infra]                        │
 └──────────┬──────────────────────────┼──────────────────────────────┘
            │                          │
            ▼                          ▼
@@ -147,8 +142,8 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │  MINECRAFT INFRA (Azure Kubernetes Service)       ~$150/month      │
 │                                                                    │
 │    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
-│    │  Minecraft  │   │  Bing Search  │   │   Prometheus   │       │
-│    │   (Paper)   │   │     API       │   │   + Grafana    │       │
+│    │  Minecraft  │   │   NGINX       │   │   Prometheus   │       │
+│    │   (Vanilla) │   │   Ingress     │   │   + Grafana    │       │
 │    │             │   │               │   │                │       │
 │    └─────────────┘   └───────────────┘   └────────────────┘       │
 └────────────────────────────────────────────────────────────────────┘
@@ -170,7 +165,6 @@ All infrastructure is managed with **Terraform**. Nothing is manually created.
 | `aks.tf` | Kubernetes cluster |
 | `acr.tf` | Container registry |
 | `openai.tf` | Azure OpenAI (GPT-4o) |
-| `bing-search.tf` | Bing Image Search API |
 | `publicip.tf` | Static public IP |
 | `log_analytics.tf` | Logging workspace |
 
@@ -192,9 +186,9 @@ Or use GitHub Actions workflows for one-click deploy/destroy.
 
 | Workflow | Purpose |
 |----------|---------|
-| **Terraform Apply** | Deploy all infrastructure (AKS, Bing Search, Container Apps) |
-| **Terraform Destroy** | Tear down infrastructure to stop billing |
-| **Build Containers** | Auto-triggered on code changes |
+| **2. Minecraft Server** | Deploy/destroy AKS infrastructure (triggered by INFRASTRUCTURE_STATE file) |
+| **3. Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) after AKS is ready |
+| **Auto: Build Containers** | Auto-triggered on dashboard/coordinator code changes |
 
 ### Typical Usage
 
@@ -217,8 +211,7 @@ Or use GitHub Actions workflows for one-click deploy/destroy.
 |-----------|------------|
 | **Frontend** | Next.js 14, Tailwind CSS, TypeScript |
 | **Backend** | Node.js, Express, TypeScript |
-| **Image Search** | Bing Image Search API |
-| **Game Server** | Paper MC 1.21 |
+| **Game Server** | Minecraft Java Edition 1.21 |
 | **Control Plane** | Azure Container Apps |
 | **Minecraft Infra** | Azure Kubernetes Service (AKS) |
 | **IaC** | Terraform |
@@ -265,7 +258,7 @@ az ad app federated-credential create \
 | `AZURE_TENANT_ID` | Your Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
 
-*No API keys needed — Bing Search credentials are pulled dynamically from Terraform outputs.*
+*Azure credentials use OIDC federation — no secrets needed in GitHub.*
 
 **4. Deploy**
 ```
@@ -288,14 +281,14 @@ GitHub Actions → "Terraform Apply" → Run
 | Resource | Cost |
 |----------|------|
 | AKS (2x Standard_D2ds_v5) | ~$140/month |
-| Bing Search API | ~$3/month (1000 searches) |
 | Public IP | ~$3/month |
+| Azure OpenAI (when used) | ~$5/month |
 | **Total** | **~$150/month** |
 
 ### Cost Tips
 - **Destroy when not playing** — Main infra costs $0 when destroyed
-- **Use Dashboard Admin panel** — One-click deploy/destroy
-- **Image URL mode is free** — Only Image Search uses Bing API
+- **Use Dashboard Admin panel** — One-click deploy/destroy with progress tracking
+- **Control plane is cheap** — Only ~$20/month for dashboard + coordinator
 
 ---
 
@@ -310,7 +303,7 @@ world-forge/
 │   └── lib/                 # API client, types, theme
 ├── coordinator-api/         # Node.js backend
 │   ├── routes/              # API endpoints
-│   └── services/            # Bing search, RCON, image-to-voxel, prometheus, azure-costs
+│   └── services/            # RCON, image-to-voxel, prometheus, azure-costs, kubernetes
 ├── infra/                   # Terraform infrastructure
 ├── apps/                    # Helm values (minecraft, monitoring)
 └── schemas/                 # JSON schemas
@@ -320,24 +313,25 @@ world-forge/
 
 ## 🛠️ Development
 
-### Local Setup
+### Cloud-Only Architecture
+
+This project is designed to run entirely in Azure. There is no local development mode.
+
+**To make changes:**
 
 ```bash
 # Clone the repository
 git clone https://github.com/ColeGendreau/Minecraft-1.0.git
 cd Minecraft-1.0
 
-# Install dashboard dependencies
-cd dashboard && npm install
+# Make your changes...
 
-# Install coordinator-api dependencies
-cd ../coordinator-api && npm install
+# Build locally to check for TypeScript/ESLint errors
+cd coordinator-api && npm install && npm run build
+cd ../dashboard && npm install && npm run build
 
-# Build coordinator-api (TypeScript)
-npm run build
-
-# Run dashboard locally
-cd ../dashboard && npm run dev
+# Push to main - GitHub Actions will deploy automatically
+git add -A && git commit -m "feat: your change" && git push
 ```
 
 ### Building & Pushing Code
@@ -485,9 +479,9 @@ The app uses these key environment variables (set in Azure/GitHub):
 |----------|---------|
 | `GITHUB_TOKEN` | GitHub API access for workflow status |
 | `AZURE_SUBSCRIPTION_ID` | For Azure Cost Management queries |
-| `BING_SEARCH_KEY` | Bing Image Search API |
 | `PUBLIC_IP` | Minecraft server public IP |
-| `RCON_PASSWORD` | Minecraft RCON authentication |
+| `MINECRAFT_RCON_HOST` | RCON server IP |
+| `MINECRAFT_RCON_PASSWORD` | RCON authentication |
 
 ### Common Tasks
 

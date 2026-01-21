@@ -73,3 +73,4 @@ echo "3. Access your dashboard at:"
 echo "   $(terraform output -raw dashboard_url)"
 echo ""
 
+
