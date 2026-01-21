@@ -240,6 +240,16 @@ jobs:
             echo "✅ Azure OpenAI Endpoint: $OPENAI_ENDPOINT"
           fi
           
+          # Get Bing Search credentials
+          BING_KEY=$(az cognitiveservices account keys list \
+            --name mc-demo-dev-bing \
+            --resource-group mc-demo-dev-rg \
+            --query "key1" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$BING_KEY" ]; then
+            echo "✅ Bing Search API configured"
+          fi
+          
           # Get coordinator identity client ID
           CLIENT_ID=$(az identity show \
             --name mc-demo-dev-coordinator-identity \
@@ -251,6 +261,7 @@ jobs:
           [ -n "$GAME_IP" ] && ENV_VARS="$ENV_VARS PUBLIC_IP=$GAME_IP"
           [ -n "$RCON_IP" ] && ENV_VARS="$ENV_VARS MINECRAFT_RCON_HOST=$RCON_IP MINECRAFT_RCON_PORT=25575 MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024"
           [ -n "$OPENAI_ENDPOINT" ] && ENV_VARS="$ENV_VARS AZURE_OPENAI_ENDPOINT=$OPENAI_ENDPOINT AZURE_OPENAI_DEPLOYMENT=gpt-4o"
+          [ -n "$BING_KEY" ] && ENV_VARS="$ENV_VARS BING_SEARCH_KEY=$BING_KEY"
           [ -n "$CLIENT_ID" ] && ENV_VARS="$ENV_VARS AZURE_CLIENT_ID=$CLIENT_ID AKS_RESOURCE_GROUP=mc-demo-dev-rg AKS_CLUSTER_NAME=mc-demo-dev-aks"
           
           # Update coordinator env vars

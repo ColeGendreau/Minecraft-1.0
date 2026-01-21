@@ -297,7 +297,7 @@ export default function HomePage() {
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard icon="📷" title="IMAGE URL" description="Paste any PNG or JPG URL. Logos, sprites, icons — we convert them to Minecraft blocks." color="sky" isDay={isDay} />
-            <FeatureCard icon="🔍" title="AI LOOKUP" description="Describe what you want. GPT-4o finds a real image and builds it automatically." color="purple" isDay={isDay} />
+            <FeatureCard icon="🔍" title="IMAGE SEARCH" description="Search for any image on the web. Bing finds it and builds it automatically." color="purple" isDay={isDay} />
             <FeatureCard icon="⚡" title="LIVE BUILD" description="Watch blocks appear in real-time via RCON. No server restart needed!" color="emerald" isDay={isDay} />
           </div>
         </div>

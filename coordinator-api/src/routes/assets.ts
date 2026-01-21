@@ -17,7 +17,7 @@ import {
 } from '../db/client.js';
 import { getRconClient } from '../services/rcon-client.js';
 import { buildLogo } from '../services/image-to-voxel.js';
-import { lookupImageUrl, isImageLookupAvailable, getImageLookupStatus } from '../services/ai-image-lookup.js';
+import { searchImage, isImageSearchAvailable, getImageSearchStatus } from '../services/bing-image-search.js';
 import type { AssetStatus } from '../types/index.js';
 
 const router = Router();
@@ -32,20 +32,20 @@ const router = Router();
  */
 router.get('/status', (_req, res) => {
   const assets = getActiveAssets();
-  const lookupStatus = getImageLookupStatus();
+  const searchStatus = getImageSearchStatus();
   
   res.json({
     totalAssets: assets.length,
     aiImageGeneration: {
-      available: lookupStatus.available,
-      deployment: lookupStatus.deployment,
-      note: lookupStatus.available 
-        ? 'AI Image Lookup is enabled! Describe what you want and AI will find a real image URL.'
-        : 'AI Image Lookup is not configured. You can still create assets from image URLs.',
+      available: searchStatus.available,
+      service: searchStatus.service,
+      note: searchStatus.available 
+        ? 'Image Search is enabled! Search for any image and build it as pixel art.'
+        : 'Image Search is not configured. You can still create assets from image URLs.',
     },
     capabilities: [
       'Image URL to pixel art',
-      lookupStatus.available ? 'AI text → image lookup → pixel art' : null,
+      searchStatus.available ? 'Search → find image → pixel art' : null,
       'Delete assets',
       'Duplicate assets',
       'Nuke all assets',
@@ -182,31 +182,31 @@ router.post('/', async (req, res) => {
     // Track if this is an AI lookup (for positioning)
     const isAiLookup = !!(prompt && !imageUrl);
 
-    // If prompt provided but no image, use AI to look up a real image URL
+    // If prompt provided but no image, use Bing Image Search to find a real image
     if (prompt && !imageUrl) {
-      console.log(`[Asset] AI lookup for: "${prompt}"`);
+      console.log(`[Asset] Image search for: "${prompt}"`);
       
-      if (!isImageLookupAvailable()) {
+      if (!isImageSearchAvailable()) {
         return res.status(400).json({
-          error: 'AI image lookup is not configured. Please provide an imageUrl instead.',
-          hint: 'AI lookup requires Azure OpenAI credentials.',
-          lookupStatus: getImageLookupStatus(),
+          error: 'Image Search is not configured. Please provide an imageUrl instead.',
+          hint: 'Image Search requires Bing Search API credentials (BING_SEARCH_KEY).',
+          searchStatus: getImageSearchStatus(),
         });
       }
       
-      const lookupResult = await lookupImageUrl(prompt);
+      const searchResult = await searchImage(prompt);
       
-      if (!lookupResult.success || !lookupResult.imageUrl) {
+      if (!searchResult.success || !searchResult.imageUrl) {
         return res.status(400).json({
-          error: lookupResult.error || 'Failed to find image from prompt',
-          hint: 'Try being more specific (e.g., "Apple logo" or "Nike swoosh") or provide an imageUrl directly.',
+          error: searchResult.error || 'No images found for this search',
+          hint: 'Try different search terms or provide an imageUrl directly.',
         });
       }
       
-      finalImageUrl = lookupResult.imageUrl;
-      foundImageUrl = lookupResult.imageUrl;
+      finalImageUrl = searchResult.imageUrl;
+      foundImageUrl = searchResult.imageUrl;
       
-      console.log(`[Asset] AI found image: ${foundImageUrl.substring(0, 80)}...`);
+      console.log(`[Asset] Found image: ${foundImageUrl.substring(0, 80)}...`);
     }
 
     // Get position (auto or manual)

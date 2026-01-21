@@ -161,14 +161,14 @@ export default function AssetsPage() {
           }`}>
             <div className="flex items-center gap-3">
               <span className="text-2xl">{status.aiImageGeneration.available ? '🔍' : '📷'}</span>
-              <div>
-                <p className={`font-bold ${isDay ? 'text-gray-800' : 'text-white'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                  {status.aiImageGeneration.available ? '✨ AI Image Lookup ENABLED' : '📷 Image URL Mode Only'}
-                </p>
-                <p className={`text-sm ${isDay ? 'text-gray-500' : 'text-gray-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                  {status.aiImageGeneration.note}
-                </p>
-              </div>
+            <div>
+              <p className={`font-bold ${isDay ? 'text-gray-800' : 'text-white'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+                {status.aiImageGeneration.available ? '✨ Image Search ENABLED' : '📷 Image URL Mode Only'}
+              </p>
+              <p className={`text-sm ${isDay ? 'text-gray-500' : 'text-gray-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
+                {status.aiImageGeneration.note}
+              </p>
+            </div>
             </div>
           </div>
         )}
@@ -260,8 +260,8 @@ function AssetCard({
           {asset.name}
         </h3>
         {asset.prompt && (
-          <p className="text-purple-500 text-sm truncate mt-1" style={{ fontFamily: "'VT323', monospace" }}>
-            🔍 &quot;{asset.prompt}&quot;
+                <p className="text-purple-500 text-sm truncate mt-1" style={{ fontFamily: "'VT323', monospace" }}>
+            🔎 &quot;{asset.prompt}&quot;
           </p>
         )}
         <div className={`flex items-center gap-2 mt-2 text-xs ${isDay ? 'text-amber-700' : 'text-slate-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
@@ -283,7 +283,7 @@ function AssetCard({
 
       {/* Badge */}
       {isAiGenerated && (
-        <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500 text-white text-xs rounded shadow-lg">🔍 AI</div>
+        <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500 text-white text-xs rounded shadow-lg">🔎</div>
       )}
     </div>
   );

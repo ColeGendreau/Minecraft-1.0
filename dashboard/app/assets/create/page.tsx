@@ -40,7 +40,7 @@ export default function CreateAssetPage() {
       if (mode === 'image' && !imageUrl) throw new Error('Please enter an image URL');
       if (mode === 'prompt' && !prompt) throw new Error('Please enter a prompt');
 
-      setBuildProgress(mode === 'prompt' ? '🔍 AI is finding the best image...' : '📥 Fetching image...');
+      setBuildProgress(mode === 'prompt' ? '🔍 Searching for image...' : '📥 Fetching image...');
 
       const result = await createAsset({
         name: name || undefined,
@@ -135,7 +135,7 @@ export default function CreateAssetPage() {
               }`}
               style={{ fontFamily: "'VT323', monospace", fontSize: '20px' }}
             >
-              🔍 AI Lookup {!aiAvailable && '(offline)'}
+              🔍 Image Search {!aiAvailable && '(offline)'}
             </button>
           </div>
         </div>
@@ -194,12 +194,12 @@ export default function CreateAssetPage() {
           ) : (
             <div className={`p-4 rounded-lg border-4 shadow-xl ${isDay ? 'bg-white/90 border-purple-400' : 'bg-slate-800/90 border-purple-700'}`}>
               <label className={`block mb-2 font-bold ${isDay ? 'text-purple-800' : 'text-purple-400'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                🔍 AI Image Lookup *
+                🔍 Image Search *
               </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Apple logo, Nike swoosh, Mario sprite..."
+                placeholder="Ferrari logo, Apple logo, Mario sprite..."
                 required
                 rows={3}
                 className={`w-full px-4 py-3 rounded-lg border-2 focus:outline-none ${
@@ -210,7 +210,7 @@ export default function CreateAssetPage() {
                 style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}
               />
               <p className={`text-sm mt-2 ${isDay ? 'text-purple-600' : 'text-purple-500'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                Describe what you want (e.g., &quot;Microsoft logo&quot;, &quot;Pikachu sprite&quot;). AI will find a real image!
+                Search for any image on the web! Try &quot;Ferrari logo&quot; or &quot;Nintendo logo&quot;.
               </p>
             </div>
           )}
@@ -305,9 +305,9 @@ export default function CreateAssetPage() {
             💡 Tips for great assets:
           </h3>
           <ul className={`space-y-1 ${isDay ? 'text-sky-700' : 'text-sky-400'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
-            <li>• <strong>Image URL:</strong> Use images with clear, distinct shapes</li>
-            <li>• <strong>AI Lookup:</strong> Be specific! &quot;Nintendo logo&quot; beats &quot;game&quot;</li>
-            <li>• Logos, icons, and sprites work great for pixel art!</li>
+            <li>• <strong>Image URL:</strong> Paste a direct link to any image</li>
+            <li>• <strong>Image Search:</strong> Search the web for logos, sprites, icons</li>
+            <li>• Logos and icons with clear shapes work best!</li>
             <li>• Transparent backgrounds are preserved</li>
             <li>• Larger scale = more detail but bigger build</li>
             <li>• Watch the build happen live in Minecraft! 👀</li>
