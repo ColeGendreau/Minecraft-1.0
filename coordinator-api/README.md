@@ -63,6 +63,7 @@ Environment variables are set **automatically by GitHub Actions** during deploym
 | `PUBLIC_IP` | Minecraft server IP | CI/CD (from AKS) |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI URL | CI/CD |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI key | Azure Secret |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription for cost queries | CI/CD |
 | `AZURE_CLIENT_ID` | Managed Identity | CI/CD |
 | `AKS_RESOURCE_GROUP` | AKS resource group | CI/CD |
 | `AKS_CLUSTER_NAME` | AKS cluster name | CI/CD |

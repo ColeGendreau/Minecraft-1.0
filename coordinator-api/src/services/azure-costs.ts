@@ -2,7 +2,7 @@
  * Azure Cost Management Service
  * 
  * Queries Azure Cost Management API for real spending data.
- * Uses Managed Identity for authentication when running in Azure.
+ * Uses Managed Identity for authentication when running in Azure Container Apps.
  */
 
 import { exec } from 'child_process';
@@ -13,6 +13,7 @@ const execAsync = promisify(exec);
 // Azure configuration
 const SUBSCRIPTION_ID = process.env.AZURE_SUBSCRIPTION_ID;
 const RESOURCE_GROUP = process.env.AKS_RESOURCE_GROUP || 'mc-demo-dev-rg';
+const AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID; // Managed identity client ID
 const COST_MANAGEMENT_SCOPE = SUBSCRIPTION_ID 
   ? `/subscriptions/${SUBSCRIPTION_ID}`
   : null;
@@ -106,18 +107,76 @@ export interface CostResponse {
 }
 
 /**
- * Get Azure access token using managed identity or CLI
+ * Get Azure access token using managed identity (Container Apps) or CLI (local dev)
  */
 async function getAzureAccessToken(): Promise<string | null> {
+  // Method 1: Try Managed Identity endpoint (works in Azure Container Apps)
+  // Container Apps sets IDENTITY_ENDPOINT and IDENTITY_HEADER environment variables
+  const identityEndpoint = process.env.IDENTITY_ENDPOINT;
+  const identityHeader = process.env.IDENTITY_HEADER;
+  
+  if (identityEndpoint && identityHeader) {
+    try {
+      const resource = 'https://management.azure.com/';
+      const url = new URL(identityEndpoint);
+      url.searchParams.set('resource', resource);
+      url.searchParams.set('api-version', '2019-08-01');
+      
+      // If we have a specific client ID (user-assigned managed identity), add it
+      if (AZURE_CLIENT_ID) {
+        url.searchParams.set('client_id', AZURE_CLIENT_ID);
+      }
+      
+      const response = await fetch(url.toString(), {
+        headers: {
+          'X-IDENTITY-HEADER': identityHeader,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json() as { access_token: string };
+        console.log('✅ Azure token obtained via managed identity endpoint');
+        return data.access_token;
+      }
+      console.warn('Managed identity token request failed:', response.status, await response.text());
+    } catch (error) {
+      console.warn('Managed identity endpoint not available:', error);
+    }
+  }
+  
+  // Method 2: Try Azure IMDS endpoint (works in Azure VMs and some other services)
   try {
-    // Try managed identity first
+    const resource = encodeURIComponent('https://management.azure.com/');
+    let imdsUrl = `http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=${resource}`;
+    
+    if (AZURE_CLIENT_ID) {
+      imdsUrl += `&client_id=${AZURE_CLIENT_ID}`;
+    }
+    
+    const imdsResponse = await fetch(imdsUrl, {
+      headers: { 'Metadata': 'true' },
+      signal: AbortSignal.timeout(3000), // Quick timeout for IMDS
+    });
+    
+    if (imdsResponse.ok) {
+      const data = await imdsResponse.json() as { access_token: string };
+      console.log('✅ Azure token obtained via IMDS');
+      return data.access_token;
+    }
+  } catch {
+    // IMDS not available, try CLI
+  }
+  
+  // Method 3: Fall back to Azure CLI (for local development)
+  try {
     const { stdout } = await execAsync(
       'az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv',
       { timeout: 15000 }
     );
+    console.log('✅ Azure token obtained via Azure CLI');
     return stdout.trim();
   } catch (error) {
-    console.error('Failed to get Azure access token:', error);
+    console.error('Failed to get Azure access token via any method:', error);
     return null;
   }
 }
