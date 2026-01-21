@@ -470,21 +470,49 @@ router.get('/nodes', async (req, res) => {
 
 /**
  * Trigger workflow using workflow_dispatch (useful when state file is already correct)
+ * Falls back to making a trivial file change if dispatch fails (token might not have workflow scope)
  */
-async function triggerWorkflowDispatch(): Promise<{ success: boolean; error?: string }> {
+async function triggerWorkflowDispatch(): Promise<{ success: boolean; method?: string; error?: string }> {
+  const octokit = getOctokit();
+  
+  // First try workflow_dispatch (requires workflow scope on token)
   try {
-    const octokit = getOctokit();
     await octokit.actions.createWorkflowDispatch({
       owner: GITHUB_OWNER,
       repo: GITHUB_REPO,
       workflow_id: 'terraform.yaml',
       ref: 'main',
     });
-    return { success: true };
-  } catch (error: unknown) {
-    console.error('Error triggering workflow dispatch:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
+    return { success: true, method: 'workflow_dispatch' };
+  } catch (dispatchError: unknown) {
+    console.log('workflow_dispatch failed (token may not have workflow scope), trying file change method...');
+    
+    // Fallback: Make a trivial change to INFRASTRUCTURE_STATE to trigger the workflow
+    // Add a timestamp comment that won't affect the state
+    try {
+      const { state, sha } = await getInfrastructureState();
+      const timestamp = new Date().toISOString();
+      const contentWithComment = `${state}\n# Retry triggered at ${timestamp}`;
+      
+      await octokit.repos.createOrUpdateFileContents({
+        owner: GITHUB_OWNER,
+        repo: GITHUB_REPO,
+        path: STATE_FILE_PATH,
+        message: `🔄 Retry ${state === 'ON' ? 'deployment' : 'destruction'} (${timestamp})`,
+        content: Buffer.from(contentWithComment).toString('base64'),
+        sha,
+        committer: {
+          name: 'Minecraft Dashboard',
+          email: 'dashboard@minecraft.local',
+        },
+      });
+      
+      return { success: true, method: 'file_change' };
+    } catch (fileError: unknown) {
+      console.error('Both workflow_dispatch and file change failed:', fileError);
+      const errorMessage = dispatchError instanceof Error ? dispatchError.message : 'Unknown error';
+      return { success: false, error: `workflow_dispatch failed: ${errorMessage}` };
+    }
   }
 }
 
@@ -572,7 +600,7 @@ router.post('/toggle', async (req, res) => {
         success: true,
         message: `Infrastructure ${newState === 'ON' ? 'deployment' : 'destruction'} re-triggered!`,
         newState,
-        triggeredVia: 'workflow_dispatch',
+        triggeredVia: dispatchResult.method || 'workflow_dispatch',
         reason: lastStatus.reason,
         estimatedTime: newState === 'ON' ? '12-15 minutes' : '8-10 minutes',
         workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
