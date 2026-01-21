@@ -242,13 +242,41 @@ async function getLastWorkflowStatus(): Promise<{
 }
 
 /**
+ * Check if infrastructure is actually running by pinging public services
+ * This works from Container Apps (no kubectl needed)
+ */
+async function checkInfrastructureReachable(): Promise<boolean> {
+  const publicIp = process.env.PUBLIC_IP || '4.242.217.139';
+  const grafanaUrl = `https://grafana.${publicIp}.nip.io`;
+  
+  try {
+    // Try to reach Grafana - if it responds, the cluster is up
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(grafanaUrl, { 
+      signal: controller.signal,
+      method: 'HEAD',
+    });
+    clearTimeout(timeout);
+    
+    // Any response (even 302 redirect to login) means Grafana is up
+    console.log(`Infrastructure check: Grafana responded with ${response.status}`);
+    return response.status < 500;
+  } catch (error) {
+    console.log(`Infrastructure check: Grafana unreachable - ${error}`);
+    return false;
+  }
+}
+
+/**
  * GET /api/infrastructure/status
  */
 router.get('/status', async (req, res) => {
   try {
-    // First, try to get ACTUAL cluster metrics - this tells us if infra REALLY exists
-    const clusterMetrics = await getClusterMetrics().catch(() => null);
-    const clusterIsReachable = clusterMetrics !== null && clusterMetrics.nodes.ready > 0;
+    // First, check if infrastructure is ACTUALLY running by pinging public services
+    // This works from Container Apps (kubectl doesn't work here)
+    const clusterIsReachable = await checkInfrastructureReachable();
     
     const [{ state: infraState }, workflowInfo] = await Promise.all([
       getInfrastructureState(),
@@ -299,23 +327,24 @@ router.get('/status', async (req, res) => {
         : (isRunning ? 'running' : 'stopped'),
     }));
 
-    const publicIp = process.env.PUBLIC_IP || '4.236.122.90';
+    const publicIp = process.env.PUBLIC_IP || '4.242.217.139';
     
-    // Use real metrics if available, otherwise use defaults
+    // Note: kubectl metrics not available from Container Apps
+    // Use static estimates when running (real metrics would come from Prometheus via Grafana)
     const metrics = isRunning
       ? {
-          nodes: clusterMetrics?.nodes.ready ?? 2,
-          pods: clusterMetrics?.pods.running ?? 12,
-          totalPods: clusterMetrics?.pods.total ?? 12,
-          pendingPods: clusterMetrics?.pods.pending ?? 0,
-          failedPods: clusterMetrics?.pods.failed ?? 0,
-          cpuUsage: clusterMetrics?.resources.cpuUsage ?? Math.floor(Math.random() * 30) + 20,
-          memoryUsage: clusterMetrics?.resources.memoryUsage ?? Math.floor(Math.random() * 40) + 30,
+          nodes: 2,
+          pods: 12,
+          totalPods: 12,
+          pendingPods: 0,
+          failedPods: 0,
+          cpuUsage: 25,
+          memoryUsage: 40,
           publicIp,
           grafanaUrl: `https://grafana.${publicIp}.nip.io`,
           prometheusUrl: `https://prometheus.${publicIp}.nip.io`,
           minecraftAddress: `${publicIp}:25565`,
-          namespaces: clusterMetrics?.namespaces ?? [],
+          namespaces: ['minecraft', 'monitoring', 'ingress-nginx', 'cert-manager'],
         }
       : null;
 
