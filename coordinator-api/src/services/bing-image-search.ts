@@ -63,7 +63,20 @@ export async function searchImage(query: string): Promise<ImageSearchResult> {
       };
     }
     
-    const data = await response.json();
+    interface BingImageResult {
+      contentUrl: string;
+      thumbnailUrl: string;
+      hostPageUrl: string;
+      encodingFormat: string;
+      width: number;
+      height: number;
+    }
+    
+    interface BingSearchResponse {
+      value?: BingImageResult[];
+    }
+    
+    const data = await response.json() as BingSearchResponse;
     
     if (!data.value || data.value.length === 0) {
       return {
@@ -74,14 +87,7 @@ export async function searchImage(query: string): Promise<ImageSearchResult> {
     }
     
     // Find the best image (prefer PNG, transparent, reasonable size)
-    const images = data.value as Array<{
-      contentUrl: string;
-      thumbnailUrl: string;
-      hostPageUrl: string;
-      encodingFormat: string;
-      width: number;
-      height: number;
-    }>;
+    const images = data.value;
     
     // Sort by preference: PNG > others, reasonable size
     const sortedImages = images.sort((a, b) => {
