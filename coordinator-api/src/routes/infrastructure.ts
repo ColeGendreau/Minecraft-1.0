@@ -469,13 +469,12 @@ router.get('/nodes', async (req, res) => {
 });
 
 /**
- * Trigger workflow using workflow_dispatch (useful when state file is already correct)
- * Falls back to making a trivial file change if dispatch fails (token might not have workflow scope)
+ * Trigger workflow using workflow_dispatch (requires workflow scope on token)
+ * No fallback - if dispatch fails, user must manually trigger via GitHub Actions UI
  */
 async function triggerWorkflowDispatch(): Promise<{ success: boolean; method?: string; error?: string }> {
   const octokit = getOctokit();
   
-  // First try workflow_dispatch (requires workflow scope on token)
   try {
     await octokit.actions.createWorkflowDispatch({
       owner: GITHUB_OWNER,
@@ -485,34 +484,12 @@ async function triggerWorkflowDispatch(): Promise<{ success: boolean; method?: s
     });
     return { success: true, method: 'workflow_dispatch' };
   } catch (dispatchError: unknown) {
-    console.log('workflow_dispatch failed (token may not have workflow scope), trying file change method...');
-    
-    // Fallback: Make a trivial change to INFRASTRUCTURE_STATE to trigger the workflow
-    // Add a timestamp comment that won't affect the state
-    try {
-      const { state, sha } = await getInfrastructureState();
-      const timestamp = new Date().toISOString();
-      const contentWithComment = `${state}\n# Retry triggered at ${timestamp}`;
-      
-      await octokit.repos.createOrUpdateFileContents({
-        owner: GITHUB_OWNER,
-        repo: GITHUB_REPO,
-        path: STATE_FILE_PATH,
-        message: `🔄 Retry ${state === 'ON' ? 'deployment' : 'destruction'} (${timestamp})`,
-        content: Buffer.from(contentWithComment).toString('base64'),
-        sha,
-        committer: {
-          name: 'Minecraft Dashboard',
-          email: 'dashboard@minecraft.local',
-        },
-      });
-      
-      return { success: true, method: 'file_change' };
-    } catch (fileError: unknown) {
-      console.error('Both workflow_dispatch and file change failed:', fileError);
-      const errorMessage = dispatchError instanceof Error ? dispatchError.message : 'Unknown error';
-      return { success: false, error: `workflow_dispatch failed: ${errorMessage}` };
-    }
+    console.error('workflow_dispatch failed:', dispatchError);
+    const errorMessage = dispatchError instanceof Error ? dispatchError.message : 'Unknown error';
+    return { 
+      success: false, 
+      error: `Cannot auto-trigger workflow (token may lack 'workflow' scope). Please manually trigger at GitHub Actions. Error: ${errorMessage}` 
+    };
   }
 }
 
