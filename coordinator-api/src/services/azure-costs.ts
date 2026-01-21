@@ -108,6 +108,7 @@ export interface CostResponse {
 
 /**
  * Get Azure access token using managed identity (Container Apps) or CLI (local dev)
+ * All methods have timeouts to prevent hangs
  */
 async function getAzureAccessToken(): Promise<string | null> {
   // Method 1: Try Managed Identity endpoint (works in Azure Container Apps)
@@ -131,6 +132,7 @@ async function getAzureAccessToken(): Promise<string | null> {
         headers: {
           'X-IDENTITY-HEADER': identityHeader,
         },
+        signal: AbortSignal.timeout(5000), // 5s timeout
       });
       
       if (response.ok) {
@@ -140,7 +142,7 @@ async function getAzureAccessToken(): Promise<string | null> {
       }
       console.warn('Managed identity token request failed:', response.status, await response.text());
     } catch (error) {
-      console.warn('Managed identity endpoint not available:', error);
+      console.warn('Managed identity endpoint failed:', error);
     }
   }
   
@@ -155,7 +157,7 @@ async function getAzureAccessToken(): Promise<string | null> {
     
     const imdsResponse = await fetch(imdsUrl, {
       headers: { 'Metadata': 'true' },
-      signal: AbortSignal.timeout(3000), // Quick timeout for IMDS
+      signal: AbortSignal.timeout(2000), // 2s timeout - IMDS should be fast
     });
     
     if (imdsResponse.ok) {
@@ -171,7 +173,7 @@ async function getAzureAccessToken(): Promise<string | null> {
   try {
     const { stdout } = await execAsync(
       'az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv',
-      { timeout: 15000 }
+      { timeout: 10000 } // 10s timeout for CLI
     );
     console.log('✅ Azure token obtained via Azure CLI');
     return stdout.trim();
@@ -245,6 +247,7 @@ async function queryCostManagement(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000), // 15s timeout for cost queries
     });
 
     if (!response.ok) {
@@ -311,6 +314,7 @@ async function queryDailyCosts(days: number = 30): Promise<DailyCost[]> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
     if (!response.ok) {
