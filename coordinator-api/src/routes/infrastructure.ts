@@ -157,6 +157,91 @@ async function getActiveWorkflowInfo(): Promise<{
 }
 
 /**
+ * Check if the last terraform workflow run succeeded recently
+ * Returns info about whether we should re-trigger a workflow
+ */
+async function getLastWorkflowStatus(): Promise<{
+  lastRunSucceeded: boolean;
+  lastRunTime: string | null;
+  lastRunConclusion: string | null;
+  shouldRetrigger: boolean;
+  reason: string;
+}> {
+  try {
+    const octokit = getOctokit();
+    
+    // Get recent workflow runs for terraform workflow specifically
+    const { data: workflowRuns } = await octokit.actions.listWorkflowRunsForRepo({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      per_page: 10,
+    });
+
+    // Find the most recent completed terraform-related run
+    const lastCompletedRun = workflowRuns.workflow_runs.find(run => 
+      run.status === 'completed' &&
+      (run.name?.toLowerCase().includes('terraform') || 
+       run.name?.toLowerCase().includes('minecraft server'))
+    );
+
+    if (!lastCompletedRun) {
+      return {
+        lastRunSucceeded: false,
+        lastRunTime: null,
+        lastRunConclusion: null,
+        shouldRetrigger: true,
+        reason: 'No previous terraform workflow found',
+      };
+    }
+
+    const lastRunTime = lastCompletedRun.updated_at || lastCompletedRun.created_at;
+    const timeSinceLastRun = Date.now() - new Date(lastRunTime).getTime();
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    // If last run failed or was cancelled, should retry
+    if (lastCompletedRun.conclusion !== 'success') {
+      return {
+        lastRunSucceeded: false,
+        lastRunTime,
+        lastRunConclusion: lastCompletedRun.conclusion,
+        shouldRetrigger: true,
+        reason: `Last run ${lastCompletedRun.conclusion} - retry needed`,
+      };
+    }
+
+    // If last run succeeded but was a long time ago (>1 hour), might need refresh
+    if (timeSinceLastRun > ONE_HOUR) {
+      return {
+        lastRunSucceeded: true,
+        lastRunTime,
+        lastRunConclusion: 'success',
+        shouldRetrigger: false, // Don't auto-retrigger old successful runs
+        reason: `Last successful run was ${Math.round(timeSinceLastRun / 60000)} minutes ago`,
+      };
+    }
+
+    // Recent successful run - no need to re-trigger
+    return {
+      lastRunSucceeded: true,
+      lastRunTime,
+      lastRunConclusion: 'success',
+      shouldRetrigger: false,
+      reason: `Last run succeeded ${Math.round(timeSinceLastRun / 60000)} minutes ago`,
+    };
+  } catch (error) {
+    console.error('Error checking last workflow status:', error);
+    // On error, allow re-trigger as a safe default
+    return {
+      lastRunSucceeded: false,
+      lastRunTime: null,
+      lastRunConclusion: null,
+      shouldRetrigger: true,
+      reason: 'Could not check workflow status',
+    };
+  }
+}
+
+/**
  * GET /api/infrastructure/status
  */
 router.get('/status', async (req, res) => {
@@ -450,8 +535,28 @@ router.post('/toggle', async (req, res) => {
     const { state: currentState, sha } = await getInfrastructureState();
 
     if (currentState === newState) {
-      // State is already correct but no workflow running - trigger via workflow_dispatch
-      console.log(`State is already ${newState}, triggering workflow via dispatch...`);
+      // State is already correct - check if we should re-trigger
+      const lastStatus = await getLastWorkflowStatus();
+      
+      if (!lastStatus.shouldRetrigger) {
+        // Last run succeeded recently - no need to re-trigger
+        res.json({
+          success: true,
+          message: `Infrastructure is already ${newState}`,
+          newState,
+          alreadyDeployed: true,
+          lastWorkflow: {
+            succeeded: lastStatus.lastRunSucceeded,
+            time: lastStatus.lastRunTime,
+            reason: lastStatus.reason,
+          },
+          workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+        });
+        return;
+      }
+
+      // Last run failed/cancelled or no recent run - re-trigger via workflow_dispatch
+      console.log(`State is already ${newState}, but ${lastStatus.reason}. Re-triggering workflow...`);
       const dispatchResult = await triggerWorkflowDispatch();
       
       if (!dispatchResult.success) {
@@ -468,6 +573,7 @@ router.post('/toggle', async (req, res) => {
         message: `Infrastructure ${newState === 'ON' ? 'deployment' : 'destruction'} re-triggered!`,
         newState,
         triggeredVia: 'workflow_dispatch',
+        reason: lastStatus.reason,
         estimatedTime: newState === 'ON' ? '12-15 minutes' : '8-10 minutes',
         workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
       });
