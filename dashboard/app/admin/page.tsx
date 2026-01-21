@@ -41,10 +41,32 @@ export default function AdminPage() {
   const [showAzureLogs, setShowAzureLogs] = useState(true);
   const [showMonitoring, setShowMonitoring] = useState(true);
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
-  const [showDeployModal, setShowDeployModal] = useState(false);
-  const [deployAction, setDeployAction] = useState<'deploying' | 'destroying' | null>(null);
+  const [lastExpensiveFetch, setLastExpensiveFetch] = useState(0);
 
-  const fetchData = useCallback(async () => {
+  // Fast fetch - only critical data (status + workflow) - runs every 5s during transitions
+  const fetchFast = useCallback(async () => {
+    try {
+      await checkHealth();
+      setApiOnline(true);
+      
+      const [statusData, workflowData, assetsData] = await Promise.all([
+        getInfrastructureStatus().catch(() => null),
+        getLatestWorkflow().catch(() => null),
+        getAssets().catch(() => ({ assets: [] })),
+      ]);
+      
+      setInfraStatus(statusData);
+      setWorkflow(workflowData);
+      setAssets(assetsData.assets);
+    } catch {
+      setApiOnline(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Full fetch - includes expensive calls (costs, logs, monitoring) - runs every 60s
+  const fetchFull = useCallback(async () => {
     try {
       await checkHealth();
       setApiOnline(true);
@@ -64,6 +86,7 @@ export default function AdminPage() {
       setWorkflow(workflowData);
       setAssets(assetsData.assets);
       setMonitoring(monitoringData);
+      setLastExpensiveFetch(Date.now());
     } catch {
       setApiOnline(false);
     } finally {
@@ -71,37 +94,41 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Initial load - full fetch
   useEffect(() => {
-    fetchData();
-    // Poll more frequently during transitions (every 3s) vs normal (every 30s)
-    const pollInterval = infraStatus?.isTransitioning || workflow?.hasActiveRun || showDeployModal ? 3000 : 30000;
-    const interval = setInterval(fetchData, pollInterval);
-    return () => clearInterval(interval);
-  }, [fetchData, infraStatus?.isTransitioning, workflow?.hasActiveRun, showDeployModal]);
+    fetchFull();
+  }, [fetchFull]);
 
-  // Auto-close deploy modal when workflow completes
+  // Polling - fast during transitions, slow otherwise
   useEffect(() => {
-    if (showDeployModal && workflow?.latestRun?.conclusion) {
-      // Workflow finished - keep modal open briefly to show result
-      const timer = setTimeout(() => {
-        setShowDeployModal(false);
-        setDeployAction(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showDeployModal, workflow?.latestRun?.conclusion]);
+    const isTransitioning = infraStatus?.isTransitioning || workflow?.hasActiveRun;
+    
+    // During transitions: fast poll every 5s
+    // Normal: poll every 30s
+    const pollInterval = isTransitioning ? 5000 : 30000;
+    
+    const interval = setInterval(() => {
+      // During transitions, only do fast fetch
+      // Otherwise, check if we need a full fetch (every 60s) or fast fetch
+      if (isTransitioning) {
+        fetchFast();
+      } else if (Date.now() - lastExpensiveFetch > 60000) {
+        fetchFull();
+      } else {
+        fetchFast();
+      }
+    }, pollInterval);
+    
+    return () => clearInterval(interval);
+  }, [fetchFast, fetchFull, infraStatus?.isTransitioning, workflow?.hasActiveRun, lastExpensiveFetch]);
 
   const handleToggleInfra = async (targetState: 'ON' | 'OFF') => {
     setActionLoading('toggle');
-    setDeployAction(targetState === 'ON' ? 'deploying' : 'destroying');
-    setShowDeployModal(true);
     try {
       await toggleInfrastructure(targetState);
       // Start faster polling immediately to catch workflow updates
-      await fetchData();
+      await fetchFast();
     } catch (err) {
-      setShowDeployModal(false);
-      setDeployAction(null);
       alert(err instanceof Error ? err.message : 'Failed to toggle infrastructure');
     } finally {
       setActionLoading(null);
@@ -114,7 +141,7 @@ export default function AdminPage() {
     try {
       const result = await nukeAllAssets();
       alert(`☢️ Nuked ${result.deletedCount} assets!`);
-      await fetchData();
+      await fetchFast();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to nuke assets');
     } finally {
@@ -172,19 +199,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Deployment Progress Modal */}
-      {showDeployModal && (
-        <DeploymentModal
-          isDay={isDay}
-          action={deployAction}
-          workflow={workflow}
-          infraStatus={infraStatus}
-          onClose={() => {
-            setShowDeployModal(false);
-            setDeployAction(null);
-          }}
-        />
-      )}
 
       {/* Header Bar */}
       <div className={`relative border-b-4 shadow-lg transition-colors duration-500 ${
@@ -1346,258 +1360,6 @@ function CostDashboard({ costs, isDay }: { costs: InfrastructureCostResponse | n
         <span className={isDay ? 'text-gray-500' : 'text-gray-400'} style={{ fontFamily: "'VT323', monospace" }}>
           Updated: {new Date(costs.lastUpdated).toLocaleString()}
         </span>
-      </div>
-    </div>
-  );
-}
-
-// Deployment Modal - Full screen modal for deployment progress
-function DeploymentModal({ 
-  isDay, 
-  action, 
-  workflow, 
-  infraStatus,
-  onClose 
-}: { 
-  isDay: boolean; 
-  action: 'deploying' | 'destroying' | null;
-  workflow: LatestWorkflowResponse | null;
-  infraStatus: InfrastructureStatusResponse | null;
-  onClose: () => void;
-}) {
-  const isDeploying = action === 'deploying';
-  const workflowCompleted = workflow?.latestRun?.conclusion != null;
-  const workflowSuccess = workflow?.latestRun?.conclusion === 'success';
-  const workflowFailed = workflow?.latestRun?.conclusion === 'failure';
-  
-  // Calculate elapsed time
-  const startedAt = workflow?.latestRun?.startedAt || infraStatus?.transition?.startedAt;
-  const elapsed = startedAt 
-    ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
-    : 0;
-  const elapsedMinutes = Math.floor(elapsed / 60);
-  const elapsedSeconds = elapsed % 60;
-  
-  // Determine progress
-  const progress = infraStatus?.transition?.progress || 
-    (workflow?.hasActiveRun ? 50 : workflowCompleted ? 100 : 10);
-  
-  // Estimate steps based on action
-  const steps = isDeploying 
-    ? [
-        { name: 'Checkout code', threshold: 5 },
-        { name: 'Azure login', threshold: 10 },
-        { name: 'Setup Terraform', threshold: 15 },
-        { name: 'Terraform init', threshold: 25 },
-        { name: 'Terraform plan', threshold: 35 },
-        { name: 'Create AKS cluster', threshold: 60 },
-        { name: 'Deploy ingress', threshold: 70 },
-        { name: 'Deploy cert-manager', threshold: 75 },
-        { name: 'Deploy monitoring', threshold: 85 },
-        { name: 'Deploy Minecraft', threshold: 90 },
-        { name: 'Health checks', threshold: 95 },
-      ]
-    : [
-        { name: 'Checkout code', threshold: 5 },
-        { name: 'Azure login', threshold: 10 },
-        { name: 'Setup Terraform', threshold: 15 },
-        { name: 'Terraform init', threshold: 25 },
-        { name: 'Terraform plan', threshold: 35 },
-        { name: 'Delete Kubernetes resources', threshold: 50 },
-        { name: 'Delete AKS cluster', threshold: 75 },
-        { name: 'Delete networking', threshold: 85 },
-        { name: 'Cleanup', threshold: 95 },
-      ];
-
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-2xl rounded-lg border-4 shadow-2xl overflow-hidden ${
-        isDay ? 'bg-slate-100 border-slate-400' : 'bg-slate-900 border-slate-600'
-      }`}>
-        {/* Header */}
-        <div className={`p-6 ${
-          workflowFailed 
-            ? 'bg-red-600' 
-            : workflowSuccess 
-              ? 'bg-green-600' 
-              : isDeploying 
-                ? 'bg-green-700' 
-                : 'bg-red-700'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-5xl">
-                {workflowFailed ? '❌' : workflowSuccess ? '✅' : isDeploying ? '🚀' : '🔥'}
-              </div>
-              <div>
-                <h2 className="text-white text-2xl font-bold" style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px' }}>
-                  {workflowFailed 
-                    ? 'DEPLOYMENT FAILED' 
-                    : workflowSuccess 
-                      ? (isDeploying ? 'DEPLOYMENT COMPLETE!' : 'INFRASTRUCTURE DESTROYED')
-                      : isDeploying 
-                        ? 'DEPLOYING INFRASTRUCTURE...' 
-                        : 'DESTROYING INFRASTRUCTURE...'}
-                </h2>
-                <p className="text-white/80 mt-2" style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                  {workflowCompleted 
-                    ? (workflowSuccess ? 'All systems operational!' : 'Check GitHub Actions for details')
-                    : `Estimated time: ~${isDeploying ? '12-15' : '8-10'} minutes`}
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={onClose}
-              className="text-white/80 hover:text-white text-2xl p-2"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Progress Section */}
-        <div className="p-6 space-y-6">
-          {/* Progress bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-2">
-              <span className={isDay ? 'text-gray-600' : 'text-gray-400'} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                Progress
-              </span>
-              <span className={`font-bold ${isDeploying ? 'text-green-500' : 'text-red-500'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                {progress}%
-              </span>
-            </div>
-            <div className={`h-6 rounded-full overflow-hidden ${isDay ? 'bg-gray-300' : 'bg-gray-700'}`}>
-              <div 
-                className={`h-full transition-all duration-1000 ${
-                  workflowFailed 
-                    ? 'bg-red-500' 
-                    : isDeploying 
-                      ? 'bg-gradient-to-r from-green-600 to-green-400' 
-                      : 'bg-gradient-to-r from-red-600 to-red-400'
-                }`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-2">
-              <span className={`text-sm ${isDay ? 'text-gray-500' : 'text-gray-500'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                Elapsed: {elapsedMinutes}:{elapsedSeconds.toString().padStart(2, '0')}
-              </span>
-              <span className={`text-sm ${isDay ? 'text-gray-500' : 'text-gray-500'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                {workflowCompleted ? 'Completed' : 'In progress...'}
-              </span>
-            </div>
-          </div>
-
-          {/* Workflow Steps */}
-          {workflow?.latestRun?.jobs && workflow.latestRun.jobs.length > 0 ? (
-            <div className={`p-4 rounded-lg ${isDay ? 'bg-white border border-gray-200' : 'bg-slate-800 border border-slate-700'}`}>
-              <h3 className={`mb-4 font-bold ${isDay ? 'text-gray-800' : 'text-gray-200'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                📋 WORKFLOW STEPS
-              </h3>
-              {workflow.latestRun.jobs.map((job) => (
-                <div key={job.name} className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">
-                      {job.status === 'completed' 
-                        ? (job.conclusion === 'success' ? '✅' : '❌')
-                        : job.status === 'in_progress' ? '⏳' : '⏸️'
-                      }
-                    </span>
-                    <span className={`font-bold ${isDay ? 'text-gray-800' : 'text-gray-200'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
-                      {job.name}
-                    </span>
-                  </div>
-                  <div className="ml-7 space-y-1">
-                    {job.steps?.slice(0, 15).map((step, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <span className={`w-2 h-2 rounded-full ${
-                          step.status === 'completed'
-                            ? (step.conclusion === 'success' ? 'bg-green-500' : step.conclusion === 'skipped' ? 'bg-gray-400' : 'bg-red-500')
-                            : step.status === 'in_progress' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'
-                        }`} />
-                        <span className={`${
-                          step.status === 'completed' && step.conclusion === 'success' ? (isDay ? 'text-green-700' : 'text-green-400') :
-                          step.status === 'completed' && step.conclusion === 'failure' ? 'text-red-500' :
-                          step.status === 'completed' && step.conclusion === 'skipped' ? (isDay ? 'text-gray-400' : 'text-gray-500') :
-                          step.status === 'in_progress' ? 'text-yellow-500 font-bold' : 
-                          (isDay ? 'text-gray-400' : 'text-gray-500')
-                        }`} style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
-                          {step.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            // Estimated steps when workflow hasn't started yet
-            <div className={`p-4 rounded-lg ${isDay ? 'bg-white border border-gray-200' : 'bg-slate-800 border border-slate-700'}`}>
-              <h3 className={`mb-4 font-bold ${isDay ? 'text-gray-800' : 'text-gray-200'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-                📋 {workflow?.hasActiveRun ? 'WORKFLOW PROGRESS' : 'WORKFLOW STARTING...'}
-              </h3>
-              <div className="space-y-2">
-                {steps.map((step, i) => {
-                  const isComplete = progress >= step.threshold;
-                  const isCurrent = progress >= (steps[i - 1]?.threshold || 0) && progress < step.threshold;
-                  
-                  return (
-                    <div key={step.name} className="flex items-center gap-2 text-sm">
-                      <span className={`w-2 h-2 rounded-full ${
-                        isComplete ? (isDeploying ? 'bg-green-500' : 'bg-red-500') :
-                        isCurrent ? 'bg-yellow-500 animate-pulse' : (isDay ? 'bg-gray-300' : 'bg-gray-600')
-                      }`} />
-                      <span className={`${
-                        isComplete ? (isDeploying ? (isDay ? 'text-green-700' : 'text-green-400') : (isDay ? 'text-red-700' : 'text-red-400')) :
-                        isCurrent ? 'text-yellow-500 font-bold' : (isDay ? 'text-gray-400' : 'text-gray-500')
-                      }`} style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
-                        {step.name}
-                      </span>
-                      {isCurrent && (
-                        <span className="ml-auto text-yellow-500 animate-pulse text-xs" style={{ fontFamily: "'VT323', monospace" }}>
-                          ⏳
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* GitHub Actions Link */}
-          <div className="flex items-center justify-between">
-            <a 
-              href={workflow?.latestRun?.url || infraStatus?.transition?.runUrl || `https://github.com/ColeGendreau/Minecraft-1.0/actions`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-                isDay 
-                  ? 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-700' 
-                  : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'
-              }`}
-              style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}
-            >
-              <span>🔗</span>
-              <span>View live logs on GitHub Actions</span>
-            </a>
-            
-            {workflowCompleted && (
-              <button
-                onClick={onClose}
-                className={`px-6 py-2 rounded-lg font-bold ${
-                  workflowSuccess 
-                    ? 'mc-button-grass' 
-                    : 'mc-button-stone !bg-red-600 !border-red-800'
-                }`}
-                style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}
-              >
-                {workflowSuccess ? '✓ Done' : 'Close'}
-              </button>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
