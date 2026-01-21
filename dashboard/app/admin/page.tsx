@@ -1406,6 +1406,7 @@ function PendingDeployPanel({ action, startedAt }: { action: 'deploying' | 'dest
     return () => clearInterval(interval);
   }, [startedAt]);
   
+  const elapsedMinutes = Math.floor(elapsed / 60);
   const elapsedSeconds = elapsed % 60;
   
   return (
@@ -1421,7 +1422,7 @@ function PendingDeployPanel({ action, startedAt }: { action: 'deploying' | 'dest
           {isDeploying ? '🚀 STARTING DEPLOYMENT...' : '🔥 STARTING DESTROY...'}
         </h4>
         <span className="text-gray-300" style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
-          0:{elapsedSeconds.toString().padStart(2, '0')} elapsed
+          {elapsedMinutes}:{elapsedSeconds.toString().padStart(2, '0')} elapsed
         </span>
       </div>
 

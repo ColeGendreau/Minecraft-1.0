@@ -384,6 +384,26 @@ router.get('/nodes', async (req, res) => {
 });
 
 /**
+ * Trigger workflow using workflow_dispatch (useful when state file is already correct)
+ */
+async function triggerWorkflowDispatch(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const octokit = getOctokit();
+    await octokit.actions.createWorkflowDispatch({
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      workflow_id: 'terraform.yaml',
+      ref: 'main',
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    console.error('Error triggering workflow dispatch:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * POST /api/infrastructure/toggle
  * Toggle infrastructure state by committing to GitHub (triggers terraform workflow)
  */
@@ -412,14 +432,43 @@ router.post('/toggle', async (req, res) => {
       return;
     }
 
+    // Check if there's already an active workflow
+    const workflowInfo = await getActiveWorkflowInfo();
+    if (workflowInfo.hasActiveRun) {
+      res.json({
+        success: true,
+        message: `Workflow already running (${workflowInfo.action})`,
+        newState,
+        alreadyRunning: true,
+        runUrl: workflowInfo.runUrl,
+        workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+      });
+      return;
+    }
+
     // Get current state and SHA (needed for update)
     const { state: currentState, sha } = await getInfrastructureState();
 
     if (currentState === newState) {
+      // State is already correct but no workflow running - trigger via workflow_dispatch
+      console.log(`State is already ${newState}, triggering workflow via dispatch...`);
+      const dispatchResult = await triggerWorkflowDispatch();
+      
+      if (!dispatchResult.success) {
+        res.status(500).json({
+          error: 'Failed to trigger workflow',
+          details: dispatchResult.error,
+          workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
+        });
+        return;
+      }
+
       res.json({
         success: true,
-        message: `Infrastructure is already ${newState}`,
+        message: `Infrastructure ${newState === 'ON' ? 'deployment' : 'destruction'} re-triggered!`,
         newState,
+        triggeredVia: 'workflow_dispatch',
+        estimatedTime: newState === 'ON' ? '12-15 minutes' : '8-10 minutes',
         workflowUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/terraform.yaml`,
       });
       return;
