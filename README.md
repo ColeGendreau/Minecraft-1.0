@@ -306,15 +306,211 @@ world-forge/
 ├── .github/workflows/       # CI/CD pipelines
 ├── dashboard/               # Next.js frontend
 │   ├── app/                 # Pages (home, create, gallery, admin)
-│   ├── components/          # React components
+│   ├── components/          # React components (Header, Providers)
 │   └── lib/                 # API client, types, theme
 ├── coordinator-api/         # Node.js backend
 │   ├── routes/              # API endpoints
-│   └── services/            # Bing search, RCON, image-to-voxel
+│   └── services/            # Bing search, RCON, image-to-voxel, prometheus, azure-costs
 ├── infra/                   # Terraform infrastructure
 ├── apps/                    # Helm values (minecraft, monitoring)
 └── schemas/                 # JSON schemas
 ```
+
+---
+
+## 🛠️ Development
+
+### Local Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/ColeGendreau/Minecraft-1.0.git
+cd Minecraft-1.0
+
+# Install dashboard dependencies
+cd dashboard && npm install
+
+# Install coordinator-api dependencies
+cd ../coordinator-api && npm install
+
+# Build coordinator-api (TypeScript)
+npm run build
+
+# Run dashboard locally
+cd ../dashboard && npm run dev
+```
+
+### Building & Pushing Code
+
+```bash
+# 1. Make your changes
+
+# 2. Build locally to check for errors
+cd coordinator-api && npm run build  # Check TypeScript errors
+cd ../dashboard && npm run build     # Check Next.js build + ESLint
+
+# 3. Stage, commit, and push
+git add -A
+git commit -m "feat/fix: Your descriptive message"
+git push origin main
+
+# 4. Monitor the build
+# Go to: https://github.com/ColeGendreau/Minecraft-1.0/actions
+# Watch "Auto: Build Containers" workflow
+```
+
+### Common Build Issues
+
+| Error | Fix |
+|-------|-----|
+| Missing `.js` extension | Add `.js` to imports in coordinator-api (ESM requires it) |
+| Unused variable | Remove it or prefix with `_` |
+| Type 'unknown' | Cast with `as TypeName` after `response.json()` |
+
+---
+
+## 📊 Accessing Logs & Monitoring
+
+### GitHub Actions Logs
+```
+https://github.com/ColeGendreau/Minecraft-1.0/actions
+```
+- **Auto: Build Containers** — Triggered on every push, builds Docker images
+- **1. Control Plane (Dashboard)** — Deploys dashboard + coordinator to Azure Container Apps  
+- **2. Minecraft Server** — Deploys/destroys AKS infrastructure
+- **3. Deploy Minecraft Apps** — Deploys Minecraft, Prometheus, Grafana to AKS
+
+Click any workflow run → Click a job → View step logs
+
+### Azure Portal Logs
+
+**Container Apps (Dashboard & Coordinator):**
+```
+https://portal.azure.com → Container Apps → mc-demo-dev-dashboard or mc-demo-dev-coordinator
+→ Monitoring → Log stream (real-time)
+→ Monitoring → Logs (query with KQL)
+```
+
+**AKS Kubernetes Logs:**
+```
+https://portal.azure.com → Kubernetes services → mc-demo-dev-aks
+→ Workloads → Pods → Select pod → Logs
+```
+
+### Kubernetes CLI (kubectl)
+
+```bash
+# Get all pods
+kubectl get pods -A
+
+# View Minecraft server logs
+kubectl logs -n minecraft -l app=minecraft-minecraft --tail=100 -f
+
+# View coordinator logs (when running in AKS)
+kubectl logs -n default -l app=coordinator --tail=100 -f
+
+# Describe a failing pod
+kubectl describe pod <pod-name> -n <namespace>
+```
+
+### Prometheus & Grafana (when AKS is deployed)
+
+- **Prometheus:** `http://<PUBLIC_IP>:9090` — Raw metrics, PromQL queries
+- **Grafana:** `http://<PUBLIC_IP>:3000` — Dashboards (admin/prom-operator)
+
+---
+
+## 🤖 AI Agent Handoff Instructions
+
+### Project Overview
+World Forge is a Minecraft pixel art builder. Users provide image URLs or search for images, and the app builds them block-by-block in a live Minecraft server via RCON commands.
+
+### Key Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `dashboard/` | Next.js frontend (React, Tailwind, TypeScript) |
+| `dashboard/app/admin/page.tsx` | Admin panel with infrastructure controls |
+| `dashboard/components/Header.tsx` | Global header with nav, hearts, status |
+| `coordinator-api/src/` | Express backend (TypeScript) |
+| `coordinator-api/src/routes/` | API endpoints |
+| `coordinator-api/src/services/` | Business logic (RCON, image processing, monitoring) |
+| `infra/` | Terraform IaC for Azure resources |
+| `.github/workflows/` | CI/CD pipelines |
+
+### Important Files
+
+| File | What It Does |
+|------|--------------|
+| `dashboard/lib/api.ts` | Frontend API client + TypeScript types |
+| `coordinator-api/src/routes/infrastructure.ts` | Infrastructure status, deploy/destroy, costs, monitoring |
+| `coordinator-api/src/services/prometheus.ts` | Queries Prometheus for cluster metrics |
+| `coordinator-api/src/services/azure-costs.ts` | Queries Azure Cost Management API |
+| `coordinator-api/src/services/kubernetes.ts` | Gets pod/node info via kubectl |
+| `coordinator-api/src/services/rcon-client.ts` | Sends commands to Minecraft server |
+| `coordinator-api/src/services/image-to-voxel.ts` | Converts images to Minecraft blocks |
+
+### TypeScript Build Requirements
+
+**Coordinator API (ESM module):**
+- All imports MUST have `.js` extension: `import { foo } from './bar.js'`
+- Use `as TypeName` for `response.json()` calls
+- Run `npm run build` in `coordinator-api/` to check
+
+**Dashboard (Next.js):**
+- ESLint enforces no unused variables (remove or prefix with `_`)
+- Run `npm run build` in `dashboard/` to check
+
+### Git Workflow
+
+```bash
+# Always build locally first
+cd coordinator-api && npm run build
+cd ../dashboard && npm run build
+
+# Then commit and push
+git add -A
+git commit -m "type: description"
+git push origin main
+
+# Watch GitHub Actions for build status
+# https://github.com/ColeGendreau/Minecraft-1.0/actions
+```
+
+### Environment Variables
+
+The app uses these key environment variables (set in Azure/GitHub):
+
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_TOKEN` | GitHub API access for workflow status |
+| `AZURE_SUBSCRIPTION_ID` | For Azure Cost Management queries |
+| `BING_SEARCH_KEY` | Bing Image Search API |
+| `PUBLIC_IP` | Minecraft server public IP |
+| `RCON_PASSWORD` | Minecraft RCON authentication |
+
+### Common Tasks
+
+**Deploy infrastructure from dashboard:**
+- Go to Admin page → Click "DEPLOY" button
+- Or run "2. Minecraft Server" workflow manually with action=apply
+
+**Destroy infrastructure:**
+- Admin page → Click "DESTROY" button  
+- Or run "2. Minecraft Server" workflow with action=destroy
+
+**Check why build failed:**
+1. Go to GitHub Actions
+2. Click the failed workflow run
+3. Expand the failed step
+4. Read the error message
+5. Fix locally, build, push
+
+**Add a new API endpoint:**
+1. Add route in `coordinator-api/src/routes/<file>.ts`
+2. Add types in `coordinator-api/src/types/index.ts`
+3. Add client function in `dashboard/lib/api.ts`
+4. Use in dashboard components
 
 ---
 
