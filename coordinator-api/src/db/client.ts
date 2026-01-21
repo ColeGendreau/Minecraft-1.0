@@ -424,37 +424,57 @@ export function nukeAllAssets(): number {
 }
 
 // Get the next available position for a new asset (to avoid overlap)
-// Assets are organized into zones:
-//   - Z = 50 (front zone): URL-based assets
-//   - Z = -50 (back zone): AI lookup assets
-export function getNextAssetPosition(zone: 'front' | 'back' = 'front'): { x: number; y: number; z: number } {
-  const targetZ = zone === 'front' ? 50 : -50;
+// All assets are placed in a single row along the X axis at Z=50
+// When assets are deleted, new ones can fill those gaps
+export function getNextAssetPosition(): { x: number; y: number; z: number } {
+  const ASSET_Z = 50;        // All assets at same Z
+  const ASSET_Y = 65;        // Ground level
+  const GAP = 20;            // Space between assets
+  const START_X = 0;         // Starting position
+  
   const activeAssets = getActiveAssets();
   
-  // Filter to assets in this zone (within 30 blocks of target Z)
-  const zoneAssets = activeAssets.filter(a => 
-    Math.abs(a.position_z - targetZ) < 30
-  );
-  
-  if (zoneAssets.length === 0) {
-    return { x: 0, y: 65, z: targetZ };
+  if (activeAssets.length === 0) {
+    return { x: START_X, y: ASSET_Y, z: ASSET_Z };
   }
   
-  // Find the rightmost asset in this zone and place new one to its right
-  let maxX = 0;
-  let maxWidth = 0;
+  // Build a list of occupied X ranges
+  const occupiedRanges: Array<{ start: number; end: number }> = [];
+  for (const asset of activeAssets) {
+    occupiedRanges.push({
+      start: asset.position_x - GAP, // Include gap before
+      end: asset.position_x + asset.width + GAP, // Include gap after
+    });
+  }
   
-  for (const asset of zoneAssets) {
-    if (asset.position_x + asset.width > maxX + maxWidth) {
-      maxX = asset.position_x;
-      maxWidth = asset.width;
+  // Sort by start position
+  occupiedRanges.sort((a, b) => a.start - b.start);
+  
+  // Look for a gap big enough (we'll use a minimum width of 50 blocks as estimate)
+  const MIN_WIDTH = 50;
+  
+  // Check if there's space at the beginning
+  if (occupiedRanges.length > 0 && occupiedRanges[0].start > START_X + MIN_WIDTH) {
+    return { x: START_X, y: ASSET_Y, z: ASSET_Z };
+  }
+  
+  // Check for gaps between occupied ranges
+  for (let i = 0; i < occupiedRanges.length - 1; i++) {
+    const gapStart = occupiedRanges[i].end;
+    const gapEnd = occupiedRanges[i + 1].start;
+    const gapSize = gapEnd - gapStart;
+    
+    if (gapSize >= MIN_WIDTH) {
+      // Found a gap! Place asset here
+      return { x: Math.round(gapStart), y: ASSET_Y, z: ASSET_Z };
     }
   }
   
-  // Place new asset with 20 block gap
+  // No gaps found - place at the end
+  const lastRange = occupiedRanges[occupiedRanges.length - 1];
   return {
-    x: maxX + maxWidth + 20,
-    y: 65,
-    z: targetZ
+    x: Math.round(lastRange.end),
+    y: ASSET_Y,
+    z: ASSET_Z
   };
 }

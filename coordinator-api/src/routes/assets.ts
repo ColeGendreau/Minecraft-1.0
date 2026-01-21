@@ -210,12 +210,11 @@ router.post('/', async (req, res) => {
     }
 
     // Get position (auto or manual)
-    // AI lookup assets go to Z=-50 (back zone), URL assets go to Z=50 (front zone)
-    const zone = isAiLookup ? 'back' : 'front';
-    const pos = position || getNextAssetPosition(zone);
+    // All assets are placed in a row, automatically spaced to avoid overlap
+    const pos = position || getNextAssetPosition();
     const posX = pos.x ?? 0;
     const posY = pos.y ?? 65;
-    const posZ = pos.z ?? (isAiLookup ? -50 : 50);
+    const posZ = pos.z ?? 50;
 
     console.log(`[Asset] Creating from URL: ${finalImageUrl}`);
     console.log(`[Asset] Position: (${posX}, ${posY}, ${posZ}), Scale: ${scale}x, Depth: ${depth}`);

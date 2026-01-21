@@ -91,11 +91,13 @@ export default function HomePage() {
           {/* Logo */}
           <div className="mb-8">
             <h1 
-              className={`text-5xl md:text-7xl font-bold mb-4 ${isDay ? '' : 'text-white'}`}
+              className="text-5xl md:text-7xl font-bold mb-4"
               style={{ 
                 fontFamily: "'Press Start 2P', cursive",
-                color: isDay ? '#3D2817' : undefined,
-                textShadow: '4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 4px 0 #1a0a00',
+                color: isDay ? '#FCD34D' : '#FCD34D', // Bright gold/yellow
+                textShadow: isDay 
+                  ? '4px 4px 0 #92400E, -2px -2px 0 #78350F, 2px -2px 0 #78350F, -2px 2px 0 #78350F, 0 5px 0 #451A03'
+                  : '4px 4px 0 #1E1B4B, -2px -2px 0 #312E81, 2px -2px 0 #312E81, -2px 2px 0 #312E81, 0 5px 0 #0F0D24',
                 letterSpacing: '2px'
               }}
             >

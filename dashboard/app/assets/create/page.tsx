@@ -93,7 +93,7 @@ export default function CreateAssetPage() {
         {/* Header */}
         <div className="mb-8">
           <Link href="/" className={`mb-4 inline-block font-bold px-3 py-1 rounded transition-colors ${isDay ? 'text-amber-700 hover:text-amber-900 bg-white/50' : 'text-slate-300 hover:text-white bg-slate-800/50'}`}>
-            ← Back to Gallery
+            ← Back to Home
           </Link>
           <h1 className={isDay ? 'text-2xl text-amber-900' : 'text-2xl text-white'} style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px' }}>
             🎨 CREATE ASSET
@@ -183,9 +183,6 @@ export default function CreateAssetPage() {
               <p className={`text-sm mt-2 ${isDay ? 'text-emerald-600' : 'text-emerald-500'}`} style={{ fontFamily: "'VT323', monospace" }}>
                 PNG or JPG images work best. Transparent backgrounds supported!
               </p>
-              <p className={`text-xs mt-1 font-bold ${isDay ? 'text-emerald-700' : 'text-emerald-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                📍 Built in the front zone (Z=50)
-              </p>
               
               {imageUrl && (
                 <div className={`mt-4 p-4 rounded-lg border-2 ${isDay ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-900/30 border-emerald-700'}`}>
@@ -214,9 +211,6 @@ export default function CreateAssetPage() {
               />
               <p className={`text-sm mt-2 ${isDay ? 'text-purple-600' : 'text-purple-500'}`} style={{ fontFamily: "'VT323', monospace" }}>
                 Describe what you want (e.g., &quot;Microsoft logo&quot;, &quot;Pikachu sprite&quot;). AI will find a real image!
-              </p>
-              <p className={`text-xs mt-1 font-bold ${isDay ? 'text-purple-700' : 'text-purple-400'}`} style={{ fontFamily: "'VT323', monospace" }}>
-                📍 Built in the back zone (Z=-50)
               </p>
             </div>
           )}
