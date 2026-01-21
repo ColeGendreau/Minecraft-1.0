@@ -8,7 +8,8 @@ import { checkHealth } from '@/lib/api';
 const navItems = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/assets/create', label: 'Create', icon: '🎨' },
-  { href: '/assets', label: 'Assets', icon: '📋' },
+  { href: '/assets', label: 'Gallery', icon: '🖼️' },
+  { href: '/admin', label: 'Admin', icon: '⚙️' },
 ];
 
 export function Header() {
@@ -57,11 +58,11 @@ export function Header() {
             
             <div>
               <h1 className="text-lg font-bold text-white text-shadow-mc" 
-                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '16px', letterSpacing: '1px' }}>
+                  style={{ fontFamily: "'Press Start 2P', cursive", fontSize: '14px', letterSpacing: '1px' }}>
                 WORLD FORGE
               </h1>
-              <p className="text-xs text-gray-200 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
-                AI Pixel Art Builder
+              <p className="text-xs text-gray-300 mt-1" style={{ fontFamily: "'VT323', monospace", fontSize: '14px' }}>
+                Pixel Art Builder
               </p>
             </div>
           </Link>
@@ -69,7 +70,8 @@ export function Header() {
           {/* Navigation - Hotbar Style */}
           <nav className="mc-hotbar">
             {navItems.map((item, index) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || 
+                (item.href !== '/' && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
@@ -103,13 +105,13 @@ export function Header() {
           {/* Status - Health Bar Style */}
           <div className="flex items-center gap-4">
             {/* Hearts */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {[...Array(10)].map((_, i) => (
                 <span 
                   key={i} 
-                  className={`text-lg transition-all duration-300 ${i < hearts ? '' : 'grayscale opacity-30'}`}
+                  className={`text-base transition-all duration-300 ${i < hearts ? '' : 'grayscale opacity-30'}`}
                   style={{ 
-                    filter: i < hearts ? 'drop-shadow(0 0 4px #ff0000)' : 'none',
+                    filter: i < hearts ? 'drop-shadow(0 0 3px #ff0000)' : 'none',
                     transform: i < hearts ? 'scale(1)' : 'scale(0.8)'
                   }}
                 >
@@ -119,17 +121,17 @@ export function Header() {
             </div>
             
             {/* Status text */}
-            <div className="mc-tooltip">
+            <div className="mc-tooltip hidden md:block">
               <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${
+                <span className={`w-2 h-2 rounded-full ${
                   apiStatus === 'online' ? 'bg-emerald-400 animate-pulse' :
                   apiStatus === 'offline' ? 'bg-red-500' :
                   'bg-yellow-400 animate-bounce'
                 }`} />
-                <span className="text-sm">
-                  {apiStatus === 'online' ? 'Server Online' :
-                   apiStatus === 'offline' ? 'Server Offline' :
-                   'Connecting...'}
+                <span className="text-xs text-gray-300" style={{ fontFamily: "'VT323', monospace" }}>
+                  {apiStatus === 'online' ? 'Online' :
+                   apiStatus === 'offline' ? 'Offline' :
+                   '...'}
                 </span>
               </div>
             </div>
@@ -138,16 +140,14 @@ export function Header() {
       </div>
 
       {/* XP Bar style bottom border */}
-      <div className="h-2 bg-black/50 relative overflow-hidden">
+      <div className="h-1.5 bg-black/50 relative overflow-hidden">
         <div 
           className="h-full bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-400 transition-all duration-1000"
           style={{ 
             width: apiStatus === 'online' ? '100%' : '0%',
-            boxShadow: '0 0 10px rgba(52,211,153,0.5)'
+            boxShadow: '0 0 8px rgba(52,211,153,0.5)'
           }}
         />
-        {/* Shimmer effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
       </div>
     </header>
   );

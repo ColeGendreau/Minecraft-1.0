@@ -1,8 +1,8 @@
 # ⛏️ World Forge
 
-**Describe any Minecraft world in plain English. AI builds it.**
+**Build pixel art in Minecraft from images or AI lookup — watch it construct block by block!**
 
-Just type what you imagine — *"a golden castle with emerald towers surrounded by a moat"* — and watch GPT-4o interpret your vision, generate WorldEdit commands, and construct it on a live server.
+Upload an image URL (logos, sprites, icons) or describe what you want and AI finds it. Then watch as it builds live in your Minecraft world.
 
 [![Live](https://img.shields.io/badge/Status-Live-brightgreen)](/) [![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4)](/) [![Kubernetes](https://img.shields.io/badge/Platform-AKS-326CE5)](/) [![TypeScript](https://img.shields.io/badge/Code-TypeScript-3178C6)](/)
 
@@ -26,60 +26,65 @@ Just type what you imagine — *"a golden castle with emerald towers surrounded 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  "A massive golden pyramid with four emerald towers"            │
+│  Option A: Provide an image URL                                 │
+│  "https://upload.wikimedia.org/wikipedia/commons/apple-logo.png"│
+├─────────────────────────────────────────────────────────────────┤
+│  Option B: Describe what you want (AI Lookup)                   │
+│  "Apple logo" → AI finds a real image URL                       │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  🤖 GPT-4o interprets your description creatively               │
-│     → Generates world config (biomes, rules, structures)        │
-│     → Creates 50+ WorldEdit commands for epic builds            │
+│  🎨 Image-to-Voxel Converter                                    │
+│     → Fetches image, analyzes pixels                            │
+│     → Maps colors to Minecraft blocks (wool, concrete, etc.)    │
+│     → Generates setblock commands                               │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  🔧 Coordinator API executes via RCON                           │
-│     → Loads chunks with forceload                               │
-│     → Builds structures with //pos1, //pos2, //set, //faces     │
-│     → Announces world name, restarts server                     │
+│     → Forceloads chunks                                         │
+│     → Places blocks one by one (watch it build!)                │
+│     → Teleports you to view your creation                       │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  🎮 Connect and explore your creation!                          │
-│     → Creative mode, peaceful, always daytime                   │
-│     → Fly around massive AI-built structures                    │
+│  🖼️ Your pixel art is now in Minecraft!                         │
+│     → Company logos, game sprites, famous icons                 │
+│     → Scales from small (1x) to huge (4x)                       │
+│     → Assets organized in zones to prevent overlap              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Key Features:**
-- 🏰 **Massive structures** — Towers 50-150 blocks tall, platforms 100+ blocks wide
-- 🎨 **Creative interpretation** — AI generates evocative names, not just your words
-- ⚡ **Auto-restart** — Server restarts with new world after building completes
-- 🌅 **Always daytime** — Perfect lighting to admire your creations
+- 🖼️ **Image URL mode** — Paste any PNG/JPG URL and watch it build
+- 🔍 **AI Lookup mode** — Describe what you want, GPT-4o finds a real image
+- 📍 **Auto-positioning** — Assets placed in zones, never overlap
+- ⚡ **Live building** — Watch blocks appear in real-time via RCON
+- 🎮 **No restart needed** — Assets build instantly on the live server
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Deploy Control Plane
+### 1. Deploy Infrastructure
 ```
-GitHub → Actions → "1. Control Plane (Dashboard)" → Run workflow → deploy
+GitHub → Actions → "Terraform Apply" → Run workflow
 ```
-*Wait ~5 minutes for Dashboard + Coordinator to spin up*
+*Wait ~10 minutes for AKS + Azure OpenAI + Minecraft to spin up*
 
-### 2. Deploy Minecraft Server
+### 2. Open Dashboard
 ```
-Open Dashboard URL → Click "Deploy" button
+Dashboard URL shown in GitHub Actions output
 ```
-*Wait ~10 minutes for AKS + Minecraft + Monitoring*
 
-### 3. Forge a World
+### 3. Create Your First Asset
 ```
-Dashboard → "Forge New World" → Describe anything → Submit
+Dashboard → Create → Enter image URL or use AI Lookup → Build!
 ```
-*AI generates and builds your world, server restarts*
 
 ### 4. Play
 ```
-Minecraft → Multiplayer → Add Server → <PUBLIC_IP>:25565
+Minecraft Java → Multiplayer → Add Server → <PUBLIC_IP>:25565
 ```
 
 ---
@@ -97,7 +102,8 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │    │  (Next.js)  │         │  (RCON + OpenAI) │                   │
 │    └─────────────┘         └────────┬─────────┘                   │
 │          │                          │                              │
-│    [Deploy] [Destroy]        [Forge Worlds]                       │
+│    [Create Assets]          [Build via RCON]                      │
+│    [View Gallery]           [AI Image Lookup]                     │
 └──────────┬──────────────────────────┼──────────────────────────────┘
            │                          │
            ▼                          ▼
@@ -107,12 +113,12 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
 │    │  Minecraft  │   │  Azure OpenAI │   │   Prometheus   │       │
 │    │   (Paper)   │   │   (GPT-4o)    │   │   + Grafana    │       │
-│    │  WorldEdit  │   │               │   │                │       │
+│    │             │   │               │   │                │       │
 │    └─────────────┘   └───────────────┘   └────────────────┘       │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why?** Pay $20/month for the dashboard. Only pay $150/month when actually playing.
+**Why two tiers?** Pay $20/month for the dashboard. Only pay $150/month when actually playing.
 
 ---
 
@@ -140,25 +146,21 @@ az network public-ip show \
 
 | Workflow | Purpose |
 |----------|---------|
-| **1. Control Plane (Dashboard)** | Deploy/destroy the Dashboard + Coordinator |
-| **2. Minecraft Server** | Provision/destroy AKS + OpenAI (triggered by INFRASTRUCTURE_STATE) |
-| **3. Deploy Minecraft Apps** | Install Minecraft + monitoring on AKS |
-| **Auto: Build Containers** | Rebuild containers when code changes |
+| **Terraform Apply** | Deploy all infrastructure (AKS, OpenAI, Container Apps) |
+| **Terraform Destroy** | Tear down infrastructure to stop billing |
+| **Build Containers** | Rebuild containers when code changes |
 
 ### Typical Usage
 
 ```bash
-# First time setup
-1. Run "1. Control Plane (Dashboard)" → deploy
-
 # Start playing  
-2. Dashboard → Deploy button
+1. Run "Terraform Apply" workflow
 
-# Stop paying for Minecraft
-3. Dashboard → Destroy button
+# Create pixel art
+2. Dashboard → Create → Build assets
 
-# Completely shut down ($0/month)
-4. Run "1. Control Plane (Dashboard)" → destroy
+# Stop paying
+3. Run "Terraform Destroy" workflow
 ```
 
 ---
@@ -169,8 +171,8 @@ az network public-ip show \
 |-----------|------------|
 | **Frontend** | Next.js 14, Tailwind CSS, TypeScript |
 | **Backend** | Node.js, Express, TypeScript |
-| **AI** | Azure OpenAI GPT-4o |
-| **Game Server** | Paper MC 1.21 + WorldEdit 7.4 |
+| **AI** | Azure OpenAI GPT-4o (image lookup) |
+| **Game Server** | Paper MC 1.21 |
 | **Control Plane** | Azure Container Apps |
 | **Minecraft Infra** | Azure Kubernetes Service (AKS) |
 | **IaC** | Terraform |
@@ -221,7 +223,7 @@ az ad app federated-credential create \
 
 **4. Deploy**
 ```
-GitHub Actions → "1. Control Plane (Dashboard)" → deploy
+GitHub Actions → "Terraform Apply" → Run
 ```
 
 ---
@@ -247,7 +249,6 @@ GitHub Actions → "1. Control Plane (Dashboard)" → deploy
 ### Cost Tips
 - **Destroy when not playing** — Main infra costs $0 when destroyed
 - **Use spot instances** — ~60% cheaper AKS nodes
-- **Scale coordinator to 0** — Save ~$10/month (adds cold start delay)
 
 ---
 
@@ -288,10 +289,9 @@ world-forge/
 ├── .github/workflows/       # CI/CD pipelines
 ├── dashboard/               # Next.js frontend
 ├── coordinator-api/         # Node.js backend (RCON + AI)
-├── infra/                   # Main infrastructure (Terraform)
-├── infra-permanent/         # Control plane (Terraform)
+├── infra/                   # Terraform infrastructure
 ├── apps/                    # Helm values (minecraft, monitoring)
-└── INFRASTRUCTURE_STATE     # ON/OFF toggle for main infra
+└── schemas/                 # JSON schemas
 ```
 
 ---
