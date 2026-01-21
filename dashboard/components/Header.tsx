@@ -87,8 +87,8 @@ export function Header() {
               : 'bg-slate-900/90 border-slate-700'
           }`}>
             {navItems.map((item, index) => {
-              const isActive = pathname === item.href || 
-                (item.href !== '/' && pathname.startsWith(item.href));
+              // Exact match only - prevents /assets/create from highlighting /assets
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
