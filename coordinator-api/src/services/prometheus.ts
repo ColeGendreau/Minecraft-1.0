@@ -92,7 +92,7 @@ async function queryPrometheus(query: string): Promise<PrometheusResult[]> {
       return [];
     }
     
-    const data: PrometheusResponse = await response.json();
+    const data = await response.json() as PrometheusResponse;
     
     if (data.status !== 'success') {
       console.error(`Prometheus error: ${data.error}`);

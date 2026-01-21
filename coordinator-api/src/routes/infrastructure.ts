@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Octokit } from '@octokit/rest';
-import { getClusterMetrics, type ClusterMetrics, type PodInfo, type NodeInfo } from '../services/kubernetes';
+import { getClusterMetrics, type ClusterMetrics, type PodInfo, type NodeInfo } from '../services/kubernetes.js';
 import { 
   getClusterResourceMetrics, 
   getMinecraftMetrics, 
@@ -8,8 +8,8 @@ import {
   getAlerts,
   type ClusterResourceMetrics,
   type MinecraftMetrics,
-} from '../services/prometheus';
-import { getAzureCosts, type CostResponse } from '../services/azure-costs';
+} from '../services/prometheus.js';
+import { getAzureCosts, type CostResponse } from '../services/azure-costs.js';
 
 const router = Router();
 
@@ -491,7 +491,7 @@ router.get('/cost/summary', async (req, res) => {
         forecast: costs.thisMonth.forecast,
         stopped: '$0' 
       },
-      breakdown: costs.breakdown.byService.slice(0, 5).map(s => ({
+      breakdown: costs.breakdown.byService.slice(0, 5).map((s) => ({
         service: s.service,
         daily: s.cost,
       })),

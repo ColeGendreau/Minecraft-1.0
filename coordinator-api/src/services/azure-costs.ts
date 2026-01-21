@@ -37,6 +37,19 @@ export interface DailyCost {
   currency: string;
 }
 
+// Azure Cost Management API response type
+interface AzureCostApiResponse {
+  properties?: {
+    rows?: unknown[][];
+    columns?: { name: string; type: string }[];
+    nextLink?: string;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 export interface CostSummary {
   currentPeriod: {
     total: number;
@@ -181,8 +194,8 @@ async function queryCostManagement(
       return { rows: [], error: `API error: ${response.status}` };
     }
 
-    const data = await response.json();
-    return { rows: data.properties?.rows || [] };
+    const data = await response.json() as AzureCostApiResponse;
+    return { rows: (data.properties?.rows || []) as Array<[number, string, string]> };
   } catch (error) {
     console.error('Failed to query Cost Management:', error);
     return { rows: [], error: 'Failed to query Azure Cost Management' };
@@ -245,10 +258,10 @@ async function queryDailyCosts(days: number = 30): Promise<DailyCost[]> {
       return [];
     }
 
-    const data = await response.json();
-    const rows = data.properties?.rows || [];
+    const data = await response.json() as AzureCostApiResponse;
+    const rows = (data.properties?.rows || []) as Array<[number, number, string]>;
     
-    return rows.map((row: [number, number, string]) => ({
+    return rows.map((row) => ({
       date: formatDateFromNumber(row[1]),
       cost: row[0],
       currency: row[2] || 'USD',
