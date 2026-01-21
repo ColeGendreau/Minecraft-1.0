@@ -42,6 +42,12 @@ export default function AdminPage() {
   const [showMonitoring, setShowMonitoring] = useState(true);
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
   const [lastExpensiveFetch, setLastExpensiveFetch] = useState(0);
+  
+  // Track pending deploy/destroy action (for showing progress before API detects workflow)
+  const [pendingAction, setPendingAction] = useState<{
+    action: 'deploying' | 'destroying';
+    startedAt: string;
+  } | null>(null);
 
   // Fast fetch - only critical data (status + workflow) - runs every 5s during transitions
   const fetchFast = useCallback(async () => {
@@ -99,9 +105,24 @@ export default function AdminPage() {
     fetchFull();
   }, [fetchFull]);
 
+  // Clear pending action once API detects the workflow (or after timeout)
+  useEffect(() => {
+    if (pendingAction) {
+      // Clear if API now reports transitioning state
+      if (infraStatus?.isTransitioning || workflow?.hasActiveRun) {
+        setPendingAction(null);
+      }
+      // Also clear after 5 minutes as a safety timeout
+      const startTime = new Date(pendingAction.startedAt).getTime();
+      if (Date.now() - startTime > 5 * 60 * 1000) {
+        setPendingAction(null);
+      }
+    }
+  }, [pendingAction, infraStatus?.isTransitioning, workflow?.hasActiveRun]);
+
   // Polling - fast during transitions, slow otherwise
   useEffect(() => {
-    const isTransitioning = infraStatus?.isTransitioning || workflow?.hasActiveRun;
+    const isTransitioning = infraStatus?.isTransitioning || workflow?.hasActiveRun || pendingAction !== null;
     
     // During transitions: fast poll every 5s
     // Normal: poll every 30s
@@ -120,16 +141,22 @@ export default function AdminPage() {
     }, pollInterval);
     
     return () => clearInterval(interval);
-  }, [fetchFast, fetchFull, infraStatus?.isTransitioning, workflow?.hasActiveRun, lastExpensiveFetch]);
+  }, [fetchFast, fetchFull, infraStatus?.isTransitioning, workflow?.hasActiveRun, pendingAction, lastExpensiveFetch]);
 
   const handleToggleInfra = async (targetState: 'ON' | 'OFF') => {
     setActionLoading('toggle');
     try {
       await toggleInfrastructure(targetState);
+      // Set pending action immediately so progress shows without waiting for API to detect workflow
+      setPendingAction({
+        action: targetState === 'ON' ? 'deploying' : 'destroying',
+        startedAt: new Date().toISOString()
+      });
       // Start faster polling immediately to catch workflow updates
       await fetchFast();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to toggle infrastructure');
+      setPendingAction(null); // Clear on error
     } finally {
       setActionLoading(null);
     }
@@ -275,30 +302,32 @@ export default function AdminPage() {
                   </div>
                   <button
                     onClick={() => handleToggleInfra(isRunning ? 'OFF' : 'ON')}
-                    disabled={actionLoading === 'toggle' || infraStatus?.isTransitioning}
+                    disabled={actionLoading === 'toggle' || infraStatus?.isTransitioning || pendingAction !== null}
                     className={`
                       px-8 py-4 rounded text-white font-bold transition-all
                       disabled:opacity-50 disabled:cursor-not-allowed
-                      ${infraStatus?.isTransitioning 
+                      ${(infraStatus?.isTransitioning || pendingAction) 
                         ? 'mc-button-secondary' 
                         : isRunning ? 'mc-button-red' : 'mc-button-grass'}
                     `}
                     style={{ fontFamily: "'VT323', monospace", fontSize: '20px', letterSpacing: '1px' }}
                   >
-                    {actionLoading === 'toggle' || infraStatus?.isTransitioning ? (
+                    {actionLoading === 'toggle' || infraStatus?.isTransitioning || pendingAction ? (
                       <span className="flex items-center gap-2">
                         <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        {infraStatus?.operationalState === 'deploying' ? 'DEPLOYING...' : 
-                         infraStatus?.operationalState === 'destroying' ? 'DESTROYING...' : 'WORKING...'}
+                        {infraStatus?.operationalState === 'deploying' || pendingAction?.action === 'deploying' ? 'DEPLOYING...' : 
+                         infraStatus?.operationalState === 'destroying' || pendingAction?.action === 'destroying' ? 'DESTROYING...' : 'WORKING...'}
                       </span>
                     ) : isRunning ? '🛑 DESTROY' : '🚀 DEPLOY'}
                   </button>
                 </div>
 
-                {/* Transition Progress */}
-                {infraStatus?.isTransitioning && infraStatus.transition && (
+                {/* Transition Progress - show when API detects transition OR when pending action */}
+                {(infraStatus?.isTransitioning && infraStatus.transition) ? (
                   <TransitionProgressPanel transition={infraStatus.transition} />
-                )}
+                ) : pendingAction ? (
+                  <PendingDeployPanel action={pendingAction.action} startedAt={pendingAction.startedAt} />
+                ) : null}
 
                 {isRunning && infraStatus?.metrics?.minecraftAddress && (
                   <div className="mc-panel-oak p-4 mb-6 rounded">
@@ -1360,6 +1389,79 @@ function CostDashboard({ costs, isDay }: { costs: InfrastructureCostResponse | n
         <span className={isDay ? 'text-gray-500' : 'text-gray-400'} style={{ fontFamily: "'VT323', monospace" }}>
           Updated: {new Date(costs.lastUpdated).toLocaleString()}
         </span>
+      </div>
+    </div>
+  );
+}
+
+// Pending Deploy Panel - Shows waiting state before workflow starts
+function PendingDeployPanel({ action, startedAt }: { action: 'deploying' | 'destroying'; startedAt: string }) {
+  const isDeploying = action === 'deploying';
+  const [elapsed, setElapsed] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  
+  const elapsedSeconds = elapsed % 60;
+  
+  return (
+    <div className={`mb-6 p-4 rounded-lg border-2 ${
+      isDeploying 
+        ? 'bg-green-900/30 border-green-600' 
+        : 'bg-red-900/30 border-red-600'
+    }`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <h4 className={`font-bold ${isDeploying ? 'text-green-400' : 'text-red-400'}`} 
+            style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
+          {isDeploying ? '🚀 STARTING DEPLOYMENT...' : '🔥 STARTING DESTROY...'}
+        </h4>
+        <span className="text-gray-300" style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
+          0:{elapsedSeconds.toString().padStart(2, '0')} elapsed
+        </span>
+      </div>
+
+      {/* Progress indicator */}
+      <div className="mb-4">
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-gray-400" style={{ fontFamily: "'VT323', monospace" }}>Waiting for GitHub workflow...</span>
+          <span className="text-yellow-400 animate-pulse" style={{ fontFamily: "'VT323', monospace" }}>
+            Starting
+          </span>
+        </div>
+        <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+          <div 
+            className={`h-full animate-pulse ${
+              isDeploying 
+                ? 'bg-gradient-to-r from-green-800 to-green-600' 
+                : 'bg-gradient-to-r from-red-800 to-red-600'
+            }`}
+            style={{ width: '10%' }}
+          />
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+          <span className="text-yellow-400" style={{ fontFamily: "'VT323', monospace" }}>
+            Triggering GitHub Actions workflow...
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="w-2 h-2 rounded-full bg-gray-600" />
+          <span className="text-gray-500" style={{ fontFamily: "'VT323', monospace" }}>
+            Workflow typically starts within 30-60 seconds
+          </span>
+        </div>
+        <p className="text-gray-400 text-sm mt-3" style={{ fontFamily: "'VT323', monospace" }}>
+          Progress details will appear once the workflow begins.
+        </p>
       </div>
     </div>
   );
