@@ -99,7 +99,7 @@ export default function CreateAssetPage() {
             🎨 CREATE ASSET
           </h1>
           <p className={`mt-2 ${isDay ? 'text-amber-800' : 'text-slate-400'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>
-            Build pixel art in Minecraft from an image or AI lookup
+            Build pixel art in Minecraft from an image or web search
           </p>
         </div>
 

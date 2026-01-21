@@ -15,8 +15,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "World Forge | AI Minecraft Pixel Art Builder",
-  description: "Build pixel art assets in Minecraft from images or AI prompts - live in real-time!",
+  title: "World Forge | Minecraft Pixel Art Builder",
+  description: "Build pixel art assets in Minecraft from images or web search - watch it build live!",
 };
 
 export default function RootLayout({

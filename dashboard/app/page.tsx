@@ -375,7 +375,7 @@ function AssetCard({ asset, isDay }: { asset: Asset; isDay: boolean }) {
 
       {isAiLookup && (
         <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500 text-white text-xs rounded shadow-lg">
-          🔍 AI
+          🔎
         </div>
       )}
     </div>
