@@ -15,7 +15,7 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
-  const { theme, toggleTheme, isDay } = useTheme();
+  const { toggleTheme, isDay } = useTheme();
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [hearts, setHearts] = useState(10);
 
