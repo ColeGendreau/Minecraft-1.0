@@ -250,7 +250,7 @@ export default function AdminPage() {
 
                 {/* Transition Progress */}
                 {infraStatus?.isTransitioning && infraStatus.transition && (
-                  <TransitionProgressPanel transition={infraStatus.transition} isDay={isDay} />
+                  <TransitionProgressPanel transition={infraStatus.transition} />
                 )}
 
                 {isRunning && infraStatus?.metrics?.minecraftAddress && (
@@ -430,7 +430,7 @@ export default function AdminPage() {
               </div>
               
               {showAzureLogs && (
-                <AzureInfrastructurePanel logs={infraLogs} isDay={isDay} />
+                <AzureInfrastructurePanel logs={infraLogs} />
               )}
             </section>
 
@@ -557,7 +557,7 @@ function MonitoringLink({ icon, title, href, disabled, isDay }: { icon: string; 
 }
 
 // Azure Infrastructure Terminal Panel - Command block style
-function AzureInfrastructurePanel({ logs, isDay }: { logs: InfrastructureLogsResponse | null; isDay: boolean }) {
+function AzureInfrastructurePanel({ logs }: { logs: InfrastructureLogsResponse | null }) {
   if (!logs) {
     return (
       <div className="mc-terminal rounded-lg">
@@ -1319,7 +1319,7 @@ function CostDashboard({ costs, isDay }: { costs: InfrastructureCostResponse | n
 }
 
 // Transition Progress Panel - Shows deploy/destroy progress
-function TransitionProgressPanel({ transition, isDay }: { transition: InfrastructureTransition; isDay: boolean }) {
+function TransitionProgressPanel({ transition }: { transition: InfrastructureTransition }) {
   const isDeploying = transition.action === 'deploying';
   const elapsed = transition.startedAt 
     ? Math.floor((Date.now() - new Date(transition.startedAt).getTime()) / 1000)
