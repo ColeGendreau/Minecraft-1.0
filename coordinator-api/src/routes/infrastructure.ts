@@ -246,34 +246,50 @@ async function getLastWorkflowStatus(): Promise<{
  */
 router.get('/status', async (req, res) => {
   try {
+    // First, try to get ACTUAL cluster metrics - this tells us if infra REALLY exists
+    const clusterMetrics = await getClusterMetrics().catch(() => null);
+    const clusterIsReachable = clusterMetrics !== null && clusterMetrics.nodes.ready > 0;
+    
     const [{ state: infraState }, workflowInfo] = await Promise.all([
       getInfrastructureState(),
       getActiveWorkflowInfo(),
     ]);
 
-    // Determine the actual operational state
-    // State file says target, but workflow determines if we're transitioning
-    let operationalState: 'running' | 'stopped' | 'deploying' | 'destroying' = 
-      infraState === 'ON' ? 'running' : 'stopped';
+    // Determine the actual operational state based on REAL cluster state, not just the file
+    // Priority: 1) Active workflow status, 2) Actual cluster reachability, 3) State file as fallback
+    let operationalState: 'running' | 'stopped' | 'deploying' | 'destroying';
     
     if (workflowInfo.hasActiveRun) {
-      if (workflowInfo.action === 'destroying') {
-        operationalState = 'destroying';
-      } else if (workflowInfo.action === 'deploying') {
-        operationalState = 'deploying';
+      // Active workflow - use its status
+      operationalState = workflowInfo.action === 'destroying' ? 'destroying' : 'deploying';
+    } else if (clusterIsReachable) {
+      // Cluster is actually reachable - it's running
+      operationalState = 'running';
+    } else if (infraState === 'ON' && !clusterIsReachable) {
+      // State says ON but cluster not reachable - might be deploying or failed
+      // Check if there was a recent successful deploy
+      const lastStatus = await getLastWorkflowStatus();
+      if (lastStatus.lastRunSucceeded && lastStatus.lastRunTime) {
+        const timeSinceRun = Date.now() - new Date(lastStatus.lastRunTime).getTime();
+        if (timeSinceRun < 20 * 60 * 1000) {
+          // Recent successful run but cluster not reachable - might still be starting up
+          operationalState = 'deploying';
+        } else {
+          // Old successful run but cluster not reachable - something's wrong, show stopped
+          operationalState = 'stopped';
+        }
+      } else {
+        operationalState = 'stopped';
       }
+    } else {
+      // State says OFF or unknown - stopped
+      operationalState = 'stopped';
     }
 
     // isRunning should be true if currently running OR still in process of destroying
     // (resources still exist during destruction)
     const isRunning = operationalState === 'running' || operationalState === 'destroying';
     const isTransitioning = operationalState === 'deploying' || operationalState === 'destroying';
-
-    // Try to get real cluster metrics if resources might exist
-    let clusterMetrics: ClusterMetrics | null = null;
-    if (isRunning) {
-      clusterMetrics = await getClusterMetrics().catch(() => null);
-    }
 
     // Determine service status based on operational state
     const services = SERVICES.map((service) => ({
