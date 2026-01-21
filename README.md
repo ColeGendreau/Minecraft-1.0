@@ -1,8 +1,8 @@
 # ⛏️ World Forge
 
-**Build pixel art in Minecraft from images or AI lookup — watch it construct block by block!**
+**Build pixel art in Minecraft from images — watch it construct block by block!**
 
-Upload an image URL (logos, sprites, icons) or describe what you want and AI finds it. Then watch as it builds live in your Minecraft world.
+Paste an image URL or search for any image on the web. Then watch as it builds live in your Minecraft world via RCON commands.
 
 [![Live](https://img.shields.io/badge/Status-Live-brightgreen)](/) [![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4)](/) [![Kubernetes](https://img.shields.io/badge/Platform-AKS-326CE5)](/) [![TypeScript](https://img.shields.io/badge/Code-TypeScript-3178C6)](/)
 
@@ -11,14 +11,14 @@ Upload an image URL (logos, sprites, icons) or describe what you want and AI fin
 ## 📑 Contents
 
 - [How It Works](#-how-it-works)
+- [Dashboard Features](#-dashboard-features)
 - [Quick Start](#-quick-start)
 - [Architecture](#-architecture)
-- [Accessing Services](#-accessing-services)
+- [Infrastructure (IaC)](#-infrastructure-iac)
 - [GitHub Workflows](#-github-workflows)
 - [Tech Stack](#-tech-stack)
 - [Self-Hosting](#-self-hosting)
 - [Cost Breakdown](#-cost-breakdown)
-- [Monitoring](#-monitoring)
 
 ---
 
@@ -29,8 +29,8 @@ Upload an image URL (logos, sprites, icons) or describe what you want and AI fin
 │  Option A: Provide an image URL                                 │
 │  "https://upload.wikimedia.org/wikipedia/commons/apple-logo.png"│
 ├─────────────────────────────────────────────────────────────────┤
-│  Option B: Describe what you want (AI Lookup)                   │
-│  "Apple logo" → AI finds a real image URL                       │
+│  Option B: Search for an image (Bing Image Search)              │
+│  "Ferrari logo" → Bing finds a real image on the web            │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -49,18 +49,49 @@ Upload an image URL (logos, sprites, icons) or describe what you want and AI fin
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  🖼️ Your pixel art is now in Minecraft!                         │
-│     → Company logos, game sprites, famous icons                 │
+│     → Company logos, game sprites, icons                        │
 │     → Scales from small (1x) to huge (4x)                       │
-│     → Assets organized in zones to prevent overlap              │
+│     → Auto-spaced to prevent overlap                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Key Features:**
 - 🖼️ **Image URL mode** — Paste any PNG/JPG URL and watch it build
-- 🔍 **AI Lookup mode** — Describe what you want, GPT-4o finds a real image
-- 📍 **Auto-positioning** — Assets placed in zones, never overlap
+- 🔍 **Image Search** — Search the web via Bing, find any image
+- 📍 **Auto-positioning** — Assets automatically spaced, never overlap
 - ⚡ **Live building** — Watch blocks appear in real-time via RCON
 - 🎮 **No restart needed** — Assets build instantly on the live server
+- ☢️ **Nuke button** — Clear all assets and reset the world
+
+---
+
+## 🎨 Dashboard Features
+
+### Home Page
+- Server status and IP address
+- How to join instructions
+- Asset gallery preview
+- Day/night theme toggle ☀️🌙
+
+### Create Page
+- **Image URL** — Paste a direct image link
+- **Image Search** — Search the web for any image
+- Scale selector (1x-4x blocks per pixel)
+- Depth selector (flat or 3D relief)
+- Facing direction (N/S/E/W)
+
+### Gallery Page
+- View all built assets
+- Delete individual assets
+- Duplicate assets
+- Nuke all assets
+
+### Admin Panel
+- Server control (deploy/destroy)
+- Service status grid
+- Cost breakdown
+- Monitoring links (Grafana, Prometheus)
+- Recent activity log
 
 ---
 
@@ -70,7 +101,7 @@ Upload an image URL (logos, sprites, icons) or describe what you want and AI fin
 ```
 GitHub → Actions → "Terraform Apply" → Run workflow
 ```
-*Wait ~10 minutes for AKS + Azure OpenAI + Minecraft to spin up*
+*Wait ~10 minutes for AKS + Bing Search + Minecraft to spin up*
 
 ### 2. Open Dashboard
 ```
@@ -79,12 +110,17 @@ Dashboard URL shown in GitHub Actions output
 
 ### 3. Create Your First Asset
 ```
-Dashboard → Create → Enter image URL or use AI Lookup → Build!
+Dashboard → Create → Enter image URL or search → Build!
 ```
 
 ### 4. Play
 ```
 Minecraft Java → Multiplayer → Add Server → <PUBLIC_IP>:25565
+```
+
+### 5. Save Money
+```
+Dashboard → Admin → Destroy (or run "Terraform Destroy" workflow)
 ```
 
 ---
@@ -99,11 +135,11 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │                                                                    │
 │    ┌─────────────┐         ┌──────────────────┐                   │
 │    │  Dashboard  │────────▶│  Coordinator API │                   │
-│    │  (Next.js)  │         │  (RCON + OpenAI) │                   │
+│    │  (Next.js)  │         │  (Express + RCON)│                   │
 │    └─────────────┘         └────────┬─────────┘                   │
 │          │                          │                              │
 │    [Create Assets]          [Build via RCON]                      │
-│    [View Gallery]           [AI Image Lookup]                     │
+│    [Admin Panel]            [Image Search]                        │
 └──────────┬──────────────────────────┼──────────────────────────────┘
            │                          │
            ▼                          ▼
@@ -111,8 +147,8 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 │  MINECRAFT INFRA (Azure Kubernetes Service)       ~$150/month      │
 │                                                                    │
 │    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
-│    │  Minecraft  │   │  Azure OpenAI │   │   Prometheus   │       │
-│    │   (Paper)   │   │   (GPT-4o)    │   │   + Grafana    │       │
+│    │  Minecraft  │   │  Bing Search  │   │   Prometheus   │       │
+│    │   (Paper)   │   │     API       │   │   + Grafana    │       │
 │    │             │   │               │   │                │       │
 │    └─────────────┘   └───────────────┘   └────────────────┘       │
 └────────────────────────────────────────────────────────────────────┘
@@ -122,23 +158,33 @@ World Forge uses a **two-tier model** — cheap always-on control plane, expensi
 
 ---
 
-## 🌐 Accessing Services
+## 🏗️ Infrastructure (IaC)
 
-| Service | URL |
-|---------|-----|
-| **Dashboard** | Shown in GitHub Actions output after deploy |
-| **Minecraft** | `<PUBLIC_IP>:25565` — shown on Dashboard |
-| **Grafana** | `https://grafana.<PUBLIC_IP>.nip.io` |
-| **Coordinator API** | `https://mc-demo-dev-coordinator.<region>.azurecontainerapps.io` |
+All infrastructure is managed with **Terraform**. Nothing is manually created.
 
-### Get Minecraft IP
+### Terraform Files (`infra/`)
+
+| File | Resources |
+|------|-----------|
+| `main.tf` | Resource group, tags |
+| `aks.tf` | Kubernetes cluster |
+| `acr.tf` | Container registry |
+| `openai.tf` | Azure OpenAI (GPT-4o) |
+| `bing-search.tf` | Bing Image Search API |
+| `publicip.tf` | Static public IP |
+| `log_analytics.tf` | Logging workspace |
+
+### Deploy/Destroy
+
 ```bash
-# From Azure CLI
-az network public-ip show \
-  --resource-group MC_mc-demo-dev-rg_mc-demo-dev-aks_westus3 \
-  --name mc-demo-dev-ingress-ip \
-  --query ipAddress -o tsv
+# Deploy everything
+cd infra && terraform apply
+
+# Destroy everything (stop billing)
+cd infra && terraform destroy
 ```
+
+Or use GitHub Actions workflows for one-click deploy/destroy.
 
 ---
 
@@ -146,9 +192,9 @@ az network public-ip show \
 
 | Workflow | Purpose |
 |----------|---------|
-| **Terraform Apply** | Deploy all infrastructure (AKS, OpenAI, Container Apps) |
+| **Terraform Apply** | Deploy all infrastructure (AKS, Bing Search, Container Apps) |
 | **Terraform Destroy** | Tear down infrastructure to stop billing |
-| **Build Containers** | Rebuild containers when code changes |
+| **Build Containers** | Auto-triggered on code changes |
 
 ### Typical Usage
 
@@ -160,7 +206,7 @@ az network public-ip show \
 2. Dashboard → Create → Build assets
 
 # Stop paying
-3. Run "Terraform Destroy" workflow
+3. Run "Terraform Destroy" workflow (or Dashboard → Admin → Destroy)
 ```
 
 ---
@@ -171,12 +217,12 @@ az network public-ip show \
 |-----------|------------|
 | **Frontend** | Next.js 14, Tailwind CSS, TypeScript |
 | **Backend** | Node.js, Express, TypeScript |
-| **AI** | Azure OpenAI GPT-4o (image lookup) |
+| **Image Search** | Bing Image Search API |
 | **Game Server** | Paper MC 1.21 |
 | **Control Plane** | Azure Container Apps |
 | **Minecraft Infra** | Azure Kubernetes Service (AKS) |
 | **IaC** | Terraform |
-| **CI/CD** | GitHub Actions + OIDC |
+| **CI/CD** | GitHub Actions + Azure OIDC |
 | **Monitoring** | Prometheus + Grafana |
 
 ---
@@ -219,7 +265,7 @@ az ad app federated-credential create \
 | `AZURE_TENANT_ID` | Your Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
 
-*No AI keys needed — Azure OpenAI credentials are pulled dynamically.*
+*No API keys needed — Bing Search credentials are pulled dynamically from Terraform outputs.*
 
 **4. Deploy**
 ```
@@ -242,43 +288,14 @@ GitHub Actions → "Terraform Apply" → Run
 | Resource | Cost |
 |----------|------|
 | AKS (2x Standard_D2ds_v5) | ~$140/month |
-| Azure OpenAI (GPT-4o) | ~$5-20/month |
+| Bing Search API | ~$3/month (1000 searches) |
 | Public IP | ~$3/month |
 | **Total** | **~$150/month** |
 
 ### Cost Tips
 - **Destroy when not playing** — Main infra costs $0 when destroyed
-- **Use spot instances** — ~60% cheaper AKS nodes
-
----
-
-## 📊 Monitoring
-
-### Grafana Dashboards
-Access at `https://grafana.<PUBLIC_IP>.nip.io`
-- **Username:** `admin`
-- **Password:** See `apps/monitoring/values.yaml`
-
-| Dashboard | Shows |
-|-----------|-------|
-| Kubernetes / Cluster | Overall cluster health |
-| Kubernetes / Node | Per-node CPU/memory |
-| Kubernetes / Pod | Minecraft server metrics |
-
-### Prometheus Queries
-```promql
-# Minecraft CPU usage
-rate(container_cpu_usage_seconds_total{namespace="minecraft"}[5m])
-
-# Minecraft memory
-container_memory_usage_bytes{namespace="minecraft"}
-
-# Pod restarts
-kube_pod_container_status_restarts_total{namespace="minecraft"}
-```
-
-### Azure Portal
-**AKS Cluster → Insights** for live logs and performance metrics.
+- **Use Dashboard Admin panel** — One-click deploy/destroy
+- **Image URL mode is free** — Only Image Search uses Bing API
 
 ---
 
@@ -288,7 +305,12 @@ kube_pod_container_status_restarts_total{namespace="minecraft"}
 world-forge/
 ├── .github/workflows/       # CI/CD pipelines
 ├── dashboard/               # Next.js frontend
-├── coordinator-api/         # Node.js backend (RCON + AI)
+│   ├── app/                 # Pages (home, create, gallery, admin)
+│   ├── components/          # React components
+│   └── lib/                 # API client, types, theme
+├── coordinator-api/         # Node.js backend
+│   ├── routes/              # API endpoints
+│   └── services/            # Bing search, RCON, image-to-voxel
 ├── infra/                   # Terraform infrastructure
 ├── apps/                    # Helm values (minecraft, monitoring)
 └── schemas/                 # JSON schemas
@@ -303,5 +325,5 @@ MIT — Build whatever you want.
 ---
 
 <p align="center">
-  <b>Built with ☕ and ⛏️</b>
+  <b>Built with ☕ and ⛏️ by Cole Gendreau</b>
 </p>
