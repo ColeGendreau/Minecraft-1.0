@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { getAssetsStatus, getAssets, checkHealth, getInfrastructureStatus } from '@/lib/api';
+import { getAssets, checkHealth, getInfrastructureStatus } from '@/lib/api';
 import type { Asset, InfrastructureStatusResponse } from '@/lib/api';
 
 export default function HomePage() {
