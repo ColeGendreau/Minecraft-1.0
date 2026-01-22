@@ -11,7 +11,6 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 ## 📑 Contents
 
 - [How It Works](#-how-it-works)
-- [Dashboard Features](#-dashboard-features)
 - [Quick Start](#-quick-start)
 - [Architecture](#-architecture)
 - [Infrastructure (IaC)](#-infrastructure-iac)
