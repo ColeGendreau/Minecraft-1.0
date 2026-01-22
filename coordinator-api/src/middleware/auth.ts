@@ -18,8 +18,19 @@ export async function authMiddleware(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  // Always allow health checks (needed for Azure Container Apps probes)
-  if (req.path === '/health' || req.path === '/api/health') {
+  // Public endpoints that don't require auth (read-only)
+  const publicPaths = [
+    '/health',
+    '/api/health',
+    '/api/infrastructure/status',    // Read-only status
+    '/api/infrastructure/cost',      // Read-only costs
+    '/api/assets',                    // Read-only asset list (GET only)
+    '/api/assets/status',             // Read-only status
+  ];
+  
+  // Allow public paths (and GET-only for assets)
+  if (publicPaths.includes(req.path) || 
+      (req.path === '/api/assets' && req.method === 'GET')) {
     next();
     return;
   }
