@@ -21,6 +21,7 @@ permissions:
 
 env:
   TF_WORKING_DIR: infra-permanent
+  ARM_ACCESS_KEY: ${{ secrets.TF_STATE_ACCESS_KEY }}
 
 jobs:
   permanent-infra:
@@ -44,6 +45,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5.0"
+          terraform_wrapper: false
 
       - name: Terraform Init
         run: terraform init
