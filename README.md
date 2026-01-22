@@ -154,23 +154,65 @@ Or use GitHub Actions workflows for one-click deploy/destroy.
 
 ## ⚙️ GitHub Workflows
 
-| Workflow | Purpose |
-|----------|---------|
-| **2. Minecraft Server** | Deploy/destroy AKS infrastructure (triggered by INFRASTRUCTURE_STATE file) |
-| **3. Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) after AKS is ready |
-| **Auto: Build Containers** | Auto-triggered on dashboard/coordinator code changes |
+All workflows are accessible from **GitHub → Actions → (left sidebar)**.
+
+| # | Workflow | Purpose | When to Use |
+|---|----------|---------|-------------|
+| 1 | **Control Plane (Dashboard)** | Deploy/destroy the always-on dashboard + coordinator | Initial setup, or to stop ALL billing |
+| 2 | **Minecraft Server** | Deploy/destroy AKS infrastructure | Start/stop the Minecraft server |
+| 3 | **Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) | After AKS is ready |
+| Auto | **Build Containers** | Auto-triggered on code changes | Automatic (no manual trigger needed) |
+
+### Two-Tier Cost Control
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  FULL SHUTDOWN ($0/month)                                           │
+│  → Run "1. Control Plane" with action=destroy                       │
+│  → Everything is gone, zero Azure costs                             │
+└─────────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ terraform destroy
+                              │
+┌─────────────────────────────────────────────────────────────────────┐
+│  STANDBY MODE (~$6/month)                                           │
+│  → Control Plane running (Dashboard + Coordinator)                  │
+│  → Minecraft Server destroyed                                       │
+│  → Can deploy Minecraft anytime from Dashboard                      │
+└─────────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ Dashboard → Destroy (or workflow 2)
+                              │
+┌─────────────────────────────────────────────────────────────────────┐
+│  FULL RUNNING (~$80/month)                                          │
+│  → Control Plane + Minecraft Server + Monitoring                    │
+│  → Ready to play and build pixel art                                │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### Typical Usage
 
-```bash
+**Initial Setup (one-time):**
+```
+1. GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
+2. Wait ~5 min for Dashboard URL to appear in workflow output
+```
+
+**Daily Usage:**
+```
 # Start playing  
-1. Run "Terraform Apply" workflow
+Dashboard → Admin → Click "DEPLOY" (or run workflow "2. Minecraft Server")
 
 # Create pixel art
-2. Dashboard → Create → Build assets
+Dashboard → Create → Build assets
 
-# Stop paying
-3. Run "Terraform Destroy" workflow (or Dashboard → Admin → Destroy)
+# Stop paying for Minecraft (keep dashboard)
+Dashboard → Admin → Click "DESTROY"
+```
+
+**Full Shutdown (stop all billing):**
+```
+GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=destroy
 ```
 
 ---
@@ -264,10 +306,18 @@ GitHub Actions → "Terraform Apply" → Run
 | Monthly Forecast | $7.09 |
 
 ### Cost Tips
-- **Destroy when not playing** — AKS costs $0 when destroyed
+- **Destroy Minecraft when not playing** — AKS costs $0 when destroyed, but dashboard stays on (~$6/mo)
+- **Full shutdown from GitHub** — Run "1. Control Plane" with destroy to stop ALL billing ($0/mo)
 - **Use Dashboard Admin panel** — One-click deploy/destroy with progress tracking
-- **Control plane is cheap** — Only ~$6/month for always-on dashboard + coordinator
 - **Real costs displayed** — Admin panel shows live Azure Cost Management data
+
+### Three Cost States
+
+| State | Monthly Cost | How to Enter |
+|-------|--------------|--------------|
+| **Full Shutdown** | $0 | GitHub → "1. Control Plane" → destroy |
+| **Standby** | ~$6 | Dashboard → Admin → Destroy (keeps control plane) |
+| **Running** | ~$80 | Dashboard → Admin → Deploy |
 
 ---
 
