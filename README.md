@@ -93,7 +93,7 @@ Dashboard → Admin → Destroy (or run "Terraform Destroy" workflow)
 
 ## 🏗️ Architecture
 
-World Forge uses a **two-tier model** — cheap always-on control plane, expensive Minecraft infra only when needed.
+World Forge uses a **two-tier model** — an always-on control plane, and the Minecraft infra only when needed.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
