@@ -60,13 +60,12 @@ Environment variables are set **automatically by GitHub Actions** during deploym
 | `MINECRAFT_RCON_HOST` | RCON server IP | CI/CD (from AKS) |
 | `MINECRAFT_RCON_PORT` | RCON port | Default: 25575 |
 | `MINECRAFT_RCON_PASSWORD` | RCON password | CI/CD |
-| `PUBLIC_IP` | Minecraft server IP | CI/CD (from AKS) |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI URL | CI/CD |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI key | Azure Secret |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription for cost queries | CI/CD |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription for cost + IP lookup | CI/CD |
 | `AZURE_CLIENT_ID` | Managed Identity | CI/CD |
-| `AKS_RESOURCE_GROUP` | AKS resource group | CI/CD |
+| `AKS_RESOURCE_GROUP` | AKS resource group (for IP lookup) | CI/CD |
 | `AKS_CLUSTER_NAME` | AKS cluster name | CI/CD |
+
+**Note:** `PUBLIC_IP` is **dynamically looked up** from Azure at runtime using `@azure/arm-network`. When infrastructure is destroyed and redeployed, the new IP is automatically discovered from the AKS resource group.
 
 ## How It Works
 
@@ -74,7 +73,19 @@ Environment variables are set **automatically by GitHub Actions** during deploym
 2. **Infrastructure toggle** commits INFRASTRUCTURE_STATE change to GitHub
 3. **GitHub Actions** runs Terraform to create/destroy Azure resources
 4. **Pixel art** commands sent via RCON to Minecraft server running in AKS
-5. **Monitoring** queries Kubernetes API and Prometheus (when infra is ON)
+5. **Status detection** pings Grafana to check if infrastructure is actually running
+6. **Public IP lookup** queries Azure Network API to find the current static IP
+
+### Infrastructure Status Detection
+
+The API runs in **Azure Container Apps** (not inside AKS), so it cannot use `kubectl` to check cluster status. Instead it:
+
+1. Queries Azure Network API to find the public IP in the AKS resource group
+2. Pings `https://grafana.<PUBLIC_IP>.nip.io` to check if services are reachable
+3. Returns `running` if Grafana responds, `stopped` if unreachable
+4. Caches the public IP for 5 minutes to avoid excessive Azure API calls
+
+This approach correctly handles infrastructure destroy/redeploy cycles where the IP changes.
 
 ## Project Structure
 

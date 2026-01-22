@@ -164,7 +164,6 @@ All infrastructure is managed with **Terraform**. Nothing is manually created.
 | `main.tf` | Resource group, tags |
 | `aks.tf` | Kubernetes cluster |
 | `acr.tf` | Container registry |
-| `openai.tf` | Azure OpenAI (GPT-4o) |
 | `publicip.tf` | Static public IP |
 | `log_analytics.tf` | Logging workspace |
 
@@ -282,8 +281,7 @@ GitHub Actions → "Terraform Apply" → Run
 |----------|------|
 | AKS (2x Standard_D2ds_v5) | ~$140/month |
 | Public IP | ~$3/month |
-| Azure OpenAI (when used) | ~$5/month |
-| **Total** | **~$150/month** |
+| **Total** | **~$145/month** |
 
 ### Cost Tips
 - **Destroy when not playing** — Main infra costs $0 when destroyed
@@ -437,12 +435,19 @@ World Forge is a Minecraft pixel art builder. Users provide image URLs or search
 | File | What It Does |
 |------|--------------|
 | `dashboard/lib/api.ts` | Frontend API client + TypeScript types |
-| `coordinator-api/src/routes/infrastructure.ts` | Infrastructure status, deploy/destroy, costs, monitoring |
+| `coordinator-api/src/routes/infrastructure.ts` | Infrastructure status (pings Grafana), deploy/destroy, costs, monitoring, Azure IP lookup |
 | `coordinator-api/src/services/prometheus.ts` | Queries Prometheus for cluster metrics |
 | `coordinator-api/src/services/azure-costs.ts` | Queries Azure Cost Management API |
-| `coordinator-api/src/services/kubernetes.ts` | Gets pod/node info via kubectl |
 | `coordinator-api/src/services/rcon-client.ts` | Sends commands to Minecraft server |
 | `coordinator-api/src/services/image-to-voxel.ts` | Converts images to Minecraft blocks |
+
+### Infrastructure Status Detection
+
+The coordinator API determines if infrastructure is running by **pinging Grafana** at the public IP. This is necessary because:
+- The API runs in **Azure Container Apps** (separate from AKS)
+- It cannot use `kubectl` since it's not inside the Kubernetes cluster
+- The public IP is **dynamically looked up** from Azure using the `@azure/arm-network` SDK
+- Results are cached for 5 minutes to avoid excessive Azure API calls
 
 ### TypeScript Build Requirements
 
@@ -478,10 +483,12 @@ The app uses these key environment variables (set in Azure/GitHub):
 | Variable | Purpose |
 |----------|---------|
 | `GITHUB_TOKEN` | GitHub API access for workflow status |
-| `AZURE_SUBSCRIPTION_ID` | For Azure Cost Management queries |
-| `PUBLIC_IP` | Minecraft server public IP |
+| `AZURE_SUBSCRIPTION_ID` | For Azure Cost Management + public IP lookup |
+| `AKS_RESOURCE_GROUP` | Resource group containing AKS (for IP lookup) |
 | `MINECRAFT_RCON_HOST` | RCON server IP |
 | `MINECRAFT_RCON_PASSWORD` | RCON authentication |
+
+**Note:** The public IP is **dynamically looked up** from Azure at runtime. When infrastructure is destroyed and redeployed, the new IP is automatically discovered.
 
 ### Common Tasks
 
