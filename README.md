@@ -61,35 +61,6 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ---
 
-## 🎨 Dashboard Features
-
-### Home Page
-- Server status and IP address
-- How to join instructions
-- Asset gallery preview
-- Day/night theme toggle ☀️🌙
-
-### Create Page
-- **Image URL** — Paste a direct image link (PNG, JPG, etc.)
-- Scale selector (1x-4x blocks per pixel)
-- Depth selector (flat or 3D relief)
-- Facing direction (N/S/E/W)
-
-### Gallery Page
-- View all built assets
-- Delete individual assets
-- Duplicate assets
-- Nuke all assets
-
-### Admin Panel
-- Server control (deploy/destroy with live progress)
-- Service status grid (8 services monitored)
-- **Real Azure cost data** (live from Cost Management API with 5-min cache)
-- Direct links to Grafana dashboards & Prometheus
-- Cluster monitoring (pods, nodes, CPU, memory)
-- Azure activity logs
-
----
 
 ## 🚀 Quick Start
 
