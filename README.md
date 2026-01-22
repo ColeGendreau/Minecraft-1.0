@@ -41,7 +41,7 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 │  🔧 Coordinator API executes via RCON                           │
 │     → Forceloads chunks                                         │
 │     → Places blocks one by one (watch it build!)                │
-│     → Teleports you to view your creation                       │
+│     → Your character stays where you are                        │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -82,11 +82,12 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 - Nuke all assets
 
 ### Admin Panel
-- Server control (deploy/destroy)
-- Service status grid
-- Cost breakdown
-- Monitoring links (Grafana, Prometheus)
-- Recent activity log
+- Server control (deploy/destroy with live progress)
+- Service status grid (8 services monitored)
+- **Real Azure cost data** (live from Cost Management API with 5-min cache)
+- Direct links to Grafana dashboards & Prometheus
+- Cluster monitoring (pods, nodes, CPU, memory)
+- Azure activity logs
 
 ---
 
@@ -407,8 +408,10 @@ kubectl describe pod <pod-name> -n <namespace>
 
 ### Prometheus & Grafana (when AKS is deployed)
 
-- **Prometheus:** `http://<PUBLIC_IP>:9090` — Raw metrics, PromQL queries
-- **Grafana:** `http://<PUBLIC_IP>:3000` — Dashboards (admin/prom-operator)
+- **Grafana:** `https://grafana.<PUBLIC_IP>.nip.io` — Direct link to Kubernetes cluster dashboard
+- **Prometheus:** `https://prometheus.<PUBLIC_IP>.nip.io` — Raw metrics, PromQL queries
+
+Both use HTTPS with Let's Encrypt certificates via cert-manager + nginx-ingress.
 
 ---
 
@@ -482,11 +485,22 @@ The app uses these key environment variables (set in Azure/GitHub):
 
 | Variable | Purpose |
 |----------|---------|
-| `GITHUB_TOKEN` | GitHub API access for workflow status |
+| `GITHUB_TOKEN` | GitHub API access for reading INFRASTRUCTURE_STATE file |
 | `AZURE_SUBSCRIPTION_ID` | For Azure Cost Management + public IP lookup |
+| `AZURE_CLIENT_ID` | Managed identity client ID (for Azure API auth) |
 | `AKS_RESOURCE_GROUP` | Resource group containing AKS (for IP lookup) |
 | `MINECRAFT_RCON_HOST` | RCON server IP |
 | `MINECRAFT_RCON_PASSWORD` | RCON authentication |
+
+**GitHub Secrets Required:**
+
+| Secret | Purpose |
+|--------|---------|
+| `AZURE_CLIENT_ID` | Azure AD app registration for OIDC |
+| `AZURE_TENANT_ID` | Azure AD tenant |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription |
+| `GH_PAT` | Personal Access Token for coordinator to read/write GitHub files |
+| `COORDINATOR_API_KEY` | API key for dashboard → coordinator auth (baked at build time) |
 
 **Note:** The public IP is **dynamically looked up** from Azure at runtime. When infrastructure is destroyed and redeployed, the new IP is automatically discovered.
 
@@ -512,6 +526,24 @@ The app uses these key environment variables (set in Azure/GitHub):
 2. Add types in `coordinator-api/src/types/index.ts`
 3. Add client function in `dashboard/lib/api.ts`
 4. Use in dashboard components
+
+### Public API Endpoints (no auth required)
+
+These read-only endpoints are publicly accessible:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `GET /api/infrastructure/status` | Server status, services, metrics |
+| `GET /api/infrastructure/cost` | Azure cost data (5-min cache) |
+| `GET /api/infrastructure/monitoring` | Kubernetes cluster metrics |
+| `GET /api/infrastructure/logs` | Azure activity logs |
+| `GET /api/infrastructure/pods` | Pod status list |
+| `GET /api/infrastructure/nodes` | Node status list |
+| `GET /api/assets` | List all built assets |
+| `GET /api/workflows/latest` | GitHub workflow status |
+
+Write operations (POST/DELETE) require API key authentication via `X-API-Key` header.
 
 ---
 
