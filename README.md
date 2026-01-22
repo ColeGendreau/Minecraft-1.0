@@ -97,7 +97,7 @@ World Forge uses a **two-tier model** — an always-on control plane, and the Mi
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  CONTROL PLANE (Azure Container Apps)              ~$20/month      │
+│  CONTROL PLANE (Azure Container Apps)               ~$6/month      │
 │                                                                    │
 │    ┌─────────────┐         ┌──────────────────┐                   │
 │    │  Dashboard  │────────▶│  Coordinator API │                   │
@@ -110,7 +110,7 @@ World Forge uses a **two-tier model** — an always-on control plane, and the Mi
            │                          │
            ▼                          ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│  MINECRAFT INFRA (Azure Kubernetes Service)       ~$150/month      │
+│  MINECRAFT INFRA (Azure Kubernetes Service)       ~$75/month       │
 │                                                                    │
 │    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
 │    │  Minecraft  │   │   NGINX       │   │   Prometheus   │       │
@@ -120,7 +120,7 @@ World Forge uses a **two-tier model** — an always-on control plane, and the Mi
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why two tiers?** Pay $20/month for the dashboard. Only pay $150/month when actually playing.
+**Why two tiers?** Pay ~$6/month for the always-on dashboard. Only pay ~$75/month when actually playing.
 
 ---
 
@@ -239,25 +239,35 @@ GitHub Actions → "Terraform Apply" → Run
 
 ## 💰 Cost Breakdown
 
+*Based on actual Azure Cost Management data (January 2026)*
+
 ### Control Plane (always on)
 | Resource | Cost |
 |----------|------|
-| Dashboard (Container App) | ~$2/month |
-| Coordinator (Container App) | ~$12/month |
-| Container Registry | ~$5/month |
-| **Total** | **~$20/month** |
+| Container Apps (Dashboard + Coordinator) | ~$4/month |
+| Container Registry | ~$2/month |
+| **Total** | **~$6/month** |
 
 ### Minecraft Infrastructure (when deployed)
 | Resource | Cost |
 |----------|------|
-| AKS (2x Standard_D2ds_v5) | ~$140/month |
+| AKS (2x Standard_D2ds_v5) | ~$70/month |
 | Public IP | ~$3/month |
-| **Total** | **~$145/month** |
+| Log Analytics | ~$1/month |
+| **Total** | **~$75/month** |
+
+### Real Cost Data (from our dashboard)
+| Period | Cost |
+|--------|------|
+| Today | $0.82 |
+| This Month (22 days) | $5.03 |
+| Monthly Forecast | $7.09 |
 
 ### Cost Tips
-- **Destroy when not playing** — Main infra costs $0 when destroyed
+- **Destroy when not playing** — AKS costs $0 when destroyed
 - **Use Dashboard Admin panel** — One-click deploy/destroy with progress tracking
-- **Control plane is cheap** — Only ~$20/month for dashboard + coordinator
+- **Control plane is cheap** — Only ~$6/month for always-on dashboard + coordinator
+- **Real costs displayed** — Admin panel shows live Azure Cost Management data
 
 ---
 
