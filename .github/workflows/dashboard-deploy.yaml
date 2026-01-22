@@ -235,6 +235,7 @@ jobs:
             --image dashboard:${{ github.sha }} \
             --image dashboard:latest \
             --build-arg NEXT_PUBLIC_API_URL=${{ steps.get_url.outputs.url }} \
+            --build-arg NEXT_PUBLIC_API_KEY=${{ secrets.COORDINATOR_API_KEY }} \
             --file dashboard/Dockerfile \
             dashboard/
 
