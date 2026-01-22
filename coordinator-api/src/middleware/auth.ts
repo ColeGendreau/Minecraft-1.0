@@ -27,8 +27,13 @@ export async function authMiddleware(
     '/api/health',
     '/api/infrastructure/status',    // Read-only status
     '/api/infrastructure/cost',      // Read-only costs
+    '/api/infrastructure/monitoring', // Read-only monitoring data
+    '/api/infrastructure/logs',       // Read-only Azure logs
+    '/api/infrastructure/pods',       // Read-only pod list
+    '/api/infrastructure/nodes',      // Read-only node list
     '/api/assets',                    // Read-only asset list (GET only)
     '/api/assets/status',             // Read-only status
+    '/api/workflows/latest',          // Read-only workflow status
   ];
   
   // Allow public paths (and GET-only for assets)
