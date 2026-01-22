@@ -414,10 +414,41 @@ export default function AdminPage() {
             {/* Quick Links */}
             <section className="grid md:grid-cols-4 gap-4">
               <MonitoringLink icon="📈" title="Grafana" href={infraStatus?.metrics?.grafanaUrl} disabled={!isRunning} isDay={isDay} />
-              <MonitoringLink icon="📊" title="Prometheus" href={infraStatus?.metrics?.grafanaUrl?.replace('grafana', 'prometheus')} disabled={!isRunning} isDay={isDay} />
+              <MonitoringLink icon="📊" title="Prometheus" href={infraStatus?.metrics?.prometheusUrl} disabled={!isRunning} isDay={isDay} />
               <MonitoringLink icon="☁️" title="Azure Portal" href="https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/costanalysis" disabled={false} isDay={isDay} />
               <MonitoringLink icon="🔄" title="GitHub Actions" href="https://github.com/ColeGendreau/Minecraft-1.0/actions" disabled={false} isDay={isDay} />
             </section>
+
+            {/* Live Grafana Dashboards - Embedded */}
+            {isRunning && infraStatus?.metrics?.grafanaEmbeds && (
+              <section>
+                <SectionHeader icon="📊" title="LIVE CLUSTER METRICS" isDay={isDay} />
+                <div className={`p-4 rounded-lg border-4 shadow-xl ${isDay ? 'bg-white/90 border-emerald-400' : 'bg-slate-800/90 border-emerald-700'}`}>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <GrafanaPanel 
+                      title="CPU Usage by Namespace" 
+                      embedUrl={infraStatus.metrics.grafanaEmbeds.namespaceCpu}
+                      isDay={isDay}
+                    />
+                    <GrafanaPanel 
+                      title="Memory Usage" 
+                      embedUrl={infraStatus.metrics.grafanaEmbeds.clusterMemory}
+                      isDay={isDay}
+                    />
+                  </div>
+                  <div className="mt-4 text-center">
+                    <a 
+                      href={infraStatus.metrics.grafanaUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="mc-button-grass inline-block"
+                    >
+                      Open Full Grafana Dashboard →
+                    </a>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Cluster Monitoring - Detailed View */}
             {isRunning && (
@@ -629,6 +660,50 @@ function MonitoringLink({ icon, title, href, disabled, isDay }: { icon: string; 
       <span className={`flex-1 font-bold ${isDay ? 'text-gray-800' : 'text-white'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '18px' }}>{title}</span>
       {!disabled && <span className={isDay ? 'text-sky-500' : 'text-sky-400'}>→</span>}
     </Comp>
+  );
+}
+
+// Embedded Grafana Panel - Shows live metrics from Grafana
+function GrafanaPanel({ title, embedUrl, isDay }: { title: string; embedUrl: string; isDay: boolean }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  return (
+    <div className={`rounded-lg overflow-hidden border-2 ${isDay ? 'border-slate-300' : 'border-slate-600'}`}>
+      <div className={`px-3 py-2 ${isDay ? 'bg-slate-100' : 'bg-slate-700'}`}>
+        <h4 className={`font-bold ${isDay ? 'text-gray-700' : 'text-gray-200'}`} style={{ fontFamily: "'VT323', monospace", fontSize: '16px' }}>
+          {title}
+        </h4>
+      </div>
+      <div className="relative" style={{ height: '200px' }}>
+        {loading && !error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-gray-400" style={{ fontFamily: "'VT323', monospace" }}>Loading metrics...</p>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+            <div className="text-center text-gray-400" style={{ fontFamily: "'VT323', monospace" }}>
+              <p>📊 Grafana panel unavailable</p>
+              <p className="text-sm mt-1">Check if Grafana is running</p>
+            </div>
+          </div>
+        )}
+        <iframe
+          src={embedUrl}
+          width="100%"
+          height="200"
+          frameBorder="0"
+          onLoad={() => setLoading(false)}
+          onError={() => { setLoading(false); setError(true); }}
+          style={{ display: loading || error ? 'none' : 'block' }}
+          allow="fullscreen"
+        />
+      </div>
+    </div>
   );
 }
 

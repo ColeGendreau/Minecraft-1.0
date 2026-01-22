@@ -111,10 +111,16 @@ export interface CostResponse {
  * All methods have timeouts to prevent hangs
  */
 async function getAzureAccessToken(): Promise<string | null> {
+  console.log('[Azure Costs] Getting access token...');
+  console.log('[Azure Costs] SUBSCRIPTION_ID:', SUBSCRIPTION_ID ? 'set' : 'NOT SET');
+  console.log('[Azure Costs] AZURE_CLIENT_ID:', AZURE_CLIENT_ID ? 'set' : 'NOT SET');
+  
   // Method 1: Try Managed Identity endpoint (works in Azure Container Apps)
   // Container Apps sets IDENTITY_ENDPOINT and IDENTITY_HEADER environment variables
   const identityEndpoint = process.env.IDENTITY_ENDPOINT;
   const identityHeader = process.env.IDENTITY_HEADER;
+  
+  console.log('[Azure Costs] IDENTITY_ENDPOINT:', identityEndpoint ? 'set' : 'NOT SET');
   
   if (identityEndpoint && identityHeader) {
     try {
@@ -128,6 +134,7 @@ async function getAzureAccessToken(): Promise<string | null> {
         url.searchParams.set('client_id', AZURE_CLIENT_ID);
       }
       
+      console.log('[Azure Costs] Trying managed identity endpoint...');
       const response = await fetch(url.toString(), {
         headers: {
           'X-IDENTITY-HEADER': identityHeader,
@@ -137,12 +144,13 @@ async function getAzureAccessToken(): Promise<string | null> {
       
       if (response.ok) {
         const data = await response.json() as { access_token: string };
-        console.log('✅ Azure token obtained via managed identity endpoint');
+        console.log('✅ [Azure Costs] Token obtained via managed identity endpoint');
         return data.access_token;
       }
-      console.warn('Managed identity token request failed:', response.status, await response.text());
+      const errorText = await response.text();
+      console.warn('[Azure Costs] Managed identity token request failed:', response.status, errorText);
     } catch (error) {
-      console.warn('Managed identity endpoint failed:', error);
+      console.warn('[Azure Costs] Managed identity endpoint failed:', error);
     }
   }
   
@@ -359,8 +367,11 @@ function formatCost(amount: number, currency: string = 'USD'): string {
  * Get comprehensive cost data for the dashboard
  */
 export async function getAzureCosts(): Promise<CostResponse> {
+  console.log('[Azure Costs] getAzureCosts called');
+  
   // Check if Azure is configured
   if (!SUBSCRIPTION_ID) {
+    console.log('[Azure Costs] AZURE_SUBSCRIPTION_ID not set - returning estimates');
     return getEstimatedCosts();
   }
 
@@ -380,9 +391,12 @@ export async function getAzureCosts(): Promise<CostResponse> {
 
     // Check for errors
     if (thisMonthByService.error) {
-      console.warn('Cost query error:', thisMonthByService.error);
+      console.warn('[Azure Costs] Cost query error:', thisMonthByService.error);
+      console.warn('[Azure Costs] Falling back to estimates');
       return getEstimatedCosts();
     }
+    
+    console.log('[Azure Costs] Successfully queried Cost Management API');
 
     // Calculate totals
     const thisMonthTotal = thisMonthByService.rows.reduce((sum, row) => sum + row[0], 0);

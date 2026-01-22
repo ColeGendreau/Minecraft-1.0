@@ -131,6 +131,13 @@ export interface ServiceStatus {
   status: 'running' | 'stopped' | 'unknown' | 'error';
 }
 
+export interface GrafanaEmbeds {
+  clusterCpu: string;
+  clusterMemory: string;
+  namespaceCpu: string;
+  podCount: string;
+}
+
 export interface InfrastructureMetrics {
   nodes: number;
   pods: number;
@@ -138,7 +145,10 @@ export interface InfrastructureMetrics {
   memoryUsage: number;
   publicIp: string;
   grafanaUrl: string;
+  grafanaHomeUrl?: string;
+  prometheusUrl?: string;
   minecraftAddress: string;
+  grafanaEmbeds?: GrafanaEmbeds;
 }
 
 export interface InfrastructureTransition {

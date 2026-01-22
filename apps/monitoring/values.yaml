@@ -2,53 +2,55 @@ grafana:
   enabled: true
   adminPassword: "admin123"
   
+  # Enable default dashboards that come with kube-prometheus-stack
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: utc
+  
   ingress:
     enabled: true
     ingressClassName: nginx
     annotations:
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
     hosts:
-      - grafana.57.154.70.117.nip.io
+      - grafana.PLACEHOLDER_IP.nip.io
     tls:
       - secretName: grafana-tls
         hosts:
-          - grafana.57.154.70.117.nip.io
+          - grafana.PLACEHOLDER_IP.nip.io
   
   grafana.ini:
     server:
-      root_url: https://grafana.57.154.70.117.nip.io
+      root_url: https://grafana.PLACEHOLDER_IP.nip.io
     auth.anonymous:
       enabled: true
       org_role: Viewer
     security:
       allow_embedding: true
+    dashboards:
+      default_home_dashboard_path: /tmp/dashboards/kubernetes-cluster-overview.json
   
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'default'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards/default
-
-  dashboards:
-    default:
-      kubernetes-cluster:
-        gnetId: 7249
-        revision: 1
-        datasource: Prometheus
-      kubernetes-pods:
-        gnetId: 6417
-        revision: 1
-        datasource: Prometheus
+  # Sidecar configuration for dashboard discovery
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
 
 prometheus:
   enabled: true
+  
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - prometheus.PLACEHOLDER_IP.nip.io
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.PLACEHOLDER_IP.nip.io
+  
   prometheusSpec:
     retention: 7d
     resources:

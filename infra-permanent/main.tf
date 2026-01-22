@@ -96,11 +96,23 @@ resource "azurerm_container_app_environment" "dashboard" {
 
 # User-Assigned Managed Identity for Coordinator
 # This identity is used to authenticate to AKS for kubectl operations
+# and to query Azure Cost Management API
 resource "azurerm_user_assigned_identity" "coordinator" {
   name                = "${local.name_prefix}-coordinator-identity"
   location            = azurerm_resource_group.dashboard.location
   resource_group_name = azurerm_resource_group.dashboard.name
   tags                = local.tags
+}
+
+# Get current subscription for role assignments
+data "azurerm_subscription" "current" {}
+
+# Grant Cost Management Reader role to coordinator identity
+# This allows the coordinator API to query Azure Cost Management for real spending data
+resource "azurerm_role_assignment" "coordinator_cost_reader" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Cost Management Reader"
+  principal_id         = azurerm_user_assigned_identity.coordinator.principal_id
 }
 
 # Coordinator API - Container App (scales to zero)

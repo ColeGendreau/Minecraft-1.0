@@ -288,12 +288,6 @@ router.post('/', async (req, res) => {
     // Announce in game
     await rcon.send(`say §6[World Forge] §a🖼️ New asset built: ${assetName}`);
 
-    // Teleport player to see it
-    const viewX = result.buildInfo.position.x + result.buildInfo.width / 2;
-    const viewY = result.buildInfo.position.y + result.buildInfo.height / 2;
-    const viewZ = result.buildInfo.position.z - 30;
-    await rcon.send(`tp @a ${Math.round(viewX)} ${Math.round(viewY)} ${Math.round(viewZ)}`);
-
     res.status(201).json({
       success: true,
       asset: {

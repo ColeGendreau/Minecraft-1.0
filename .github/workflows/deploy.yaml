@@ -199,6 +199,8 @@ jobs:
             --values apps/monitoring/values.yaml \
             --set grafana.ingress.hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
             --set grafana.ingress.tls[0].hosts[0]=grafana.${{ steps.infra.outputs.public_ip }}.nip.io \
+            --set prometheus.ingress.hosts[0]=prometheus.${{ steps.infra.outputs.public_ip }}.nip.io \
+            --set prometheus.ingress.tls[0].hosts[0]=prometheus.${{ steps.infra.outputs.public_ip }}.nip.io \
             --wait \
             --timeout 10m
           echo "✅ Monitoring stack deployed successfully"

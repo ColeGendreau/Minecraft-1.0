@@ -397,6 +397,7 @@ router.get('/status', async (req, res) => {
     // Note: kubectl metrics not available from Container Apps
     // Use static estimates when running (real metrics would come from Prometheus via Grafana)
     // publicIp is already fetched from Azure above
+    const grafanaBase = `https://grafana.${publicIp}.nip.io`;
     const metrics = (isRunning && publicIp)
       ? {
           nodes: 2,
@@ -407,10 +408,23 @@ router.get('/status', async (req, res) => {
           cpuUsage: 25,
           memoryUsage: 40,
           publicIp,
-          grafanaUrl: `https://grafana.${publicIp}.nip.io`,
+          // Link directly to the Kubernetes cluster overview dashboard
+          grafanaUrl: `${grafanaBase}/d/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&refresh=10s`,
+          grafanaHomeUrl: grafanaBase,
           prometheusUrl: `https://prometheus.${publicIp}.nip.io`,
           minecraftAddress: `${publicIp}:25565`,
           namespaces: ['minecraft', 'monitoring', 'ingress-nginx', 'cert-manager'],
+          // Embeddable panel URLs for the admin dashboard
+          grafanaEmbeds: {
+            // Cluster CPU usage panel
+            clusterCpu: `${grafanaBase}/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&from=now-1h&to=now&panelId=1&theme=dark`,
+            // Cluster memory usage panel  
+            clusterMemory: `${grafanaBase}/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&from=now-1h&to=now&panelId=3&theme=dark`,
+            // Namespace CPU usage
+            namespaceCpu: `${grafanaBase}/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&from=now-1h&to=now&panelId=9&theme=dark`,
+            // Pod count  
+            podCount: `${grafanaBase}/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&from=now-1h&to=now&panelId=7&theme=dark`,
+          },
         }
       : null;
 
