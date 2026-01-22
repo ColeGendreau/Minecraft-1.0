@@ -167,6 +167,9 @@ jobs:
           # Add Azure subscription ID for cost management queries
           ENV_VARS="$ENV_VARS AZURE_SUBSCRIPTION_ID=${{ steps.get_subscription.outputs.subscription_id }}"
           
+          # Add GitHub token for reading INFRASTRUCTURE_STATE file
+          ENV_VARS="$ENV_VARS GITHUB_TOKEN=${{ secrets.GH_PAT }}"
+          
           if [ -n "${{ steps.get_identity.outputs.client_id }}" ]; then
             ENV_VARS="$ENV_VARS AZURE_CLIENT_ID=${{ steps.get_identity.outputs.client_id }}"
           fi
