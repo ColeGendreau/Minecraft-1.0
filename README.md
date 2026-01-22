@@ -63,20 +63,21 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ## 🚀 Quick Start
 
-### 1. Deploy Infrastructure
+### 1. Deploy Control Plane (one-time)
 ```
-Dashboard → Admin → Click "DEPLOY" (or GitHub Actions → "Terraform Apply")
+GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
+```
+*Wait ~5 min for Dashboard URL to appear in workflow output*
+
+### 2. Deploy Minecraft Server
+```
+Dashboard → Admin → Click "DEPLOY"
 ```
 *Wait ~12-15 minutes for AKS + Minecraft to spin up — watch progress in the deployment modal!*
 
-### 2. Open Dashboard
-```
-Dashboard URL shown in GitHub Actions output
-```
-
 ### 3. Create Your First Asset
 ```
-Dashboard → Create → Enter image URL or search → Build!
+Dashboard → Create → Enter image URL → Build!
 ```
 
 ### 4. Play
@@ -86,41 +87,54 @@ Minecraft Java → Multiplayer → Add Server → <PUBLIC_IP>:25565
 
 ### 5. Save Money
 ```
-Dashboard → Admin → Destroy (or run "Terraform Destroy" workflow)
+Dashboard → Admin → Destroy (stops Minecraft, keeps dashboard ~$6/mo)
+— or —
+GitHub → Actions → "1. Control Plane" → destroy (stops everything, $0/mo)
 ```
 
 ---
 
 ## 🏗️ Architecture
 
-World Forge uses a **two-tier model** — an always-on control plane, and the Minecraft infra only when needed.
+World Forge uses a **three-tier cost model** — pay only for what you need.
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  CONTROL PLANE (Azure Container Apps)               ~$6/month      │
-│                                                                    │
-│    ┌─────────────┐         ┌──────────────────┐                   │
-│    │  Dashboard  │────────▶│  Coordinator API │                   │
-│    │  (Next.js)  │         │  (Express + RCON)│                   │
-│    └─────────────┘         └────────┬─────────┘                   │
-│          │                          │                              │
-│    [Create Assets]          [Build via RCON]                      │
-│    [Admin Panel]            [Toggle Infra]                        │
-└──────────┬──────────────────────────┼──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  TIER 0: FULL SHUTDOWN                                   $0/month   │
+│                                                                     │
+│    Everything destroyed. Re-deploy from GitHub Actions when ready.  │
+│    → GitHub → Actions → "1. Control Plane" → destroy                │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ deploy
+┌─────────────────────────────────────────────────────────────────────┐
+│  TIER 1: CONTROL PLANE (Azure Container Apps)           ~$6/month   │
+│                                                                     │
+│    ┌─────────────┐         ┌──────────────────┐                    │
+│    │  Dashboard  │────────▶│  Coordinator API │                    │
+│    │  (Next.js)  │         │  (Express + RCON)│                    │
+│    └─────────────┘         └────────┬─────────┘                    │
+│          │                          │                               │
+│    [Create Assets]          [Build via RCON]                       │
+│    [Admin Panel]            [Toggle Infra]                         │
+└──────────┬──────────────────────────┼───────────────────────────────┘
            │                          │
-           ▼                          ▼
-┌────────────────────────────────────────────────────────────────────┐
-│  MINECRAFT INFRA (Azure Kubernetes Service)       ~$75/month       │
-│                                                                    │
-│    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐       │
-│    │  Minecraft  │   │   NGINX       │   │   Prometheus   │       │
-│    │   (Vanilla) │   │   Ingress     │   │   + Grafana    │       │
-│    │             │   │               │   │                │       │
-│    └─────────────┘   └───────────────┘   └────────────────┘       │
-└────────────────────────────────────────────────────────────────────┘
+           ▼ deploy                   ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  TIER 2: MINECRAFT INFRA (Azure Kubernetes Service)    ~$75/month   │
+│                                                                     │
+│    ┌─────────────┐   ┌───────────────┐   ┌────────────────┐        │
+│    │  Minecraft  │   │   NGINX       │   │   Prometheus   │        │
+│    │   (Vanilla) │   │   Ingress     │   │   + Grafana    │        │
+│    │             │   │               │   │                │        │
+│    └─────────────┘   └───────────────┘   └────────────────┘        │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why two tiers?** Pay ~$6/month for the always-on dashboard. Only pay ~$75/month when actually playing.
+**Why three tiers?**
+- **$0/month** — Full shutdown, zero cost, deploy from GitHub when needed
+- **~$6/month** — Dashboard always ready, deploy Minecraft with one click
+- **~$80/month** — Full system running, ready to play
 
 ---
 
@@ -163,19 +177,20 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
 | 3 | **Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) | After AKS is ready |
 | Auto | **Build Containers** | Auto-triggered on code changes | Automatic (no manual trigger needed) |
 
-### Two-Tier Cost Control
+### Three-Tier Cost Control
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  FULL SHUTDOWN ($0/month)                                           │
+│  TIER 0: FULL SHUTDOWN ($0/month)                                   │
 │  → Run "1. Control Plane" with action=destroy                       │
 │  → Everything is gone, zero Azure costs                             │
+│  → Re-deploy from GitHub when ready to use again                    │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲
-                              │ terraform destroy
+                              │ workflow "1. Control Plane" → destroy
                               │
 ┌─────────────────────────────────────────────────────────────────────┐
-│  STANDBY MODE (~$6/month)                                           │
+│  TIER 1: STANDBY MODE (~$6/month)                                   │
 │  → Control Plane running (Dashboard + Coordinator)                  │
 │  → Minecraft Server destroyed                                       │
 │  → Can deploy Minecraft anytime from Dashboard                      │
@@ -184,7 +199,7 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
                               │ Dashboard → Destroy (or workflow 2)
                               │
 ┌─────────────────────────────────────────────────────────────────────┐
-│  FULL RUNNING (~$80/month)                                          │
+│  TIER 2: FULL RUNNING (~$80/month)                                  │
 │  → Control Plane + Minecraft Server + Monitoring                    │
 │  → Ready to play and build pixel art                                │
 └─────────────────────────────────────────────────────────────────────┘
@@ -274,7 +289,7 @@ az ad app federated-credential create \
 
 **4. Deploy**
 ```
-GitHub Actions → "Terraform Apply" → Run
+GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
 ```
 
 ---
@@ -283,20 +298,20 @@ GitHub Actions → "Terraform Apply" → Run
 
 *Based on actual Azure Cost Management data (January 2026)*
 
-### Control Plane (always on)
+### Tier 1: Control Plane (Standby Mode)
 | Resource | Cost |
 |----------|------|
 | Container Apps (Dashboard + Coordinator) | ~$4/month |
 | Container Registry | ~$2/month |
 | **Total** | **~$6/month** |
 
-### Minecraft Infrastructure (when deployed)
+### Tier 2: Minecraft Infrastructure (added when running)
 | Resource | Cost |
 |----------|------|
 | AKS (2x Standard_D2ds_v5) | ~$70/month |
 | Public IP | ~$3/month |
 | Log Analytics | ~$1/month |
-| **Total** | **~$75/month** |
+| **Total** | **+~$75/month** |
 
 ### Real Cost Data (from our dashboard)
 | Period | Cost |
