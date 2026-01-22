@@ -18,6 +18,9 @@ export async function authMiddleware(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  // Use originalUrl for full path (req.path can be relative to mount point)
+  const fullPath = req.originalUrl.split('?')[0]; // Remove query string
+  
   // Public endpoints that don't require auth (read-only)
   const publicPaths = [
     '/health',
@@ -29,8 +32,8 @@ export async function authMiddleware(
   ];
   
   // Allow public paths (and GET-only for assets)
-  if (publicPaths.includes(req.path) || 
-      (req.path === '/api/assets' && req.method === 'GET')) {
+  if (publicPaths.includes(fullPath) || 
+      (fullPath === '/api/assets' && req.method === 'GET')) {
     next();
     return;
   }
@@ -58,7 +61,7 @@ export async function authMiddleware(
     }
     
     // Invalid or missing key
-    console.warn(`[AUTH] Rejected request to ${req.path} - invalid API key`);
+    console.warn(`[AUTH] Rejected request to ${fullPath} - invalid API key`);
     res.status(401).json({ 
       error: 'Unauthorized',
       message: 'Valid API key required. Provide via X-API-Key header.',
