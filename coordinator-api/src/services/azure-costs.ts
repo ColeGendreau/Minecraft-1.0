@@ -25,6 +25,13 @@ const TRACKED_RESOURCE_GROUPS = [
   'mc-demo-tfstate-rg',       // Terraform state storage
 ];
 
+// Cache for cost data (Azure Cost Management has rate limits)
+let costCache: { data: CostResponse | null; timestamp: number } = {
+  data: null,
+  timestamp: 0,
+};
+const COST_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes - Azure cost data doesn't change that often
+
 export interface CostBreakdown {
   service: string;
   resourceGroup: string;
@@ -375,6 +382,13 @@ export async function getAzureCosts(): Promise<CostResponse> {
     return getEstimatedCosts();
   }
 
+  // Return cached data if still valid (prevents Azure rate limiting)
+  const now = Date.now();
+  if (costCache.data && (now - costCache.timestamp) < COST_CACHE_TTL_MS) {
+    console.log('[Azure Costs] Returning cached data (age: ' + Math.round((now - costCache.timestamp) / 1000) + 's)');
+    return costCache.data;
+  }
+
   try {
     // Run queries in parallel
     const [
@@ -447,7 +461,7 @@ export async function getAzureCosts(): Promise<CostResponse> {
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
 
-    return {
+    const result: CostResponse = {
       available: true,
       today: {
         cost: formatCost(todayCost),
@@ -477,6 +491,12 @@ export async function getAzureCosts(): Promise<CostResponse> {
       dailyTrend,
       lastUpdated: new Date().toISOString(),
     };
+    
+    // Cache successful result to avoid rate limiting
+    costCache = { data: result, timestamp: Date.now() };
+    console.log('[Azure Costs] Cached cost data for 5 minutes');
+    
+    return result;
   } catch (error) {
     console.error('Failed to get Azure costs:', error);
     return getEstimatedCosts();
