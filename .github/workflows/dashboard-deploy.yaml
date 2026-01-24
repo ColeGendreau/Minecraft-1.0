@@ -170,6 +170,9 @@ jobs:
           # Add GitHub token for reading INFRASTRUCTURE_STATE file
           ENV_VARS="$ENV_VARS GITHUB_TOKEN=${{ secrets.GH_PAT }}"
           
+          # Add GitHub owner/repo for workflow triggers (auto-detected from this repo)
+          ENV_VARS="$ENV_VARS GITHUB_OWNER=${{ github.repository_owner }} GITHUB_REPO=${{ github.event.repository.name }}"
+          
           if [ -n "${{ steps.get_identity.outputs.client_id }}" ]; then
             ENV_VARS="$ENV_VARS AZURE_CLIENT_ID=${{ steps.get_identity.outputs.client_id }}"
           fi

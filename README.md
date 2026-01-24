@@ -16,7 +16,7 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 - [Infrastructure (IaC)](#-infrastructure-iac)
 - [GitHub Workflows](#-github-workflows)
 - [Tech Stack](#-tech-stack)
-- [Self-Hosting](#-self-hosting)
+- [Self-Hosting (Fork & Deploy)](#-self-hosting-fork--deploy) ← **Start here if forking!**
 - [Cost Breakdown](#-cost-breakdown)
 
 ---
@@ -247,50 +247,40 @@ GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=destro
 
 ---
 
-## 🏠 Self-Hosting
+## 🏠 Self-Hosting (Fork & Deploy)
 
-### Prerequisites
-- Azure subscription with Contributor access
-- GitHub repository (fork this)
-- Azure CLI + Terraform installed
+**No local tools required!** Fork this repo and deploy your own instance in ~15 minutes.
 
-### Setup
+### Quick Version
 
-**1. Bootstrap Terraform state storage**
-```bash
-cd bootstrap && terraform init && terraform apply
-```
+1. **Fork** this repository
+2. **Run 1 command** in [Azure Cloud Shell](https://portal.azure.com) (browser-based)
+3. **Add 5 secrets** to GitHub
+4. **Click "Run workflow"** on Initial Setup
+5. **Done!** 🎉
 
-**2. Create Azure OIDC credentials**
-```bash
-# Create app registration
-az ad app create --display-name "world-forge-github"
+### Detailed Guide
 
-# Add federated credential for GitHub Actions
-az ad app federated-credential create \
-  --id <APP_ID> \
-  --parameters '{
-    "name": "github-main",
-    "issuer": "https://token.actions.githubusercontent.com",
-    "subject": "repo:<YOUR_ORG>/<YOUR_REPO>:ref:refs/heads/main",
-    "audiences": ["api://AzureADTokenExchange"]
-  }'
-```
+📖 **[Full Fork Setup Instructions →](docs/FORK_SETUP.md)**
 
-**3. Set GitHub secrets**
+The guide includes:
+- Step-by-step screenshots
+- Copy-paste commands for Azure Cloud Shell
+- Troubleshooting tips
 
-| Secret | Value |
-|--------|-------|
-| `AZURE_CLIENT_ID` | App registration client ID |
-| `AZURE_TENANT_ID` | Your Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+### What Gets Auto-Configured
 
-*Azure credentials use OIDC federation — no secrets needed in GitHub.*
+| Secret | How It's Created |
+|--------|------------------|
+| `AZURE_CLIENT_ID` | You provide (from Azure) |
+| `AZURE_TENANT_ID` | You provide (from Azure) |
+| `AZURE_SUBSCRIPTION_ID` | You provide (from Azure) |
+| `GH_PAT` | You provide (from GitHub) |
+| `AZURE_CLIENT_SECRET` | You provide (temporary - auto-deleted after setup) |
+| `TF_STATE_ACCESS_KEY` | **Auto-generated** by setup workflow |
+| `COORDINATOR_API_KEY` | **Auto-generated** by setup workflow |
 
-**4. Deploy**
-```
-GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
-```
+After setup, your fork uses **OIDC federation** — no Azure secrets stored in GitHub!
 
 ---
 

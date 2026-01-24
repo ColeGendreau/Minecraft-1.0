@@ -74,3 +74,5 @@ echo "   $(terraform output -raw dashboard_url)"
 echo ""
 
 
+
+

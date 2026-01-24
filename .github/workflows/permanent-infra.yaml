@@ -52,7 +52,11 @@ jobs:
 
       - name: Terraform Plan
         if: inputs.action == 'deploy'
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan \
+            -var="github_owner=${{ github.repository_owner }}" \
+            -var="github_repo=${{ github.event.repository.name }}" \
+            -out=tfplan
 
       - name: Terraform Apply
         if: inputs.action == 'deploy'
@@ -63,7 +67,9 @@ jobs:
         run: |
           echo "⚠️ Destroying permanent infrastructure..."
           echo "This will remove the Dashboard and Coordinator!"
-          terraform destroy -auto-approve
+          terraform destroy -auto-approve \
+            -var="github_owner=${{ github.repository_owner }}" \
+            -var="github_repo=${{ github.event.repository.name }}"
 
       - name: Get Status
         if: inputs.action == 'status'

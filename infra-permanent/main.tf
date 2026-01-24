@@ -45,6 +45,16 @@ variable "github_token" {
   sensitive   = true
 }
 
+variable "github_owner" {
+  description = "GitHub repository owner (username or organization)"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+}
+
 # Note: RCON and Azure OpenAI config are injected at deploy time
 # by the dashboard-deploy workflow from the main infrastructure outputs
 
@@ -158,12 +168,12 @@ resource "azurerm_container_app" "coordinator" {
       # GitHub config for workflow triggers
       env {
         name  = "GITHUB_OWNER"
-        value = "ColeGendreau"
+        value = var.github_owner
       }
 
       env {
         name  = "GITHUB_REPO"
-        value = "Minecraft-1.0"
+        value = var.github_repo
       }
 
       env {
