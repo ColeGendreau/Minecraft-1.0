@@ -63,6 +63,8 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ## 🚀 Quick Start
 
+> **Forking this repo?** Start at [Self-Hosting (Fork & Deploy)](#-self-hosting-fork--deploy) first!
+
 ### 1. Deploy Control Plane (one-time)
 ```
 GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
@@ -172,6 +174,7 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
 
 | # | Workflow | Purpose | When to Use |
 |---|----------|---------|-------------|
+| 0 | **Initial Setup (Run First!)** | One-time setup for new forks | After forking, before anything else |
 | 1 | **Control Plane (Dashboard)** | Deploy/destroy the always-on dashboard + coordinator | Initial setup, or to stop ALL billing |
 | 2 | **Minecraft Server** | Deploy/destroy AKS infrastructure | Start/stop the Minecraft server |
 | 3 | **Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) | After AKS is ready |
@@ -251,36 +254,67 @@ GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=destro
 
 **No local tools required!** Fork this repo and deploy your own instance in ~15 minutes.
 
-### Quick Version
+### Step 1: Fork the Repository
 
-1. **Fork** this repository
-2. **Run 1 command** in [Azure Cloud Shell](https://portal.azure.com) (browser-based)
-3. **Add 5 secrets** to GitHub
-4. **Click "Run workflow"** on Initial Setup
-5. **Done!** 🎉
+Click the **Fork** button at the top of this page.
 
-### Detailed Guide
+### Step 2: Get Azure Credentials (via browser)
 
-📖 **[Full Fork Setup Instructions →](docs/FORK_SETUP.md)**
+1. Go to [portal.azure.com](https://portal.azure.com) and sign in
+2. Click the **Cloud Shell** icon (`>_`) in the top nav bar
+3. Paste this command:
 
-The guide includes:
-- Step-by-step screenshots
-- Copy-paste commands for Azure Cloud Shell
-- Troubleshooting tips
+```bash
+SUB_ID=$(az account show --query id -o tsv)
+echo "AZURE_SUBSCRIPTION_ID: $SUB_ID"
+az ad sp create-for-rbac --name "minecraft-devops-setup" --role Contributor --scopes /subscriptions/$SUB_ID \
+  --query "{AZURE_CLIENT_ID: appId, AZURE_CLIENT_SECRET: password, AZURE_TENANT_ID: tenant}" -o table
+```
+
+4. Copy the 4 values that appear
+
+### Step 3: Create GitHub Personal Access Token
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
+2. Click **Generate new token (classic)**
+3. Check: `repo` (all) + `workflow`
+4. Copy the token
+
+### Step 4: Add 5 Secrets to GitHub
+
+Go to your fork → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+| Secret Name | Value |
+|-------------|-------|
+| `AZURE_CLIENT_ID` | `appId` from step 2 |
+| `AZURE_CLIENT_SECRET` | `password` from step 2 |
+| `AZURE_TENANT_ID` | `tenant` from step 2 |
+| `AZURE_SUBSCRIPTION_ID` | subscription ID from step 2 |
+| `GH_PAT` | token from step 3 |
+
+### Step 5: Run Setup Workflow
+
+1. Go to **Actions** tab in your fork
+2. Click **"0. Initial Setup (Run First!)"**
+3. Click **Run workflow** → type `setup` → **Run workflow**
+4. Wait ~2 minutes ✅
+
+### Step 6: Deploy!
+
+1. Run **"1. Control Plane (Dashboard)"** with `action=deploy`
+2. Run **"2. Minecraft Server"** with `action=apply`
+3. Play! 🎮
 
 ### What Gets Auto-Configured
 
-| Secret | How It's Created |
-|--------|------------------|
-| `AZURE_CLIENT_ID` | You provide (from Azure) |
-| `AZURE_TENANT_ID` | You provide (from Azure) |
-| `AZURE_SUBSCRIPTION_ID` | You provide (from Azure) |
-| `GH_PAT` | You provide (from GitHub) |
-| `AZURE_CLIENT_SECRET` | You provide (temporary - auto-deleted after setup) |
-| `TF_STATE_ACCESS_KEY` | **Auto-generated** by setup workflow |
-| `COORDINATOR_API_KEY` | **Auto-generated** by setup workflow |
+| Secret | Created By |
+|--------|------------|
+| `TF_STATE_ACCESS_KEY` | **Auto** (setup workflow) |
+| `COORDINATOR_API_KEY` | **Auto** (setup workflow) |
+| OIDC Federated Credential | **Auto** (setup workflow) |
+| `AZURE_CLIENT_SECRET` | **Deleted** after setup (OIDC replaces it) |
 
-After setup, your fork uses **OIDC federation** — no Azure secrets stored in GitHub!
+📖 **[Full Guide with Screenshots →](docs/FORK_SETUP.md)**
 
 ---
 
