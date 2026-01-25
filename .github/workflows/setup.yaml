@@ -16,11 +16,6 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  STORAGE_ACCOUNT_NAME: mcdemodevtfstate
-  STORAGE_CONTAINER_NAME: tfstate
-  STORAGE_RG_NAME: mc-demo-tfstate-rg
-
 jobs:
   validate:
     name: "Validate Inputs"
@@ -37,82 +32,100 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     
+    env:
+      # Generate unique storage account name from repo (max 24 chars, lowercase alphanumeric only)
+      STORAGE_RG_NAME: mc-demo-tfstate-rg
+      STORAGE_CONTAINER_NAME: tfstate
+    
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Step 1/6: Azure Login"
-        uses: azure/login@v2
+      - name: "Step 1/6: Azure Login (with client secret)"
+        uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # Use client secret for initial setup (before OIDC is configured)
-          # After setup, workflows use OIDC (no secret needed)
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-        continue-on-error: false
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
       - name: "Step 2/6: Create Federated Credential for OIDC"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          GITHUB_REPO_FULL: ${{ github.repository }}
         run: |
           echo "🔐 Setting up OIDC authentication..."
           
           # Get the app's object ID (different from client ID)
-          APP_OBJECT_ID=$(az ad app show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+          APP_OBJECT_ID=$(az ad app show --id "$AZURE_CLIENT_ID" --query id -o tsv)
+          
+          if [ -z "$APP_OBJECT_ID" ]; then
+            echo "❌ Could not find app registration with client ID: $AZURE_CLIENT_ID"
+            exit 1
+          fi
+          
+          echo "Found app object ID: $APP_OBJECT_ID"
           
           # Check if federated credential already exists
-          EXISTING=$(az ad app federated-credential list --id $APP_OBJECT_ID --query "[?name=='github-actions-main'].name" -o tsv)
+          EXISTING=$(az ad app federated-credential list --id "$APP_OBJECT_ID" --query "[?name=='github-actions-main'].name" -o tsv 2>/dev/null || echo "")
           
           if [ -n "$EXISTING" ]; then
             echo "✅ Federated credential already exists - skipping"
           else
+            echo "Creating federated credential for repo: $GITHUB_REPO_FULL"
+            
             # Create federated credential for main branch
             az ad app federated-credential create \
-              --id $APP_OBJECT_ID \
-              --parameters '{
-                "name": "github-actions-main",
-                "issuer": "https://token.actions.githubusercontent.com",
-                "subject": "repo:${{ github.repository }}:ref:refs/heads/main",
-                "audiences": ["api://AzureADTokenExchange"]
-              }'
+              --id "$APP_OBJECT_ID" \
+              --parameters "{
+                \"name\": \"github-actions-main\",
+                \"issuer\": \"https://token.actions.githubusercontent.com\",
+                \"subject\": \"repo:${GITHUB_REPO_FULL}:ref:refs/heads/main\",
+                \"audiences\": [\"api://AzureADTokenExchange\"]
+              }"
+            
             echo "✅ Created federated credential for main branch"
           fi
 
       - name: "Step 3/6: Bootstrap Terraform State Storage"
         id: bootstrap
+        env:
+          STORAGE_ACCOUNT_NAME: mcdemodevtfstate
         run: |
           echo "📦 Setting up Terraform state storage..."
           
           # Check if resource group already exists
-          if az group show --name ${{ env.STORAGE_RG_NAME }} &>/dev/null; then
+          if az group show --name "$STORAGE_RG_NAME" &>/dev/null; then
             echo "Resource group already exists"
           else
             echo "Creating resource group..."
-            az group create --name ${{ env.STORAGE_RG_NAME }} --location westus3
+            az group create --name "$STORAGE_RG_NAME" --location westus3
           fi
           
           # Check if storage account already exists
-          if az storage account show --name ${{ env.STORAGE_ACCOUNT_NAME }} --resource-group ${{ env.STORAGE_RG_NAME }} &>/dev/null; then
+          if az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$STORAGE_RG_NAME" &>/dev/null; then
             echo "Storage account already exists"
           else
-            echo "Creating storage account..."
+            echo "Creating storage account: $STORAGE_ACCOUNT_NAME"
             az storage account create \
-              --name ${{ env.STORAGE_ACCOUNT_NAME }} \
-              --resource-group ${{ env.STORAGE_RG_NAME }} \
+              --name "$STORAGE_ACCOUNT_NAME" \
+              --resource-group "$STORAGE_RG_NAME" \
               --location westus3 \
               --sku Standard_LRS \
               --min-tls-version TLS1_2 \
               --allow-blob-public-access false
           fi
           
-          # Check if container exists
-          ACCOUNT_KEY=$(az storage account keys list --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --resource-group ${{ env.STORAGE_RG_NAME }} --query '[0].value' -o tsv)
+          # Get storage account key
+          ACCOUNT_KEY=$(az storage account keys list \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --resource-group "$STORAGE_RG_NAME" \
+            --query '[0].value' -o tsv)
           
-          if az storage container show --name ${{ env.STORAGE_CONTAINER_NAME }} --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$ACCOUNT_KEY" &>/dev/null; then
+          # Check if container exists
+          if az storage container show --name "$STORAGE_CONTAINER_NAME" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$ACCOUNT_KEY" &>/dev/null; then
             echo "Container already exists"
           else
             echo "Creating container..."
             az storage container create \
-              --name ${{ env.STORAGE_CONTAINER_NAME }} \
-              --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+              --name "$STORAGE_CONTAINER_NAME" \
+              --account-name "$STORAGE_ACCOUNT_NAME" \
               --account-key "$ACCOUNT_KEY"
           fi
           
@@ -153,9 +166,6 @@ jobs:
           # Delete the client secret from GitHub (no longer needed - OIDC is configured)
           gh secret delete AZURE_CLIENT_SECRET || true
           
-          # Note: We can't delete the secret from Azure AD via CLI easily,
-          # but the federated credential means the secret is no longer used
-          
           echo "✅ AZURE_CLIENT_SECRET removed from GitHub"
           echo ""
           echo "🔒 Future workflows will use OIDC (no secrets needed!)"
@@ -183,4 +193,3 @@ jobs:
           echo "Branch: main"
           echo "Auth: OIDC (secure, no secrets stored)"
           echo ""
-
