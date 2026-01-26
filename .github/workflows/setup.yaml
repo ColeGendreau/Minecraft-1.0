@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Step 1/5: Azure Login (with client secret)"
+      - name: "Step 1/6: Azure Login (with client secret)"
         run: |
           echo "🔐 Logging in to Azure..."
           az login --service-principal \
@@ -55,7 +55,7 @@ jobs:
           ACCOUNT=$(az account show --query name -o tsv)
           echo "✅ Logged in to Azure subscription: $ACCOUNT"
 
-      - name: "Step 2/5: Check/Create Federated Credential for OIDC"
+      - name: "Step 2/6: Check/Create Federated Credential for OIDC"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           GITHUB_REPO_FULL: ${{ github.repository }}
@@ -104,7 +104,7 @@ jobs:
             echo "✅ Created federated credential for main branch"
           fi
 
-      - name: "Step 3/5: Bootstrap Terraform State Storage"
+      - name: "Step 3/6: Bootstrap Terraform State Storage"
         id: bootstrap
         env:
           STORAGE_ACCOUNT_NAME: mcdemodevtfstate
@@ -153,7 +153,7 @@ jobs:
           echo "tf_state_key=$ACCOUNT_KEY" >> $GITHUB_OUTPUT
           echo "✅ Terraform state storage ready"
 
-      - name: "Step 4/5: Generate Coordinator API Key"
+      - name: "Step 4/6: Generate Coordinator API Key"
         id: apikey
         run: |
           echo "🔑 Generating secure API key..."
@@ -161,7 +161,7 @@ jobs:
           echo "coordinator_api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "✅ API key generated"
 
-      - name: "Step 5/5: Save Secrets to Repository"
+      - name: "Step 5/6: Save Secrets to Repository"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -178,22 +178,34 @@ jobs:
           echo ""
           echo "🎉 Secrets configured automatically!"
 
-      - name: "🎉 Setup Complete!"
+      - name: "Step 6/6: Deploy Control Plane"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          echo "🚀 Automatically deploying Control Plane..."
+          echo ""
+          echo "Triggering '1. Control Plane (Dashboard)' workflow..."
+          
+          gh workflow run permanent-infra.yaml \
+            --field action=deploy
+          
+          echo ""
+          echo "✅ Control Plane deployment triggered!"
           echo ""
           echo "=============================================="
-          echo "   ✅ SETUP COMPLETE!"
+          echo "   🎉 SETUP COMPLETE!"
           echo "=============================================="
           echo ""
-          echo "Your fork is now configured. Next steps:"
+          echo "What's happening now:"
           echo ""
-          echo "1. Run '1. Control Plane (Dashboard)' workflow"
-          echo "   → This deploys the dashboard and coordinator API"
+          echo "1. ✅ Setup complete (this workflow)"
+          echo "2. 🔄 Control Plane deploying (~5-7 min)"
+          echo "   → Check '1. Control Plane (Dashboard)' workflow"
           echo ""
-          echo "2. Run '2. Minecraft Server' workflow"
-          echo "   → This deploys the Minecraft infrastructure"
+          echo "Once Control Plane is deployed:"
           echo ""
-          echo "3. Visit your dashboard URL (shown after step 1)"
+          echo "3. Visit your dashboard (URL shown in workflow output)"
+          echo "4. Click Admin → Deploy to start Minecraft"
           echo ""
           echo "=============================================="
           echo ""

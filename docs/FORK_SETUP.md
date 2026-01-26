@@ -11,9 +11,9 @@ This guide will help you deploy your own Minecraft DevOps Demo. **No coding requ
 You'll do 3 things:
 1. **Fork** this repository
 2. **Run 1 command** in Azure (via your browser)
-3. **Add 5 values** to GitHub and click a button
+3. **Add 5 values** to GitHub and click ONE button
 
-That's it! Everything else is automatic.
+That's it! The setup workflow automatically deploys your dashboard too.
 
 ---
 
@@ -146,37 +146,36 @@ Repository secrets
 4. Type `setup` in the confirmation field
 5. Click **Run workflow**
 
-Wait 2-3 minutes for it to complete (you'll see a green checkmark ✅).
-
 **What this does automatically:**
 - ✅ Configures secure OIDC authentication for future workflows
 - ✅ Creates Terraform state storage
 - ✅ Generates `TF_STATE_ACCESS_KEY` secret
 - ✅ Generates `COORDINATOR_API_KEY` secret
+- ✅ **Automatically deploys the Control Plane!**
+
+Wait ~7-10 minutes total. You'll see TWO workflows run:
+1. **0. Initial Setup** (2-3 min)
+2. **1. Control Plane** (auto-triggered, ~5 min)
 
 After setup, workflows use OIDC (your `AZURE_CLIENT_SECRET` stays but isn't used for normal operations).
 
 ---
 
-## Step 6: Deploy Your Infrastructure
+## Step 6: Deploy Minecraft Server (Optional)
 
-Now run the remaining workflows **in order**:
+The Control Plane is now deployed! To add Minecraft:
 
-### 6a. Deploy Control Plane
-1. Click **1. Control Plane (Dashboard)** in Actions
-2. Click **Run workflow** → **Run workflow**
-3. Wait ~5 minutes for completion
+**Option A: Use the Dashboard (Recommended)**
+1. Find the Dashboard URL in the **1. Control Plane** workflow output
+2. Open the dashboard and click **Admin**
+3. Click **Deploy** to start Minecraft
 
-This deploys your dashboard and API.
-
-### 6b. Deploy Minecraft Server
+**Option B: Use GitHub Actions**
 1. Click **2. Minecraft Server** in Actions
 2. Click **Run workflow**
-3. Set `Infrastructure action` to `deploy`
+3. Set `Infrastructure action` to `apply`
 4. Click **Run workflow**
 5. Wait ~10 minutes for completion
-
-This deploys your Minecraft server!
 
 ---
 
