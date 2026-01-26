@@ -46,7 +46,7 @@ You should see a terminal at the bottom of your screen.
 Copy and paste this entire command into the Cloud Shell:
 
 ```bash
-# This creates a temporary service principal and outputs your credentials
+# This creates a service principal and outputs your credentials
 SUB_ID=$(az account show --query id -o tsv)
 echo ""
 echo "=========================================="
@@ -149,10 +149,12 @@ Repository secrets
 Wait 2-3 minutes for it to complete (you'll see a green checkmark ✅).
 
 **What this does automatically:**
-- ✅ Configures secure OIDC authentication (deletes the temporary secret)
+- ✅ Configures secure OIDC authentication for future workflows
 - ✅ Creates Terraform state storage
 - ✅ Generates `TF_STATE_ACCESS_KEY` secret
 - ✅ Generates `COORDINATOR_API_KEY` secret
+
+After setup, workflows use OIDC (your `AZURE_CLIENT_SECRET` stays but isn't used for normal operations).
 
 ---
 

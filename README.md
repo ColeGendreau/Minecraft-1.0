@@ -312,7 +312,8 @@ Go to your fork → **Settings** → **Secrets and variables** → **Actions** �
 | `TF_STATE_ACCESS_KEY` | **Auto** (setup workflow) |
 | `COORDINATOR_API_KEY` | **Auto** (setup workflow) |
 | OIDC Federated Credential | **Auto** (setup workflow) |
-| `AZURE_CLIENT_SECRET` | **Deleted** after setup (OIDC replaces it) |
+
+After setup, workflows use **OIDC** (no client secret needed for day-to-day operations).
 
 📖 **[Full Guide with Screenshots →](docs/FORK_SETUP.md)**
 
