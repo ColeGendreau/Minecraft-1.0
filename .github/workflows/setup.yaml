@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Step 1/6: Azure Login (with client secret)"
+      - name: "Step 1/5: Azure Login (with client secret)"
         run: |
           echo "🔐 Logging in to Azure..."
           az login --service-principal \
@@ -55,7 +55,7 @@ jobs:
           ACCOUNT=$(az account show --query name -o tsv)
           echo "✅ Logged in to Azure subscription: $ACCOUNT"
 
-      - name: "Step 2/6: Create Federated Credential for OIDC"
+      - name: "Step 2/5: Create Federated Credential for OIDC"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           GITHUB_REPO_FULL: ${{ github.repository }}
@@ -93,7 +93,7 @@ jobs:
             echo "✅ Created federated credential for main branch"
           fi
 
-      - name: "Step 3/6: Bootstrap Terraform State Storage"
+      - name: "Step 3/5: Bootstrap Terraform State Storage"
         id: bootstrap
         env:
           STORAGE_ACCOUNT_NAME: mcdemodevtfstate
@@ -142,7 +142,7 @@ jobs:
           echo "tf_state_key=$ACCOUNT_KEY" >> $GITHUB_OUTPUT
           echo "✅ Terraform state storage ready"
 
-      - name: "Step 4/6: Generate Coordinator API Key"
+      - name: "Step 4/5: Generate Coordinator API Key"
         id: apikey
         run: |
           echo "🔑 Generating secure API key..."
@@ -150,7 +150,7 @@ jobs:
           echo "coordinator_api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "✅ API key generated"
 
-      - name: "Step 5/6: Save Secrets to Repository"
+      - name: "Step 5/5: Save Secrets to Repository"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -166,19 +166,6 @@ jobs:
           
           echo ""
           echo "🎉 Secrets configured automatically!"
-
-      - name: "Step 6/6: Cleanup Temporary Secret"
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          echo "🧹 Cleaning up temporary client secret..."
-          
-          # Delete the client secret from GitHub (no longer needed - OIDC is configured)
-          gh secret delete AZURE_CLIENT_SECRET || true
-          
-          echo "✅ AZURE_CLIENT_SECRET removed from GitHub"
-          echo ""
-          echo "🔒 Future workflows will use OIDC (no secrets needed!)"
 
       - name: "🎉 Setup Complete!"
         run: |
