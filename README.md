@@ -67,7 +67,7 @@ Paste an image URL or search for any image on the web. Then watch as it builds l
 
 ### 1. Deploy Control Plane (one-time)
 ```
-GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
+GitHub → Actions → "1. Control Plane - Deploy/Destroy" → Run with action=deploy
 ```
 *Wait ~5 min for Dashboard URL to appear in workflow output*
 
@@ -87,11 +87,11 @@ Dashboard → Create → Enter image URL → Build!
 Minecraft Java → Multiplayer → Add Server → <PUBLIC_IP>:25565
 ```
 
-### 5. Save Money
+### 5. Save Money (Teardown)
 ```
-Dashboard → Admin → Destroy (stops Minecraft, keeps dashboard ~$6/mo)
+Dashboard → Admin → Destroy    (stops Minecraft only, dashboard stays ~$6/mo)
 — or —
-GitHub → Actions → "1. Control Plane" → destroy (stops everything, $0/mo)
+GitHub → Actions → "🔥 Destroy Everything (Tier 0)"  (stops ALL, $0/mo)
 ```
 
 ---
@@ -175,8 +175,10 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
 | # | Workflow | Purpose | When to Use |
 |---|----------|---------|-------------|
 | 0 | **Initial Setup (Run First!)** | One-time setup for new forks | After forking, before anything else |
-| 1 | **Control Plane (Dashboard)** | Deploy/destroy the always-on dashboard + coordinator | Initial setup, or to stop ALL billing |
-| 2 | **Minecraft Server** | Deploy/destroy AKS infrastructure | Start/stop the Minecraft server |
+| 0 | **Initial Setup (Run First!)** | One-time setup for new forks + auto-deploys Control Plane | New forks only |
+| 1 | **Control Plane - Deploy/Destroy** | Deploy/destroy the always-on dashboard + coordinator | Deploy, or destroy to stop billing |
+| 2 | **Minecraft Server - Deploy/Destroy** | Deploy/destroy AKS infrastructure | Start/stop the Minecraft server |
+| 🔥 | **Destroy Everything (Tier 0)** | Destroy ALL infrastructure in correct order | Go to $0/month |
 | 3 | **Deploy Minecraft Apps** | Deploy Helm charts (Minecraft, monitoring) | After AKS is ready |
 | Auto | **Build Containers** | Auto-triggered on code changes | Automatic (no manual trigger needed) |
 
@@ -185,21 +187,21 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  TIER 0: FULL SHUTDOWN ($0/month)                                   │
-│  → Run "1. Control Plane" with action=destroy                       │
+│  → Run "🔥 Destroy Everything (Tier 0)" workflow                    │
 │  → Everything is gone, zero Azure costs                             │
 │  → Re-deploy from GitHub when ready to use again                    │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲
-                              │ workflow "1. Control Plane" → destroy
+                              │ "🔥 Destroy Everything" workflow
                               │
 ┌─────────────────────────────────────────────────────────────────────┐
 │  TIER 1: STANDBY MODE (~$6/month)                                   │
-│  → Control Plane running (Dashboard + Coordinator)                  │
-│  → Minecraft Server destroyed                                       │
+│  → Control Plane running (Dashboard + Coordinator)                   │
+│  → Minecraft Server destroyed                                        │
 │  → Can deploy Minecraft anytime from Dashboard                      │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲
-                              │ Dashboard → Destroy (or workflow 2)
+                              │ Dashboard → Admin → Destroy
                               │
 ┌─────────────────────────────────────────────────────────────────────┐
 │  TIER 2: FULL RUNNING (~$80/month)                                  │
@@ -212,14 +214,14 @@ All workflows are accessible from **GitHub → Actions → (left sidebar)**.
 
 **Initial Setup (one-time):**
 ```
-1. GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=deploy
+1. GitHub → Actions → "1. Control Plane - Deploy/Destroy" → Run with action=deploy
 2. Wait ~5 min for Dashboard URL to appear in workflow output
 ```
 
 **Daily Usage:**
 ```
 # Start playing  
-Dashboard → Admin → Click "DEPLOY" (or run workflow "2. Minecraft Server")
+Dashboard → Admin → Click "DEPLOY" (or run workflow "2. Minecraft Server - Deploy/Destroy")
 
 # Create pixel art
 Dashboard → Create → Build assets
@@ -230,7 +232,7 @@ Dashboard → Admin → Click "DESTROY"
 
 **Full Shutdown (stop all billing):**
 ```
-GitHub → Actions → "1. Control Plane (Dashboard)" → Run with action=destroy
+GitHub → Actions → "🔥 Destroy Everything (Tier 0)" → Type "destroy" → Run
 ```
 
 ---
@@ -301,8 +303,8 @@ Go to your fork → **Settings** → **Secrets and variables** → **Actions** �
 
 ### Step 6: Deploy!
 
-1. Run **"1. Control Plane (Dashboard)"** with `action=deploy`
-2. Run **"2. Minecraft Server"** with `action=apply`
+1. Run **"1. Control Plane - Deploy/Destroy"** with `action=deploy`
+2. Use Dashboard → Admin → Deploy (or run "2. Minecraft Server - Deploy/Destroy")
 3. Play! 🎮
 
 ### What Gets Auto-Configured
@@ -439,8 +441,10 @@ git push origin main
 https://github.com/ColeGendreau/Minecraft-1.0/actions
 ```
 - **Auto: Build Containers** — Triggered on every push, builds Docker images
-- **1. Control Plane (Dashboard)** — Deploys dashboard + coordinator to Azure Container Apps  
-- **2. Minecraft Server** — Deploys/destroys AKS infrastructure
+- **0. Initial Setup (Run First!)** — One-time setup for new forks, auto-deploys Control Plane
+- **1. Control Plane - Deploy/Destroy** — Deploys/destroys dashboard + coordinator
+- **2. Minecraft Server - Deploy/Destroy** — Deploys/destroys AKS infrastructure
+- **🔥 Destroy Everything (Tier 0)** — Nukes all infrastructure for $0/month
 - **3. Deploy Minecraft Apps** — Deploys Minecraft, Prometheus, Grafana to AKS
 
 Click any workflow run → Click a job → View step logs
@@ -578,11 +582,11 @@ The app uses these key environment variables (set in Azure/GitHub):
 
 **Deploy infrastructure from dashboard:**
 - Go to Admin page → Click "DEPLOY" button
-- Or run "2. Minecraft Server" workflow manually with action=apply
+- Or run "2. Minecraft Server - Deploy/Destroy" workflow
 
 **Destroy infrastructure:**
 - Admin page → Click "DESTROY" button  
-- Or run "2. Minecraft Server" workflow with action=destroy
+- Or run "2. Minecraft Server - Deploy/Destroy" workflow
 
 **Check why build failed:**
 1. Go to GitHub Actions

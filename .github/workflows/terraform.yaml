@@ -1,4 +1,8 @@
-name: "2. Minecraft Server"
+# Manage Minecraft Server Infrastructure (AKS, networking, monitoring)
+# Deploys or destroys based on INFRASTRUCTURE_STATE file
+# Can also be controlled via the Dashboard
+
+name: "2. Minecraft Server - Deploy/Destroy"
 
 on:
   push:

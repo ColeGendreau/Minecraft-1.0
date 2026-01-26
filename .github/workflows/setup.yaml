@@ -184,7 +184,7 @@ jobs:
         run: |
           echo "🚀 Automatically deploying Control Plane..."
           echo ""
-          echo "Triggering '1. Control Plane (Dashboard)' workflow..."
+          echo "Triggering '1. Control Plane - Deploy/Destroy' workflow..."
           
           gh workflow run permanent-infra.yaml \
             --field action=deploy
@@ -200,7 +200,7 @@ jobs:
           echo ""
           echo "1. ✅ Setup complete (this workflow)"
           echo "2. 🔄 Control Plane deploying (~5-7 min)"
-          echo "   → Check '1. Control Plane (Dashboard)' workflow"
+          echo "   → Check '1. Control Plane - Deploy/Destroy' workflow"
           echo ""
           echo "Once Control Plane is deployed:"
           echo ""

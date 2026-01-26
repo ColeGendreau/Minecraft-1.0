@@ -154,8 +154,8 @@ Repository secrets
 - ✅ **Automatically deploys the Control Plane!**
 
 Wait ~7-10 minutes total. You'll see TWO workflows run:
-1. **0. Initial Setup** (2-3 min)
-2. **1. Control Plane** (auto-triggered, ~5 min)
+1. **0. Initial Setup (Run First!)** (2-3 min)
+2. **1. Control Plane - Deploy/Destroy** (auto-triggered, ~5 min)
 
 After setup, workflows use OIDC (your `AZURE_CLIENT_SECRET` stays but isn't used for normal operations).
 
@@ -166,16 +166,14 @@ After setup, workflows use OIDC (your `AZURE_CLIENT_SECRET` stays but isn't used
 The Control Plane is now deployed! To add Minecraft:
 
 **Option A: Use the Dashboard (Recommended)**
-1. Find the Dashboard URL in the **1. Control Plane** workflow output
+1. Find the Dashboard URL in the **1. Control Plane - Deploy/Destroy** workflow output
 2. Open the dashboard and click **Admin**
 3. Click **Deploy** to start Minecraft
 
 **Option B: Use GitHub Actions**
-1. Click **2. Minecraft Server** in Actions
+1. Click **2. Minecraft Server - Deploy/Destroy** in Actions
 2. Click **Run workflow**
-3. Set `Infrastructure action` to `apply`
-4. Click **Run workflow**
-5. Wait ~10 minutes for completion
+3. Wait ~10 minutes for completion
 
 ---
 
@@ -220,6 +218,27 @@ Running everything costs approximately:
 - **With Minecraft Server:** ~$3-5/day when running
 
 The dashboard lets you easily destroy the Minecraft infrastructure when not in use to minimize costs.
+
+---
+
+---
+
+## Teardown (Stop Billing)
+
+### Stop Minecraft Only (Tier 1 - ~$6/month)
+- **Dashboard:** Admin → Click **Destroy**
+- Keeps the dashboard running so you can redeploy Minecraft anytime
+
+### Stop Everything (Tier 0 - $0/month)
+1. Go to **Actions** → **🔥 Destroy Everything (Tier 0)**
+2. Click **Run workflow**
+3. Type `destroy` in the confirmation field
+4. Click **Run workflow**
+
+This destroys ALL infrastructure in the correct order (Minecraft first, then Control Plane).
+
+### Redeploy After Full Shutdown
+Run **0. Initial Setup (Run First!)** again — it will skip already-configured items and deploy the Control Plane.
 
 ---
 

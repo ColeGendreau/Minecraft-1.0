@@ -1,7 +1,8 @@
 # Manage Control Plane (Dashboard + Coordinator)
 # This must be deployed first - it's what lets you control the Minecraft infrastructure
+# Can deploy OR destroy - choose action when running
 
-name: "1. Control Plane (Dashboard)"
+name: "1. Control Plane - Deploy/Destroy"
 
 on:
   workflow_dispatch:

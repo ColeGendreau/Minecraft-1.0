@@ -1,0 +1,192 @@
+# Destroy EVERYTHING - Go to Tier 0 ($0 cost)
+# This will destroy all infrastructure in the correct order
+
+name: "🔥 Destroy Everything (Tier 0)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "destroy" to confirm you want to DELETE ALL INFRASTRUCTURE'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  ARM_ACCESS_KEY: ${{ secrets.TF_STATE_ACCESS_KEY }}
+
+jobs:
+  validate:
+    name: "⚠️ Validate Confirmation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        if: github.event.inputs.confirm_destroy != 'destroy'
+        run: |
+          echo "❌ You must type 'destroy' to confirm"
+          echo ""
+          echo "This action will DELETE:"
+          echo "  - Minecraft server and all data"
+          echo "  - Dashboard and Coordinator API"
+          echo "  - All Azure resources"
+          echo ""
+          echo "This CANNOT be undone!"
+          exit 1
+
+  destroy-minecraft:
+    name: "Step 1/2: Destroy Minecraft"
+    runs-on: ubuntu-latest
+    needs: validate
+    defaults:
+      run:
+        working-directory: infra
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Check if Minecraft infrastructure exists
+        id: check
+        run: |
+          if az group show --name mc-demo-dev-rg &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "🎮 Minecraft infrastructure found - will destroy"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Minecraft infrastructure not found - skipping"
+          fi
+
+      - name: Setup Terraform
+        if: steps.check.outputs.exists == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        if: steps.check.outputs.exists == 'true'
+        run: terraform init
+
+      - name: Cleanup Kubernetes resources
+        if: steps.check.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          echo "🧹 Cleaning up Kubernetes resources..."
+          
+          if az aks show --resource-group mc-demo-dev-rg --name mc-demo-dev-aks &>/dev/null; then
+            az aks get-credentials --resource-group mc-demo-dev-rg --name mc-demo-dev-aks --admin --overwrite-existing
+            
+            kubectl delete svc -n minecraft --all --ignore-not-found=true || true
+            kubectl delete svc -n ingress-nginx --all --ignore-not-found=true || true
+            kubectl delete namespace minecraft --ignore-not-found=true --wait=false || true
+            kubectl delete namespace ingress-nginx --ignore-not-found=true --wait=false || true
+            kubectl delete namespace cert-manager --ignore-not-found=true --wait=false || true
+            kubectl delete namespace monitoring --ignore-not-found=true --wait=false || true
+            
+            echo "⏳ Waiting 60s for Azure to release resources..."
+            sleep 60
+          fi
+
+      - name: Terraform Destroy
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          echo "🔥 Destroying Minecraft infrastructure..."
+          terraform destroy -auto-approve
+          echo "✅ Minecraft infrastructure destroyed"
+
+  destroy-control-plane:
+    name: "Step 2/2: Destroy Control Plane"
+    runs-on: ubuntu-latest
+    needs: destroy-minecraft
+    defaults:
+      run:
+        working-directory: infra-permanent
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Check if Control Plane exists
+        id: check
+        run: |
+          if az group show --name mc-demo-dev-dashboard-rg &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "🖥️ Control Plane found - will destroy"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Control Plane not found - skipping"
+          fi
+
+      - name: Setup Terraform
+        if: steps.check.outputs.exists == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        if: steps.check.outputs.exists == 'true'
+        run: terraform init
+
+      - name: Terraform Destroy
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          echo "🔥 Destroying Control Plane..."
+          terraform destroy -auto-approve \
+            -var="github_owner=${{ github.repository_owner }}" \
+            -var="github_repo=${{ github.event.repository.name }}"
+          echo "✅ Control Plane destroyed"
+
+  update-state:
+    name: "Update State File"
+    runs-on: ubuntu-latest
+    needs: destroy-control-plane
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update INFRASTRUCTURE_STATE to OFF
+        run: |
+          echo "OFF" > INFRASTRUCTURE_STATE
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add INFRASTRUCTURE_STATE
+          git commit -m "chore: Set INFRASTRUCTURE_STATE to OFF after destroy-all" || echo "No changes to commit"
+          git push
+
+      - name: "🎉 Destruction Complete"
+        run: |
+          echo ""
+          echo "=============================================="
+          echo "   🔥 ALL INFRASTRUCTURE DESTROYED"
+          echo "=============================================="
+          echo ""
+          echo "You are now at Tier 0:"
+          echo "  - Minecraft: ❌ Destroyed"
+          echo "  - Control Plane: ❌ Destroyed"
+          echo "  - Monthly cost: $0"
+          echo ""
+          echo "To redeploy, run:"
+          echo "  0. Initial Setup (Run First!) - if starting fresh"
+          echo "  OR"
+          echo "  1. Control Plane - Deploy/Destroy (action=deploy)"
+          echo ""
+          echo "=============================================="
+
