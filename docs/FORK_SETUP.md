@@ -114,20 +114,20 @@ Copy these 4 values for the next step!
 1. Go to your forked repository on GitHub
 2. Click **Settings** (tab at the top)
 3. Click **Secrets and variables** → **Actions** (left sidebar)
-4. Click **New repository secret** for each of these:
+4. Click **New repository secret** for each of these 5 secrets:
 
-| Name | Value (from Step 2 & 3) |
-|------|-------------------------|
-| `AZURE_CLIENT_ID` | The `appId` from Azure |
-| `AZURE_CLIENT_SECRET` | The `password` from Azure |
-| `AZURE_TENANT_ID` | The `tenant` from Azure |
-| `AZURE_SUBSCRIPTION_ID` | The subscription ID from Azure |
-| `GH_PAT` | Your GitHub Personal Access Token |
+| Name | Value | Why It's Needed |
+|------|-------|-----------------|
+| `AZURE_CLIENT_ID` | The `appId` from Azure | Identifies your Azure app for authentication |
+| `AZURE_CLIENT_SECRET` | The `password` from Azure | Initial login to Azure (setup only, then OIDC) |
+| `AZURE_TENANT_ID` | The `tenant` from Azure | Your Azure AD directory |
+| `AZURE_SUBSCRIPTION_ID` | The subscription ID from Azure | Which Azure subscription to use |
+| `GH_PAT` | Your GitHub Personal Access Token | Lets workflows create secrets & trigger deploys |
 
 After adding all 5, your secrets page should look like this:
 
 ```
-Repository secrets
+Repository secrets (5 total)
 ──────────────────────────────────
 🔒 AZURE_CLIENT_ID          Just now
 🔒 AZURE_CLIENT_SECRET      Just now
@@ -135,6 +135,8 @@ Repository secrets
 🔒 AZURE_SUBSCRIPTION_ID    Just now
 🔒 GH_PAT                   Just now
 ```
+
+> **Note:** The setup workflow will automatically create 2 more secrets (`TF_STATE_ACCESS_KEY` and `COORDINATOR_API_KEY`), bringing your total to 7.
 
 ---
 

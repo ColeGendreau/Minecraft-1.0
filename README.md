@@ -286,36 +286,41 @@ az ad sp create-for-rbac --name "minecraft-devops-setup" --role Contributor --sc
 
 Go to your fork → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
-| Secret Name | Value |
-|-------------|-------|
-| `AZURE_CLIENT_ID` | `appId` from step 2 |
-| `AZURE_CLIENT_SECRET` | `password` from step 2 |
-| `AZURE_TENANT_ID` | `tenant` from step 2 |
-| `AZURE_SUBSCRIPTION_ID` | subscription ID from step 2 |
-| `GH_PAT` | token from step 3 |
+| Secret Name | Value | Why It's Needed |
+|-------------|-------|-----------------|
+| `AZURE_CLIENT_ID` | `appId` from step 2 | Identifies your Azure app registration for authentication |
+| `AZURE_CLIENT_SECRET` | `password` from step 2 | Initial login to Azure (used once during setup, then OIDC takes over) |
+| `AZURE_TENANT_ID` | `tenant` from step 2 | Your Azure AD directory for authentication |
+| `AZURE_SUBSCRIPTION_ID` | subscription ID from step 2 | Which Azure subscription to deploy resources into |
+| `GH_PAT` | token from step 3 | Allows workflows to create other secrets + coordinator to trigger deployments |
 
 ### Step 5: Run Setup Workflow
 
 1. Go to **Actions** tab in your fork
 2. Click **"0. Initial Setup (Run First!)"**
 3. Click **Run workflow** → type `setup` → **Run workflow**
-4. Wait ~2 minutes ✅
+4. Wait ~7-10 minutes — this runs setup AND deploys the Control Plane automatically! ✅
 
-### Step 6: Deploy!
+### Step 6: Deploy Minecraft (Optional)
 
-1. Run **"1. Control Plane - Deploy/Destroy"** with `action=deploy`
-2. Use Dashboard → Admin → Deploy (or run "2. Minecraft Server - Deploy/Destroy")
-3. Play! 🎮
+Once the Control Plane is deployed:
+1. Find the Dashboard URL in the workflow output
+2. Go to Dashboard → Admin → Click **Deploy**
+3. Wait ~10-15 min, then play! 🎮
 
-### What Gets Auto-Configured
+### All 7 Secrets (Summary)
 
-| Secret | Created By |
-|--------|------------|
-| `TF_STATE_ACCESS_KEY` | **Auto** (setup workflow) |
-| `COORDINATOR_API_KEY` | **Auto** (setup workflow) |
-| OIDC Federated Credential | **Auto** (setup workflow) |
+| Secret | Who Creates It | Purpose |
+|--------|----------------|---------|
+| `AZURE_CLIENT_ID` | **You** (step 2) | Azure app identity |
+| `AZURE_CLIENT_SECRET` | **You** (step 2) | Initial Azure login (kept for re-running setup) |
+| `AZURE_TENANT_ID` | **You** (step 2) | Azure AD directory |
+| `AZURE_SUBSCRIPTION_ID` | **You** (step 2) | Target Azure subscription |
+| `GH_PAT` | **You** (step 3) | GitHub API access for workflows |
+| `TF_STATE_ACCESS_KEY` | **Auto** (setup) | Terraform state storage access |
+| `COORDINATOR_API_KEY` | **Auto** (setup) | Dashboard ↔ Coordinator API authentication |
 
-After setup, workflows use **OIDC** (no client secret needed for day-to-day operations).
+After setup, workflows use **OIDC** for Azure auth (more secure than client secrets).
 
 📖 **[Full Guide with Screenshots →](docs/FORK_SETUP.md)**
 
