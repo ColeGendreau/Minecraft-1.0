@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Step 1/6: Azure Login (with client secret)"
+      - name: "Step 1/7: Azure Login (with client secret)"
         run: |
           echo "🔐 Logging in to Azure..."
           az login --service-principal \
@@ -55,7 +55,7 @@ jobs:
           ACCOUNT=$(az account show --query name -o tsv)
           echo "✅ Logged in to Azure subscription: $ACCOUNT"
 
-      - name: "Step 2/6: Check/Create Federated Credential for OIDC"
+      - name: "Step 2/7: Check/Create Federated Credential for OIDC"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           GITHUB_REPO_FULL: ${{ github.repository }}
@@ -104,7 +104,7 @@ jobs:
             echo "✅ Created federated credential for main branch"
           fi
 
-      - name: "Step 3/6: Bootstrap Terraform State Storage"
+      - name: "Step 3/7: Bootstrap Terraform State Storage"
         id: bootstrap
         env:
           STORAGE_ACCOUNT_NAME: mcdemodevtfstate
@@ -153,7 +153,7 @@ jobs:
           echo "tf_state_key=$ACCOUNT_KEY" >> $GITHUB_OUTPUT
           echo "✅ Terraform state storage ready"
 
-      - name: "Step 4/6: Generate Coordinator API Key"
+      - name: "Step 4/7: Generate Coordinator API Key"
         id: apikey
         run: |
           echo "🔑 Generating secure API key..."
@@ -161,7 +161,7 @@ jobs:
           echo "coordinator_api_key=$API_KEY" >> $GITHUB_OUTPUT
           echo "✅ API key generated"
 
-      - name: "Step 5/6: Save Secrets to Repository"
+      - name: "Step 5/7: Save Secrets to Repository"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
@@ -178,11 +178,11 @@ jobs:
           echo ""
           echo "🎉 Secrets configured automatically!"
 
-      - name: "Step 6/6: Deploy Control Plane"
+      - name: "Step 6/7: Deploy Control Plane Infrastructure"
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🚀 Automatically deploying Control Plane..."
+          echo "🚀 Deploying Control Plane infrastructure..."
           echo ""
           echo "Triggering '1. Control Plane - Deploy/Destroy' workflow..."
           
@@ -190,7 +190,22 @@ jobs:
             --field action=deploy
           
           echo ""
-          echo "✅ Control Plane deployment triggered!"
+          echo "✅ Control Plane infrastructure triggered!"
+          echo "⏳ Waiting 90 seconds for infrastructure to be created..."
+          sleep 90
+
+      - name: "Step 7/7: Build and Deploy Container Images"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "📦 Building and deploying container images..."
+          echo ""
+          echo "Triggering 'Auto: Build Containers' workflow..."
+          
+          gh workflow run dashboard-deploy.yaml
+          
+          echo ""
+          echo "✅ Container build triggered!"
           echo ""
           echo "=============================================="
           echo "   🎉 SETUP COMPLETE!"
@@ -199,13 +214,15 @@ jobs:
           echo "What's happening now:"
           echo ""
           echo "1. ✅ Setup complete (this workflow)"
-          echo "2. 🔄 Control Plane deploying (~5-7 min)"
+          echo "2. 🔄 Control Plane infrastructure (~3-5 min)"
           echo "   → Check '1. Control Plane - Deploy/Destroy' workflow"
+          echo "3. 🔄 Container images building (~3-5 min)"
+          echo "   → Check 'Auto: Build Containers' workflow"
           echo ""
-          echo "Once Control Plane is deployed:"
+          echo "Once both complete (~8-10 min total):"
           echo ""
-          echo "3. Visit your dashboard (URL shown in workflow output)"
-          echo "4. Click Admin → Deploy to start Minecraft"
+          echo "4. Find Dashboard URL in Control Plane workflow output"
+          echo "5. Visit dashboard and click Admin → Deploy to start Minecraft"
           echo ""
           echo "=============================================="
           echo ""

@@ -156,7 +156,8 @@ resource "azurerm_container_app" "coordinator" {
 
     container {
       name   = "coordinator-api"
-      image  = "${azurerm_container_registry.dashboard.login_server}/coordinator-api:latest"
+      # Use placeholder image initially - real image deployed by "Auto: Build Containers" workflow
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -239,7 +240,8 @@ resource "azurerm_container_app" "dashboard" {
 
     container {
       name   = "dashboard"
-      image  = "${azurerm_container_registry.dashboard.login_server}/dashboard:latest"
+      # Use placeholder image initially - real image deployed by "Auto: Build Containers" workflow
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"
       cpu    = 0.25
       memory = "0.5Gi"
 
