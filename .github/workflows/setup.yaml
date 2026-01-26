@@ -55,19 +55,30 @@ jobs:
           ACCOUNT=$(az account show --query name -o tsv)
           echo "✅ Logged in to Azure subscription: $ACCOUNT"
 
-      - name: "Step 2/5: Create Federated Credential for OIDC"
+      - name: "Step 2/5: Check/Create Federated Credential for OIDC"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           GITHUB_REPO_FULL: ${{ github.repository }}
         run: |
-          echo "🔐 Setting up OIDC authentication..."
+          echo "🔐 Checking OIDC authentication setup..."
           
-          # Get the app's object ID (different from client ID)
-          APP_OBJECT_ID=$(az ad app show --id "$AZURE_CLIENT_ID" --query id -o tsv)
+          # Try to get the app's object ID (requires Azure AD read permissions)
+          APP_OBJECT_ID=$(az ad app show --id "$AZURE_CLIENT_ID" --query id -o tsv 2>/dev/null || echo "")
           
           if [ -z "$APP_OBJECT_ID" ]; then
-            echo "❌ Could not find app registration with client ID: $AZURE_CLIENT_ID"
-            exit 1
+            echo "⚠️ Cannot access Azure AD app registrations (insufficient permissions)"
+            echo ""
+            echo "This is OK if you already have OIDC configured!"
+            echo "The service principal needs 'Application Administrator' role to create federated credentials."
+            echo ""
+            echo "To verify OIDC works, check if '1. Control Plane' workflow succeeds after this."
+            echo "If it fails with auth errors, manually add a federated credential in Azure Portal:"
+            echo "  1. Go to Azure Portal → App registrations → Your app"
+            echo "  2. Click 'Certificates & secrets' → 'Federated credentials'"
+            echo "  3. Add credential for: repo:${GITHUB_REPO_FULL}:ref:refs/heads/main"
+            echo ""
+            echo "✅ Skipping federated credential setup (may already exist)"
+            exit 0
           fi
           
           echo "Found app object ID: $APP_OBJECT_ID"
