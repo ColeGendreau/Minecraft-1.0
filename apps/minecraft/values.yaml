@@ -11,10 +11,6 @@ minecraftServer:
   # Disable secure chat signing (removes yellow warning on join)
   enforceSecureProfile: false
   
-  # Gamerules for always-day creative building environment
-  # Time is set to noon (6000) and daylight cycle disabled
-  overrideServerProperties: |
-    enforce-secure-profile=false
   maxPlayers: 20
   maxWorldSize: 10000
   allowNether: true
