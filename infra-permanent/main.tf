@@ -125,6 +125,14 @@ resource "azurerm_role_assignment" "coordinator_cost_reader" {
   principal_id         = azurerm_user_assigned_identity.coordinator.principal_id
 }
 
+# Grant Reader role to coordinator identity
+# This allows the coordinator API to look up public IPs in the AKS node resource group
+resource "azurerm_role_assignment" "coordinator_reader" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.coordinator.principal_id
+}
+
 # Coordinator API - Container App (scales to zero)
 resource "azurerm_container_app" "coordinator" {
   name                         = "${local.name_prefix}-coordinator"
