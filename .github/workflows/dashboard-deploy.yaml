@@ -154,14 +154,16 @@ jobs:
       - name: Deploy to Container Apps
         env:
           GH_PAT_VALUE: ${{ secrets.GH_PAT }}
+          COORDINATOR_API_KEY_VALUE: ${{ secrets.COORDINATOR_API_KEY }}
         run: |
-          # CRITICAL: Set GITHUB_TOKEN first - this is required for deploy button to work
-          # Using a separate update to ensure it's always set correctly
-          echo "Setting GITHUB_TOKEN..."
+          # CRITICAL: Set API_KEY and GITHUB_TOKEN first
+          # API_KEY is required for dashboard authentication
+          # GITHUB_TOKEN is required for deploy button to trigger workflows
+          echo "Setting critical env vars (API_KEY, GITHUB_TOKEN)..."
           az containerapp update \
             --name ${{ env.COORDINATOR_APP }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --set-env-vars "GITHUB_TOKEN=${GH_PAT_VALUE}"
+            --set-env-vars "API_KEY=${COORDINATOR_API_KEY_VALUE}" "GITHUB_TOKEN=${GH_PAT_VALUE}"
           
           # Now update with the image and other env vars
           echo "Deploying coordinator with new image..."
@@ -170,6 +172,7 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ env.ACR_NAME }}.azurecr.io/coordinator-api:${{ github.sha }} \
             --set-env-vars \
+              "API_KEY=${COORDINATOR_API_KEY_VALUE}" \
               "MINECRAFT_RCON_HOST=${{ steps.get_minecraft.outputs.rcon_ip }}" \
               "MINECRAFT_RCON_PORT=25575" \
               "MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024" \
