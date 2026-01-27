@@ -178,6 +178,7 @@ jobs:
               "MINECRAFT_RCON_PASSWORD=worldforge-rcon-2024" \
               "AKS_RESOURCE_GROUP=mc-demo-dev-rg" \
               "AKS_CLUSTER_NAME=mc-demo-dev-aks" \
+              "AKS_LOCATION=westus3" \
               "AZURE_SUBSCRIPTION_ID=${{ steps.get_subscription.outputs.subscription_id }}" \
               "GITHUB_TOKEN=${GH_PAT_VALUE}" \
               "GITHUB_OWNER=${{ github.repository_owner }}" \

@@ -24,6 +24,8 @@ const STATE_FILE_PATH = 'INFRASTRUCTURE_STATE';
 // Azure configuration for looking up public IP
 const AZURE_SUBSCRIPTION_ID = process.env.AZURE_SUBSCRIPTION_ID;
 const AKS_RESOURCE_GROUP = process.env.AKS_RESOURCE_GROUP || 'mc-demo-dev-rg';
+const AKS_CLUSTER_NAME = process.env.AKS_CLUSTER_NAME || 'mc-demo-dev-aks';
+const AKS_LOCATION = process.env.AKS_LOCATION || 'westus3';
 
 // Cache the public IP to avoid repeated Azure API calls
 let cachedPublicIp: string | null = null;
@@ -32,7 +34,8 @@ const PUBLIC_IP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Get the public IP from Azure (with caching)
- * Looks up the static public IP resource in the AKS resource group
+ * The public IP is in the AKS NODE resource group, not the main resource group!
+ * Node RG format: MC_{resource_group}_{cluster_name}_{location}
  */
 async function getPublicIpFromAzure(): Promise<string | null> {
   // Return cached value if still valid
@@ -56,12 +59,18 @@ async function getPublicIpFromAzure(): Promise<string | null> {
     const credential = new DefaultAzureCredential();
     const networkClient = new NetworkManagementClient(credential, AZURE_SUBSCRIPTION_ID);
     
-    // List public IPs in the AKS resource group
-    const publicIps = networkClient.publicIPAddresses.list(AKS_RESOURCE_GROUP);
+    // The public IP is in the AKS NODE resource group (MC_...), not the main resource group
+    // Format: MC_{resource_group}_{cluster_name}_{location}
+    const nodeResourceGroup = `MC_${AKS_RESOURCE_GROUP}_${AKS_CLUSTER_NAME}_${AKS_LOCATION}`;
+    
+    console.log(`Looking for public IP in node resource group: ${nodeResourceGroup}`);
+    
+    // List public IPs in the AKS NODE resource group
+    const publicIps = networkClient.publicIPAddresses.list(nodeResourceGroup);
     
     for await (const ip of publicIps) {
-      // Look for our static public IP (named mc-demo-dev-public-ip or similar)
-      if (ip.name?.includes('public-ip') && ip.ipAddress) {
+      // Look for our static public IP (named mc-demo-dev-ingress-ip or similar)
+      if (ip.name?.includes('ingress-ip') && ip.ipAddress) {
         console.log(`Found public IP: ${ip.ipAddress} (${ip.name})`);
         cachedPublicIp = ip.ipAddress;
         publicIpCacheTime = Date.now();
@@ -69,7 +78,20 @@ async function getPublicIpFromAzure(): Promise<string | null> {
       }
     }
     
-    console.log('No public IP found in resource group');
+    // Also try the main resource group as fallback
+    console.log(`No IP in node RG, trying main resource group: ${AKS_RESOURCE_GROUP}`);
+    const mainRgIps = networkClient.publicIPAddresses.list(AKS_RESOURCE_GROUP);
+    
+    for await (const ip of mainRgIps) {
+      if ((ip.name?.includes('ingress-ip') || ip.name?.includes('public-ip')) && ip.ipAddress) {
+        console.log(`Found public IP in main RG: ${ip.ipAddress} (${ip.name})`);
+        cachedPublicIp = ip.ipAddress;
+        publicIpCacheTime = Date.now();
+        return cachedPublicIp;
+      }
+    }
+    
+    console.log('No public IP found in either resource group');
     return null;
   } catch (error) {
     console.error('Failed to get public IP from Azure:', error);
@@ -188,21 +210,37 @@ async function getActiveWorkflowInfo(): Promise<{
       return { hasActiveRun: false, action: null, runId: null, runUrl: null, startedAt: null, progress: 0 };
     }
 
-    // Determine action from commit message or run name
-    const isDestroying = activeRun.head_commit?.message?.toLowerCase().includes('destroy') ||
-                         activeRun.name?.toLowerCase().includes('destroy');
-    const isDeploying = activeRun.head_commit?.message?.toLowerCase().includes('deploy') ||
-                        activeRun.name?.toLowerCase().includes('deploy');
+    // Determine action from the INFRASTRUCTURE_STATE file (most reliable source)
+    // If state is ON, we're deploying. If OFF, we're destroying.
+    // Note: The workflow name "Deploy/Destroy" contains BOTH words, so we can't use that!
+    const { state: infraState } = await getInfrastructureState();
+    const actionFromState = infraState === 'ON' ? 'deploying' : 'destroying';
+    
+    // Also check commit message as a fallback (but NOT the workflow name which contains both)
+    const commitMessage = activeRun.head_commit?.message?.toLowerCase() || '';
+    // Only use commit message if it clearly indicates ONE action (not both)
+    const commitHasDestroy = commitMessage.includes('destroy') && !commitMessage.includes('deploy');
+    const commitHasDeploy = commitMessage.includes('deploy') && !commitMessage.includes('destroy');
+    
+    let action: 'deploying' | 'destroying' | 'unknown';
+    if (commitHasDestroy) {
+      action = 'destroying';
+    } else if (commitHasDeploy) {
+      action = 'deploying';
+    } else {
+      // Use the infrastructure state as the source of truth
+      action = actionFromState;
+    }
 
     // Estimate progress based on time elapsed (rough estimate)
     const startedAt = activeRun.created_at;
     const elapsed = Date.now() - new Date(startedAt).getTime();
-    const estimatedTotal = isDestroying ? 8 * 60 * 1000 : 12 * 60 * 1000; // 8 min destroy, 12 min deploy
+    const estimatedTotal = action === 'destroying' ? 8 * 60 * 1000 : 12 * 60 * 1000; // 8 min destroy, 12 min deploy
     const progress = Math.min(Math.round((elapsed / estimatedTotal) * 100), 95); // Cap at 95% until complete
 
     return {
       hasActiveRun: true,
-      action: isDestroying ? 'destroying' : isDeploying ? 'deploying' : 'unknown',
+      action,
       runId: activeRun.id,
       runUrl: activeRun.html_url,
       startedAt,
