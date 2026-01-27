@@ -7,6 +7,14 @@ minecraftServer:
   whitelist: ""
   ops: ""
   pvp: false
+  
+  # Disable secure chat signing (removes yellow warning on join)
+  enforceSecureProfile: false
+  
+  # Gamerules for always-day creative building environment
+  # Time is set to noon (6000) and daylight cycle disabled
+  overrideServerProperties: |
+    enforce-secure-profile=false
   maxPlayers: 20
   maxWorldSize: 10000
   allowNether: true
@@ -45,6 +53,13 @@ minecraftServer:
   
   # Additional JVM arguments for better performance with WorldEdit
   jvmXXOpts: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
+
+# Environment variables for gamerules and settings
+extraEnv:
+  # Always daytime - disable daylight cycle and set to noon
+  INIT_GAMERULES: "doDaylightCycle=false,doWeatherCycle=false"
+  # Set time to day on server start
+  POST_WORLD_CREATE_COMMANDS: "time set day"
 
 # Expose RCON as a separate service for coordinator access
 extraServicePorts:
